@@ -1,0 +1,46 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: focusmind-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: focusmind-backend
+    restart: unless-stopped
+    # authSource=admin is required because MONGO_INITDB_ROOT_USERNAME creates
+    # the user in the "admin" database. Without it, MongoDB tries to authenticate
+    # against MONGO_DB_NAME and fails.
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME}?authSource=admin
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      ENV: ${ENV:-development}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./frontend
+    container_name: focusmind-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

@@ -1,0 +1,282 @@
+from datetime import datetime, timedelta, timezone
+from http.cookies import SimpleCookie
+from types import SimpleNamespace
+
+import jwt
+import pytest
+from bson import ObjectId
+from fastapi.testclient import TestClient
+from pydantic import SecretStr, ValidationError
+
+from app.api.routes import auth as auth_routes
+from app.core.config import Settings, settings
+from app.main import app
+from app.schemas.auth import LoginRequest
+from app.services.auth import (
+    ACCESS_TOKEN_COOKIE,
+    ACCESS_TOKEN_TTL,
+    JWT_ALGORITHM,
+    create_access_token,
+    hash_password,
+)
+
+
+class FakeUsersCollection:
+    def __init__(self) -> None:
+        self.documents: list[dict] = []
+
+    async def insert_one(self, document: dict) -> SimpleNamespace:
+        stored = {**document, "_id": ObjectId()}
+        self.documents.append(stored)
+        return SimpleNamespace(inserted_id=stored["_id"])
+
+    async def find_one(self, query: dict) -> dict | None:
+        return next(
+            (
+                document
+                for document in self.documents
+                if all(document.get(key) == value for key, value in query.items())
+            ),
+            None,
+        )
+
+
+class FakeDatabase:
+    def __init__(self) -> None:
+        self.users = FakeUsersCollection()
+
+    def __getitem__(self, collection_name: str) -> FakeUsersCollection:
+        assert collection_name == "users"
+        return self.users
+
+
+@pytest.fixture
+def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, FakeDatabase]:
+    database = FakeDatabase()
+
+    async def fake_get_db() -> FakeDatabase:
+        return database
+
+    monkeypatch.setattr(auth_routes, "get_db", fake_get_db)
+    return TestClient(app), database
+
+
+@pytest.fixture
+def registered_user(auth_client: tuple[TestClient, FakeDatabase]) -> dict:
+    _, database = auth_client
+    user = {
+        "display_name": "Test User",
+        "email": "user@example.com",
+        "hashed_password": hash_password("password123"),
+        "created_at": datetime.now(timezone.utc),
+        "_id": ObjectId(),
+    }
+    database.users.documents.append(user)
+    return user
+
+
+def test_login_sets_secure_session_cookie_and_returns_safe_user(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    assert registered_user["email"] == "user@example.com"
+    response = client.post(
+        "/api/auth/login",
+        json={"email": " USER@EXAMPLE.COM ", "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(registered_user["_id"]),
+        "displayName": "Test User",
+        "email": "user@example.com",
+    }
+    assert "hashed_password" not in response.text
+    assert "password123" not in response.text
+    assert ACCESS_TOKEN_COOKIE not in response.json()
+
+    cookies = SimpleCookie()
+    cookies.load(response.headers["set-cookie"])
+    cookie = cookies[ACCESS_TOKEN_COOKIE]
+    assert cookie["httponly"]
+    assert cookie["samesite"].lower() == "lax"
+    assert cookie["secure"] == ""
+    assert cookie["max-age"] == str(int(ACCESS_TOKEN_TTL.total_seconds()))
+    assert cookie["path"] == "/api/auth"
+    assert cookie.value not in response.text
+
+
+@pytest.mark.parametrize(
+    "credentials",
+    [
+        {"email": "user@example.com", "password": "wrong-password"},
+        {"email": "unknown@example.com", "password": "password123"},
+    ],
+)
+def test_login_uses_same_generic_error_for_invalid_credentials(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+    credentials: dict,
+) -> None:
+    assert registered_user["email"] == "user@example.com"
+    response = auth_client[0].post("/api/auth/login", json=credentials)
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Incorrect email or password."
+
+
+@pytest.mark.parametrize(
+    "credentials",
+    [
+        {"password": "password123"},
+        {"email": "user@example.com"},
+        {"email": "not-an-email", "password": "password123"},
+        {"email": "user@example.com", "password": ""},
+        {"email": "user@example.com", "password": "password123", "extra": True},
+    ],
+)
+def test_login_rejects_missing_or_invalid_input(
+    auth_client: tuple[TestClient, FakeDatabase], credentials: dict
+) -> None:
+    assert auth_client[0].post("/api/auth/login", json=credentials).status_code == 422
+
+
+def test_login_request_normalizes_email() -> None:
+    request = LoginRequest(email="  USER@Example.COM  ", password="password123")
+
+    assert str(request.email) == "user@example.com"
+
+
+def test_authenticated_me_returns_user_and_missing_cookie_is_unauthorized(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    assert registered_user["email"] == "user@example.com"
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "password123"},
+    )
+    assert login_response.status_code == 200
+
+    response = client.get("/api/auth/me")
+    assert response.status_code == 200
+    assert response.json() == login_response.json()
+    assert "hashed_password" not in response.text
+    assert ACCESS_TOKEN_COOKIE not in response.json()
+
+    client.cookies.clear()
+    assert client.get("/api/auth/me").status_code == 401
+
+
+def test_registration_password_hash_can_be_used_to_log_in(
+    auth_client: tuple[TestClient, FakeDatabase],
+) -> None:
+    client, _ = auth_client
+    registration = client.post(
+        "/api/auth/register",
+        json={
+            "displayName": "Test User",
+            "email": "user@example.com",
+            "password": "password123",
+            "confirmPassword": "password123",
+        },
+    )
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "password123"},
+    )
+
+    assert registration.status_code == 201
+    assert login.status_code == 200
+    assert login.json() == registration.json()["user"]
+
+
+def test_weak_signing_secret_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate(
+            {
+                "mongo_uri": "mongodb://localhost:27017",
+                "mongo_db_name": "focusmind_test",
+                "secret_key": SecretStr("too-short"),
+                "cors_origins": ["http://localhost:3000"],
+            }
+        )
+
+
+def test_production_session_cookie_is_secure(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "environment", "production")
+    assert registered_user["email"] == "user@example.com"
+    response = auth_client[0].post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    cookies = SimpleCookie()
+    cookies.load(response.headers["set-cookie"])
+    assert cookies[ACCESS_TOKEN_COOKIE]["secure"]
+
+    logout_response = auth_client[0].post("/api/auth/logout")
+    cleared_cookies = SimpleCookie()
+    cleared_cookies.load(logout_response.headers["set-cookie"])
+    cleared_cookie = cleared_cookies[ACCESS_TOKEN_COOKIE]
+    assert cleared_cookie["secure"]
+    assert cleared_cookie["httponly"]
+    assert cleared_cookie["samesite"].lower() == "lax"
+    assert cleared_cookie["path"] == "/api/auth"
+    assert cleared_cookie["max-age"] == "0"
+
+
+@pytest.mark.parametrize("token_kind", ["invalid", "expired"])
+def test_me_rejects_invalid_or_expired_tokens(
+    auth_client: tuple[TestClient, FakeDatabase], token_kind: str
+) -> None:
+    client, _ = auth_client
+    if token_kind == "invalid":
+        token = "not-a-valid-jwt"
+    else:
+        token = jwt.encode(
+            {
+                "sub": str(ObjectId()),
+                "exp": datetime.now(timezone.utc) - timedelta(seconds=1),
+            },
+            settings.secret_key.get_secret_value(),
+            algorithm=JWT_ALGORITHM,
+        )
+
+    client.cookies.set(ACCESS_TOKEN_COOKIE, token, path="/api/auth")
+    assert client.get("/api/auth/me").status_code == 401
+
+
+def test_me_rejects_a_user_that_no_longer_exists(
+    auth_client: tuple[TestClient, FakeDatabase],
+) -> None:
+    client, _ = auth_client
+    client.cookies.set(
+        ACCESS_TOKEN_COOKIE, create_access_token(str(ObjectId())), path="/api/auth"
+    )
+
+    assert client.get("/api/auth/me").status_code == 401
+
+
+def test_logout_clears_cookie_with_matching_attributes(
+    auth_client: tuple[TestClient, FakeDatabase],
+) -> None:
+    response = auth_client[0].post("/api/auth/logout")
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Logged out successfully."}
+    cookies = SimpleCookie()
+    cookies.load(response.headers["set-cookie"])
+    cookie = cookies[ACCESS_TOKEN_COOKIE]
+    assert cookie["max-age"] == "0"
+    assert cookie["path"] == "/api/auth"
+    assert cookie["httponly"]
+    assert cookie["samesite"].lower() == "lax"
+    assert cookie["secure"] == ""

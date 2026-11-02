@@ -1,0 +1,36 @@
+﻿# Environment files -- never include secrets in the build context
+.env
+.env.*
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Test artifacts and coverage reports
+.coverage
+htmlcov/
+
+# IDE configuration
+.vscode/
+.idea/
+*.swp
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker files (no need to copy into the image)
+Dockerfile
+.dockerignore
