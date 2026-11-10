@@ -81,6 +81,8 @@ in each folder. Without such a network, leave the folders empty.
 | `/dashboard` | Dashboard | signed in |
 | `/learning` | Smart learning and gaze experiment | signed in |
 | `/__experiments/webgazer` | WebGazer experiment | development build only |
+| `/__experiments/attention-engine` | New attention engine and diagnostics | development build only |
+| `/learning?engine=new` | Learning page with the new engine instead of the legacy experiment | development flag (`?engine=legacy` reverts) |
 
 ## Project layout
 
@@ -97,7 +99,7 @@ frontend/src/
   features/dashboard/
   features/learning/      learning page + EXPERIMENTAL gaze modules and diagnostics
   features/vision/        shared camera + MediaPipe helpers
-  features/attention-engine/  contract and design of the next attention engine
+  features/attention-engine/  attention engine v1 (signals, calibration, fusion, smoothing, UI)
   styles/SignatureTheme.css   FocusMind Signature (Design 15)
 ```
 
@@ -110,5 +112,6 @@ measurements.
 
 ## Further documentation
 
-- [frontend/src/features/attention-engine/README.md](frontend/src/features/attention-engine/README.md): architecture of the new attention engine
+- [frontend/src/features/attention-engine/README.md](frontend/src/features/attention-engine/README.md): how the attention engine works
+- [docs/attention-engine-testing.md](docs/attention-engine-testing.md): real-camera test protocol (Hebrew)
 - [docs/deferred-work.md](docs/deferred-work.md): known issues and postponed improvements

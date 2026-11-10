@@ -11,6 +11,7 @@ export const ROUTES = Object.freeze({
   dashboard: '/dashboard',
   learning: '/learning',
   webGazerExperiment: '/__experiments/webgazer',
+  attentionEngineExperiment: '/__experiments/attention-engine',
 });
 
 const PROTECTED_PATHS = new Set([ROUTES.dashboard, ROUTES.learning]);
@@ -21,24 +22,36 @@ function normalizePath(pathname) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 }
 
-function DevelopmentWebGazerRoute() {
+// Development-only experiment pages, loaded on demand (never in production).
+const DEVELOPMENT_EXPERIMENTS = {
+  [ROUTES.webGazerExperiment]: {
+    load: () => import('./features/learning/WebGazerExperimentPage.jsx'),
+    name: 'ניסוי WebGazer',
+  },
+  [ROUTES.attentionEngineExperiment]: {
+    load: () => import('./features/attention-engine/AttentionEngineExperimentPage.jsx'),
+    name: 'מנוע זיהוי המבט',
+  },
+};
+
+function DevelopmentExperimentRoute({ experiment }) {
   const [ExperimentPage, setExperimentPage] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let active = true;
-    import('./features/learning/WebGazerExperimentPage.jsx')
+    experiment.load()
       .then(({ default: page }) => {
         if (active) setExperimentPage(() => page);
       })
       .catch((loadError) => {
-        if (active) setError(loadError?.message || 'לא ניתן לטעון את ניסוי WebGazer.');
+        if (active) setError(loadError?.message || `לא ניתן לטעון את ${experiment.name}.`);
       });
     return () => { active = false; };
-  }, []);
+  }, [experiment]);
 
   if (error) {
-    return <main className="route-loading" role="alert">טעינת ניסוי WebGazer נכשלה: {error}</main>;
+    return <main className="route-loading" role="alert">טעינת {experiment.name} נכשלה: {error}</main>;
   }
   if (!ExperimentPage) {
     return <main className="route-loading" role="status">טוענים את סביבת הניסוי…</main>;
@@ -138,8 +151,8 @@ export default function App() {
 
   useClientNavigation(navigate);
 
-  if (import.meta.env.DEV && path === ROUTES.webGazerExperiment) {
-    return <DevelopmentWebGazerRoute />;
+  if (import.meta.env.DEV && DEVELOPMENT_EXPERIMENTS[path]) {
+    return <DevelopmentExperimentRoute experiment={DEVELOPMENT_EXPERIMENTS[path]} />;
   }
 
   return (

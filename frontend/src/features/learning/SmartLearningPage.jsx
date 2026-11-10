@@ -1,7 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import CameraPreview from './CameraPreview.jsx';
 import FocusIllustration from '../../components/FocusIllustration.jsx';
 import SignatureBrand from '../../components/SignatureBrand.jsx';
+import { isAttentionEngineEnabled } from '../../config/featureFlags.js';
+
+// Loaded only when the development flag is on, so production bundles do not
+// include the new engine.
+const AttentionEnginePanel = lazy(() => import('../attention-engine/AttentionEnginePanel.jsx'));
 import './SmartLearningPage.css';
 
 function formatElapsed(totalSeconds) {
@@ -16,6 +21,8 @@ function formatElapsed(totalSeconds) {
 }
 
 export default function SmartLearningPage() {
+  // Read once per mount: the new engine (dev flag) or the legacy gaze experiment.
+  const [attentionEngineEnabled] = useState(isAttentionEngineEnabled);
   const [video, setVideo] = useState(null);
   const [videoPlaybackState, setVideoPlaybackState] = useState('paused');
   const [sessionState, setSessionState] = useState('ready');
@@ -207,6 +214,12 @@ export default function SmartLearningPage() {
             <h1>ניסוי זיהוי מבט</h1>
           </div>
 
+          {attentionEngineEnabled ? (
+            <Suspense fallback={<p role="status">טוענים את מנוע זיהוי המבט…</p>}>
+              <AttentionEnginePanel />
+            </Suspense>
+          ) : (
+          <>
           <section className="gaze-attention-card" aria-label="סטטוס זיהוי מבט">
             <span className="gaze-attention-kicker">זיהוי מבט בזמן אמת</span>
             <strong
@@ -252,6 +265,8 @@ export default function SmartLearningPage() {
             experimentMode
             modelReady={personalizedAttention.modelReady}
           />
+          </>
+          )}
 
           <details className="gaze-learning-tools">
             <summary>נגן וידאו, שעון למידה וכלים נוספים</summary>

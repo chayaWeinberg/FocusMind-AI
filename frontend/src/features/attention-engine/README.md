@@ -1,72 +1,86 @@
-# Attention engine (next milestone — not implemented yet)
+# Attention engine (v1, development flag)
 
-This folder will hold the new, modular attention engine. So far it contains
-only the **output contract** (`contracts.js`). The existing experiments in
-`features/learning` stay untouched and keep working. They are the reference
-and the source of test data for the new engine.
+The engine estimates **where the user is looking relative to the screen**
+from the local webcam. It does **not** measure concentration, understanding
+or interest. Everything runs in the browser.
 
-## What the engine may and may not claim
+| State         | Meaning |
+|---------------|---------|
+| `ON_SCREEN`   | the calibrated gaze estimate is inside the screen |
+| `OFF_SCREEN`  | gaze estimate outside the screen, or head turned far beyond the calibrated range |
+| `FACE_ABSENT` | no face for a sustained period (~1 s) |
+| `UNCERTAIN`   | not calibrated, low landmark quality, eyes not measurable, signals disagree, near the screen edge, or the user moved since calibration. Always comes with a `reason` |
 
-The engine estimates **where the user is looking relative to the screen**.
-That is not concentration. A person can look at the screen and not focus, or
-look away while thinking. Outputs are therefore:
+*Possible* fatigue indicators (blink rate above 30/min, eye closure longer
+than 1.5 s, sustained mouth opening that may be a yawn) are reported next to
+the state and never change it.
 
-| State        | Meaning                                                    |
-|--------------|------------------------------------------------------------|
-| `ON_SCREEN`  | head and eyes are consistent with looking at the screen   |
-| `OFF_SCREEN` | consistent evidence of looking away                       |
-| `FACE_ABSENT`| no face for a sustained period                            |
-| `UNCERTAIN`  | low-quality or conflicting signals; always has a `reason` |
-
-*Possible* fatigue indicators (blink rate, long eye closure, yawns) are
-reported **next to** the state, never as a diagnosis.
-
-## Layers
+## How it works
 
 ```
-features/vision            (shared, exists)  camera stream + MediaPipe loader + blendshape helper
-        │  landmarks, transformation matrix, blendshapes, timestamp
-        ▼
-signals/                   pure functions, one per signal, each returns {value, quality}
-  headPose · eyeGaze (iris) · blendshapeGaze · faceQuality · blink/EAR · mouth/jawOpen
-        ▼
-calibration/               per-user profile (on-screen targets + look-away targets)
-        ▼
-fusion/                    combines signals into a raw state + confidence + reason
-        ▼
-temporal/                  hysteresis / dwell-time smoothing, face-absent timer,
-                           fatigue indicators over sliding windows
-        ▼
-useAttentionEngine()       React hook: AttentionFrame stream (contracts.js)
-        ▼
-session/                   aggregates per-session summaries (local only)
+MediaPipe Face Landmarker (VIDEO mode, ~15 fps, local WASM + model)
+  └─ signals.js     head yaw/pitch/roll + position (transformation matrix),
+                    iris offset per eye in the eye's own axis (roll-compensated),
+                    eye aspect ratio, blink/jaw blendshapes,
+                    quality 0..1 for face, head and eyes
+  └─ calibration.js 9 screen targets (~20 s). Ridge regression maps
+                    [yaw, pitch, irisH, irisV] -> screen (x, y), plus a
+                    head-only model as a fallback. The expected error comes
+                    from leave-one-target-out cross-validation
+  └─ fusion.js      P(on screen) = logistic(1.7 · signed distance to the screen
+                    edge / model error), scaled by signal quality; rules for
+                    face absent, head far outside the calibrated range, user
+                    moved since calibration, contradicting head/eye models
+  └─ temporal.js    exponentially decaying evidence per state (τ = 450 ms),
+                    hysteresis, and a minimum dwell time per state
+                    (on 350 ms, off 600 ms, absent 900 ms, uncertain 800 ms)
+  └─ fatigue.js     blink events, long closures, possible yawns over sliding windows
+  └─ engine.js      composes the layers; pure JS, so it is tested with synthetic faces
+useAttentionEngine.js   camera loop (requestVideoFrameCallback, pauses when the tab is hidden)
+AttentionEnginePanel.jsx diagnostic UI: state, confidence, reason, gaze map, timeline, signals
 ```
 
-Each layer is plain JavaScript without React or DOM access, except the hook,
-so all of them can be unit-tested on recorded data.
+Why these choices:
+- **Personal calibration instead of fixed thresholds.** The fixed-threshold
+  experiments broke with each camera position. The regression's intercepts
+  and gains absorb the user, the camera height/offset and the screen size.
+- **Iris offset in eye-width units.** The legacy estimator divided the
+  vertical offset by the lid opening, which changes with blinks and squints.
+- **An honest error estimate.** Training error is optimistic.
+  Leave-one-target-out error predicts how far a new gaze point will be off,
+  and it directly sets how soft the on-screen probability is.
+- **Head-only fallback** keeps working through blinks, glare and glasses,
+  with lower confidence.
 
-## Reusable pieces from the experiments
+## Enabling it
 
-| Existing module (`features/learning`) | Reuse in the new engine |
-|---|---|
-| `features/vision/cameraStream.js`, `faceLandmarker.js` | used directly (already extracted) |
-| `headPoseEstimator.js` (yaw/pitch/roll from transformation matrix) | `signals/headPose` — reuse the maths |
-| `eyeGazeEstimator.js` (iris position in eye corners + eye aspect ratio) | `signals/eyeGaze` and the blink/EAR signal |
-| `screenCalibrationCollector.js` (5 screen targets, keyboard, 4 look-away targets) | `calibration/` — keep the procedure, simplify the API |
-| `personalizedScreenAttention.js` (per-feature-group median/scale profiles, evidence thresholds, drift detection) | best existing classifier; port its ideas to `fusion/` |
-| `createPersonalizedAttentionSmoother` | starting point for `temporal/` |
-| `liveGazeDiagnosticRecorder.js`, `screenAttentionDiagnosticRecorder.js` | JSON recordings → offline test fixtures for the engine |
-| `screenAttentionEstimator.js` / `screenAttentionTracker.js` (fixed thresholds) | baseline to compare against; do not port |
-| `WebGazerExperimentPage.jsx` (dev-only `/__experiments/webgazer`) | regression-based screen point estimate; optional extra signal, evaluate before using |
+- `/__experiments/attention-engine`: development only, no login needed.
+- `/learning?engine=new`: replaces the legacy gaze experiment on the Smart
+  Learning page. The choice is remembered in this browser, and
+  `?engine=legacy` switches back. You can also set
+  `VITE_FEATURE_ATTENTION_ENGINE=true` in `frontend/.env.local`.
+- Production builds never enable it and do not load its code.
 
-`useFaceLandmarker.js` combines the detection loop with every experiment. The
-new engine should copy its loop handling (requestVideoFrameCallback with a
-timeout fallback, pausing when the tab is hidden, cleanup when a track ends)
-into a small dedicated hook, not extend it.
+Real-camera test protocol (Hebrew): [docs/attention-engine-testing.md](../../../../docs/attention-engine-testing.md)
 
-## Privacy rules
+## Tests
 
-- Frames, landmarks and calibration data never leave the browser.
-- Nothing is persisted automatically. Diagnostic JSON is downloaded only when
-  the user clicks a button, and the `.gitignore` excludes those files.
-- No cloud face analysis.
+- `engine.test.js`: maths, signals, calibration (including another
+  user/camera and failures), fusion cases, smoothing, fatigue, and an
+  end-to-end run on a synthetic face (`testing/syntheticFace.js`).
+- `AttentionEnginePanel.test.jsx`: the full UI with a mocked MediaPipe and a
+  simulated user: calibration through the overlay, on/off screen, face
+  absent, cancelling, camera off, and the feature flag.
+
+## Known limitations (v1)
+
+- The calibration is kept in memory only, so a page reload needs a new one.
+  This is a deliberate privacy choice.
+- Looking at the keyboard or a notebook counts as off-screen. That is correct
+  for "looking at the screen", but not a sign of distraction.
+- Accuracy drops with strong backlight, reflective glasses, a very small face
+  in the image, or after moving the chair. Moving is detected and triggers a
+  recalibration hint.
+- The browser viewport is used as "the screen", expanded by a 5 % margin.
+- Not validated on real users yet. Use the protocol above and adjust
+  `FUSION_DEFAULTS` / `TEMPORAL_DEFAULTS` from the measurements.

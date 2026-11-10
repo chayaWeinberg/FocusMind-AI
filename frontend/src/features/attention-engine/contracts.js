@@ -27,6 +27,8 @@ export const ATTENTION_REASONS = Object.freeze({
   LOW_LANDMARK_QUALITY: 'low-landmark-quality',
   EYES_NOT_MEASURABLE: 'eyes-not-measurable',
   SIGNALS_DISAGREE: 'signals-disagree',
+  NEAR_SCREEN_EDGE: 'near-screen-edge',
+  CALIBRATING: 'calibrating',
   NOT_CALIBRATED: 'not-calibrated',
   OUTSIDE_CALIBRATION: 'outside-calibration',
   CAMERA_UNAVAILABLE: 'camera-unavailable',
