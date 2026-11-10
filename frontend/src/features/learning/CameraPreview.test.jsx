@@ -75,17 +75,17 @@ describe('CameraPreview', () => {
     expect(screen.getByText(/"מרכז" אינו מעיד שהמבט מופנה למסך/)).toBeInTheDocument();
   });
 
-  it('passes playback-gated tracking to the existing landmarker and renders the attention diagnostic', async () => {
+  it('enables live tracking from the camera independently of learning-video playback', async () => {
     const { stream } = createCameraStream();
     setGetUserMedia(vi.fn().mockResolvedValue(stream));
-    render(<CameraPreview videoPlaybackState="playing" />);
+    render(<CameraPreview videoPlaybackState="paused" experimentMode />);
 
     expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'הפעלת מצלמה' }));
     await screen.findByRole('button', { name: 'כיבוי מצלמה' });
 
     expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    expect(screen.getByLabelText('אבחון כיוון למסך')).toHaveTextContent('הערכה ניסיונית בלבד');
+    expect(screen.getByRole('button', { name: 'התחלת כיול' })).toBeEnabled();
   });
 
   it('passes the hook gaze ref to the diagnostic without another detection instance', () => {

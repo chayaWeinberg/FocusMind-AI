@@ -1,0 +1,1 @@
+export const MINIMUM_CALIBRATION_SAMPLES = 3;

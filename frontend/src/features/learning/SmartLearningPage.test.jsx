@@ -67,11 +67,34 @@ describe('SmartLearningPage', () => {
     expect(screen.getByLabelText('עדיין אין נתונים')).toHaveTextContent('—');
     expect(screen.getByText('בהמתנה')).toBeInTheDocument();
     expect(screen.getByText('לא הופעלה')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
+      .toHaveTextContent('ממתין להשלמת כיול');
+    expect(screen.getByText(/השלימו את שלבי הכיול/)).toBeInTheDocument();
     expect(screen.getByText('ציר הזמן עדיין ריק')).toBeInTheDocument();
     expect(screen.getByText('עדיין לא נאספו מדידות')).toBeInTheDocument();
     expect(screen.getByText(/קטעי וידאו מומלצים לחזרה/)).toBeInTheDocument();
     expect(screen.getByLabelText('אבחון כיוון למסך')).toHaveTextContent('המצלמה אינה זמינה');
     expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
+  it('updates the live attention label from the camera analysis callback', () => {
+    render(<SmartLearningPage />);
+    const reportAttention = vi.mocked(useFaceLandmarker).mock.calls.at(-1)[4];
+
+    act(() => reportAttention('LOOKING_AT_SCREEN', false, null, true));
+    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
+      .toHaveTextContent('מסתכלת על המסך');
+
+    act(() => reportAttention('LOOKING_AWAY', false, null, true));
+    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
+      .toHaveTextContent('מבט מחוץ למסך');
+
+    act(() => reportAttention('UNKNOWN', false, 'face-not-detected', true));
+    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
+      .toHaveTextContent('לא ניתן לקבוע');
+    expect(screen.getByText('לא זוהו פנים. מקמו את הפנים מול המצלמה.')).toBeInTheDocument();
+    act(() => reportAttention('UNKNOWN', true, 'calibration-drift', true));
+    expect(screen.getByText('נראה שינוי בתנוחה. מומלץ לבצע כיול מחדש.')).toBeInTheDocument();
   });
 
   it('selects and replaces local videos, releasing prior and unmounted object URLs', () => {
@@ -152,7 +175,7 @@ describe('SmartLearningPage', () => {
     expect(timerText()).toBe('00:01:00');
   });
 
-  it('gates eye movement tracking on actual video and camera events', async () => {
+  it('keeps gaze tracking active with the camera while lesson playback is paused', async () => {
     const track = { readyState: 'live', stop: vi.fn() };
     const stream = {
       getTracks: () => [track],
@@ -168,32 +191,32 @@ describe('SmartLearningPage', () => {
       await Promise.resolve();
     });
     expect(screen.getByRole('button', { name: 'כיבוי מצלמה' })).toBeInTheDocument();
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
 
     fireEvent.playing(video);
     expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
 
     fireEvent.loadStart(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
     fireEvent.playing(video);
     expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
 
     fireEvent.waiting(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
     fireEvent.playing(video);
     expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
 
     fireEvent.pause(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
     fireEvent.seeking(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
     fireEvent.seeked(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
     fireEvent.playing(video);
     expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
 
     fireEvent.ended(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
+    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
   });
 
   it('disables sampling when the camera is turned off during playback', async () => {

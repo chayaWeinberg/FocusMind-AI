@@ -1,4 +1,44 @@
-.signature-design {
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  color: #25383b;
+  background: #faf8f4;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.route-loading {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #167d83;
+  background: #faf8f4;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.route-loading-spinner {
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(22, 125, 131, 0.2);
+  border-top-color: #167d83;
+  border-radius: 50%;
+  animation: login-spin 750ms linear infinite;
+}
+
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+
+.signature-production {
   --signature-font-family: "Segoe UI", Arial, sans-serif;
   --signature-bg: #faf8f4;
   --signature-card: #fff;
@@ -9,108 +49,20 @@
   --signature-muted: #788987;
   --signature-line: rgba(37, 56, 59, 0.1);
   --signature-shadow: 0 9px 25px rgba(37, 56, 59, 0.07);
-  width: min(1540px, 100%);
-  margin: 0 auto;
-  padding: 15px;
-  overflow: hidden;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
   color: var(--signature-ink);
-  background: #f3efe8;
-  border: 1px solid var(--signature-line);
-  border-radius: 26px;
+  background: var(--signature-bg);
   font-family: var(--signature-font-family);
 }
 
-.signature-design *,
-.signature-design *::before,
-.signature-design *::after {
+.signature-production *,
+.signature-production *::before,
+.signature-production *::after {
   box-sizing: border-box;
-}
-
-.signature-gallery-heading {
-  display: flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 9px;
-}
-
-.signature-gallery-heading > span {
-  padding: 5px 9px;
-  color: var(--signature-primary);
-  background: var(--signature-soft);
-  border-radius: 99px;
-  font: 700 9px/1.3 var(--signature-font-family);
-}
-
-.signature-gallery-heading strong {
-  font: 700 10px/1.4 var(--signature-font-family);
-  letter-spacing: 0.5px;
-}
-
-.signature-gallery-heading p {
-  margin: 0;
-  color: var(--signature-muted);
-  font: 10px/1.5 var(--signature-font-family);
-}
-
-.signature-page-tabs {
-  display: flex;
-  min-height: 48px;
-  margin-bottom: 10px;
-  padding: 4px;
-  align-items: center;
-  gap: 5px;
-  overflow-x: auto;
-  background: rgba(255, 255, 255, 0.67);
-  border: 1px solid var(--signature-line);
-  border-radius: 14px;
-  scrollbar-width: thin;
-}
-
-.signature-page-tab {
-  display: inline-flex;
-  min-height: 36px;
-  padding: 0 13px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 7px;
-  color: var(--signature-muted);
-  background: transparent;
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-  font: 600 10px/1.4 var(--signature-font-family);
-  white-space: nowrap;
-}
-
-.signature-page-tab > span {
-  color: #a0aaa4;
-  font-size: 8px;
-  font-weight: 700;
-}
-
-.signature-page-tab:hover,
-.signature-page-tab.is-active {
-  color: var(--signature-primary);
-  background: var(--signature-card);
-  box-shadow: 0 3px 9px rgba(37, 56, 59, 0.06);
-}
-
-.signature-page-tab.is-active > span {
-  color: var(--signature-primary);
-}
-
-.signature-page-heading {
-  display: flex;
-  min-height: 31px;
-  align-items: center;
-  gap: 8px;
-  color: var(--signature-muted);
-  font: 9px/1.4 var(--signature-font-family);
-}
-
-.signature-page-heading strong {
-  color: var(--signature-ink);
-  font-size: 10px;
 }
 
 .signature-page {
@@ -329,7 +281,7 @@
   box-shadow: 0 13px 28px rgba(37, 56, 59, 0.07);
 }
 
-.signature-scene {
+.focus-illustration {
   display: block;
   width: 100%;
   height: auto;
@@ -595,8 +547,8 @@
   content: "";
 }
 
-.signature-auth-art .signature-scene,
-.signature-register-art .signature-scene {
+.signature-auth-art .focus-illustration,
+.signature-register-art .focus-illustration {
   position: relative;
   z-index: 1;
   width: min(100%, 460px);
@@ -1246,7 +1198,7 @@
   border-radius: 12px 4px 12px 4px;
 }
 
-.signature-video-scene > .signature-scene {
+.signature-video-scene > .focus-illustration {
   width: 100%;
   aspect-ratio: 1.95 / 1;
   object-fit: cover;
@@ -1588,7 +1540,7 @@
   font: 7px/1.4 var(--signature-font-family);
 }
 
-.signature-design :focus-visible {
+.signature-production :focus-visible {
   outline: 3px solid rgba(22, 125, 131, 0.42);
   outline-offset: 3px;
 }
@@ -1617,30 +1569,6 @@
 }
 
 @media (max-width: 760px) {
-  .signature-design {
-    padding: 9px;
-    border-radius: 18px;
-  }
-
-  .signature-gallery-heading {
-    min-height: 42px;
-    flex-wrap: wrap;
-    gap: 5px 8px;
-  }
-
-  .signature-gallery-heading p {
-    flex-basis: 100%;
-  }
-
-  .signature-page-tabs {
-    min-height: 43px;
-  }
-
-  .signature-page-tab {
-    min-height: 32px;
-    padding-inline: 10px;
-    font-size: 9px;
-  }
 
   .signature-page {
     min-height: 0;
@@ -1758,8 +1686,8 @@
     padding: 12px;
   }
 
-  .signature-auth-art .signature-scene,
-  .signature-register-art .signature-scene {
+  .signature-auth-art .focus-illustration,
+  .signature-register-art .focus-illustration {
     width: min(100%, 370px);
     max-height: 250px;
   }
@@ -1842,7 +1770,7 @@
     max-height: 150px;
   }
 
-  .signature-dashboard-art .signature-scene {
+  .signature-dashboard-art .focus-illustration {
     height: 150px;
     object-fit: cover;
   }
@@ -1910,7 +1838,7 @@
     font-size: 23px;
   }
 
-  .signature-video-scene > .signature-scene {
+  .signature-video-scene > .focus-illustration {
     min-height: 160px;
     object-fit: cover;
   }
@@ -1929,14 +1857,6 @@
 }
 
 @media (max-width: 420px) {
-  .signature-design {
-    padding: 7px;
-  }
-
-  .signature-page-tab {
-    padding-inline: 8px;
-    gap: 5px;
-  }
 
   .signature-landing-actions {
     flex-wrap: wrap;
@@ -1994,9 +1914,640 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .signature-design *,
-  .signature-design *::before,
-  .signature-design *::after {
+  .signature-production *,
+  .signature-production *::before,
+  .signature-production *::after {
     transition-duration: 0.01ms !important;
+  }
+}
+
+.signature-production .signature-page {
+  min-height: 100vh;
+}
+
+.signature-production button,
+.signature-production input {
+  font-family: var(--signature-font-family);
+}
+
+.signature-production .signature-auth-form [role="alert"] {
+  margin: 0;
+  padding: 8px 10px;
+  color: #a33e36;
+  background: #fff3f1;
+  border: 1px solid #f2d3cf;
+  border-radius: 7px;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.signature-production .signature-form-error {
+  margin: 0;
+  color: #b4443c;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.signature-production .signature-form-row .form-field {
+  min-width: 0;
+}
+
+.signature-production .signature-auth-form input[aria-invalid="true"] {
+  border-color: #d77870;
+}
+
+.signature-production .signature-auth-form input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(194, 75, 65, 0.1);
+}
+
+.signature-production .signature-auth-success {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.signature-production .signature-auth-success > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--signature-primary);
+  background: var(--signature-soft);
+  border-radius: 50%;
+  font-size: 19px;
+}
+
+.signature-production .signature-auth-success .signature-primary-button {
+  margin-top: 15px;
+  text-decoration: none;
+}
+
+.signature-production .signature-auth-form .form-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.signature-production .signature-auth-form .signature-form-error {
+  display: block;
+}
+
+.signature-production .signature-auth-form .signature-auth-switch a {
+  color: var(--signature-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.signature-production .signature-auth-footnote {
+  margin: 10px 0 0;
+  color: var(--signature-muted);
+  font: 8px/1.5 var(--signature-font-family);
+  text-align: center;
+}
+
+.signature-production .signature-auth-submit {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.signature-loading-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: login-spin 750ms linear infinite;
+}
+
+.signature-production .signature-brand:focus-visible,
+.signature-production .signature-primary-button:focus-visible,
+.signature-production .signature-auth-switch a:focus-visible,
+.signature-production .signature-learning-header a:focus-visible {
+  outline: 3px solid rgba(22, 125, 131, 0.38);
+  outline-offset: 3px;
+}
+
+.signature-production .signature-dashboard-sidebar > nav button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.signature-production .signature-dashboard-sidebar > nav a {
+  display: flex;
+  min-height: 39px;
+  padding: 0 11px;
+  align-items: center;
+  gap: 10px;
+  color: var(--signature-muted);
+  border-radius: 9px;
+  font: 15px/1 var(--signature-font-family);
+  text-align: right;
+  text-decoration: none;
+}
+
+.signature-production .signature-dashboard-sidebar > nav a span {
+  font-size: 9px;
+}
+
+.signature-production .signature-dashboard-sidebar > nav .signature-nav-icon {
+  display: inline-block;
+  flex: 0 0 14px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.signature-production .signature-dashboard-sidebar > nav .signature-nav-label {
+  min-width: 0;
+  flex: 1;
+}
+
+.signature-production .signature-dashboard-sidebar > nav a:hover,
+.signature-production .signature-dashboard-sidebar > nav a.is-active {
+  color: var(--signature-primary);
+  background: var(--signature-soft);
+}
+
+.signature-production .signature-dashboard-sidebar .signature-sidebar-user > button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--signature-primary);
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 50%;
+  cursor: pointer;
+  font: 700 10px/1 var(--signature-font-family);
+}
+
+.signature-production .signature-dashboard-sidebar .signature-sidebar-user > button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.signature-production .signature-dashboard-error {
+  margin: 0 0 10px;
+  color: #a33e36;
+  font: 9px/1.5 var(--signature-font-family);
+}
+
+.signature-production .signature-dashboard-hero .signature-primary-button,
+.signature-production .signature-learning-actions .signature-primary-button,
+.signature-production .signature-learning-actions > a {
+  text-decoration: none;
+}
+
+.signature-production .signature-smart-card > a {
+  width: fit-content;
+  padding: 3px 0;
+  color: var(--signature-primary);
+  font: 700 8px/1.4 var(--signature-font-family);
+  text-decoration: none;
+}
+
+.signature-production.smart-learning-page {
+  min-height: 100vh;
+  padding: 0;
+  color: var(--signature-ink);
+  background: var(--signature-bg);
+  font-family: var(--signature-font-family);
+}
+
+.signature-production .signature-auth-art .focus-illustration,
+.signature-production .signature-register-art .focus-illustration {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(100%, 460px);
+  height: auto;
+  margin: auto;
+  border-radius: 18px 5px 18px 5px;
+  box-shadow: 0 8px 25px rgba(37, 56, 59, 0.08);
+}
+
+.signature-production .signature-dashboard-art .focus-illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.signature-production .signature-learning-header nav a {
+  display: inline-flex;
+  min-height: 33px;
+  padding: 0 10px;
+  align-items: center;
+  color: var(--signature-muted);
+  border-radius: 8px;
+  font: 9px/1.4 var(--signature-font-family);
+  text-decoration: none;
+}
+
+.signature-production .signature-learning-header nav a:hover,
+.signature-production .signature-learning-header nav a.is-active {
+  color: var(--signature-primary);
+  background: var(--signature-soft);
+}
+
+.signature-production .signature-learning-back {
+  display: inline-flex;
+  min-height: 33px;
+  align-items: center;
+  gap: 5px;
+  color: var(--signature-primary);
+  font: 9px/1.4 var(--signature-font-family);
+  text-decoration: none;
+}
+
+.signature-production .signature-learning-video-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.signature-production .signature-video-scene > .focus-illustration {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.signature-production .signature-video-toolbar > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signature-production .signature-video-toolbar > label {
+  flex: 0 0 auto;
+}
+
+.signature-production .signature-learning-privacy {
+  margin: 0;
+  color: var(--signature-muted);
+  font: 7px/1.5 var(--signature-font-family);
+  text-align: center;
+}
+
+.signature-production .signature-learning-actions > span {
+  text-align: right;
+}
+
+.signature-production .signature-learning-actions > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signature-production .signature-progress-empty {
+  display: grid;
+  height: 5px;
+  align-items: center;
+  overflow: hidden;
+  background: var(--signature-soft);
+  border-radius: 99px;
+}
+
+.signature-production .signature-stat-card--streak > strong {
+  color: var(--signature-muted);
+  font-size: 14px;
+}
+
+.signature-production .signature-course--empty {
+  grid-column: 1 / -1;
+  min-height: 90px;
+  grid-template-columns: 38px minmax(0, 1fr);
+}
+
+.signature-production .signature-dashboard-ai > button {
+  text-align: right;
+}
+
+.signature-production .signature-dashboard-ai > button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.signature-production .signature-video-scene {
+  aspect-ratio: 16 / 9;
+}
+
+.signature-production .signature-video-scene > .focus-illustration {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.signature-production .signature-video-scene > video {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  aspect-ratio: 16 / 9;
+  background: #1c3431;
+  object-fit: contain;
+}
+
+.signature-production .signature-video-overlay > button {
+  padding: 0;
+}
+
+.signature-production .signature-video-overlay > button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.signature-production .signature-video-toolbar {
+  display: flex;
+  min-height: 38px;
+  padding: 6px 3px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--signature-muted);
+  font: 8px/1.5 var(--signature-font-family);
+}
+
+.signature-production .signature-video-toolbar label {
+  display: inline-flex;
+  min-height: 31px;
+  padding: 0 11px;
+  align-items: center;
+  color: #fff;
+  background: var(--signature-primary);
+  border-radius: 8px 3px 8px 3px;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.signature-production .signature-video-empty-copy {
+  max-width: 300px;
+  padding: 8px 12px;
+  color: #fff;
+  background: rgba(37, 56, 59, 0.54);
+  border-radius: 5px;
+  font: 9px/1.5 var(--signature-font-family);
+  text-align: center;
+}
+
+.signature-production .signature-learning-actions > span {
+  color: var(--signature-muted);
+  font: 8px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-actions > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signature-production .signature-learning-secondary {
+  display: grid;
+  margin-top: 13px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.signature-production .signature-learning-secondary > section {
+  min-width: 0;
+  min-height: 95px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 13px 5px 13px 5px;
+}
+
+.signature-production .signature-learning-secondary > section > span {
+  display: inline-block;
+  margin-top: 7px;
+  padding: 4px 7px;
+  color: var(--signature-primary);
+  background: var(--signature-soft);
+  border-radius: 99px;
+  font: 700 7px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-secondary h2 {
+  margin: 0;
+  font: 650 10px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-secondary p {
+  margin: 5px 0 0;
+  color: var(--signature-muted);
+  font: 8px/1.5 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-monitor-metrics {
+  display: grid;
+  margin-top: 10px;
+  gap: 7px;
+}
+
+.signature-production .signature-learning-monitor-metrics > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 6px;
+  color: var(--signature-muted);
+  font: 7px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-monitor-metrics > div > strong {
+  color: var(--signature-primary);
+  font: 700 8px/1.2 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-monitor-metrics > div > small {
+  grid-column: 1 / -1;
+  font: 7px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera {
+  min-width: 0;
+  padding: 11px;
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 15px 6px 15px 6px;
+  box-shadow: var(--signature-shadow);
+}
+
+.signature-production .signature-learning-camera .learning-card-heading {
+  min-height: 30px;
+  margin-bottom: 8px;
+}
+
+.signature-production .signature-learning-camera .learning-card-heading h2 {
+  margin: 2px 0 0;
+  color: var(--signature-ink);
+  font: 650 10px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .learning-card-kicker {
+  color: var(--signature-primary);
+  font: 700 7px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .learning-card-icon {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  flex-basis: 28px;
+  color: var(--signature-primary);
+  background: var(--signature-soft);
+  border-radius: 9px 3px 9px 3px;
+  font-size: 12px;
+}
+
+.signature-production .signature-learning-camera .camera-preview {
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  border-color: var(--signature-line);
+  border-radius: 10px 3px 10px 3px;
+}
+
+.signature-production .signature-learning-camera .camera-preview-video {
+  aspect-ratio: 16 / 9;
+}
+
+.signature-production .signature-learning-camera .camera-off-state {
+  padding: 10px;
+}
+
+.signature-production .signature-learning-camera .camera-error,
+.signature-production .signature-learning-camera .camera-privacy-note {
+  font: 7px/1.5 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .camera-diagnostic {
+  min-height: 23px;
+  font: 650 7px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .head-pose-diagnostic,
+.signature-production .signature-learning-camera .eye-gaze-diagnostic,
+.signature-production .signature-learning-camera .eye-movement-diagnostic,
+.signature-production .signature-learning-camera .screen-attention-diagnostic,
+.signature-production .signature-learning-camera .screen-calibration {
+  padding: 8px;
+  color: var(--signature-ink);
+  background: #fbfaf6;
+  border-color: var(--signature-line);
+  border-radius: 8px 3px 8px 3px;
+  font: 7px/1.45 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .head-pose-diagnostic-heading strong,
+.signature-production .signature-learning-camera .eye-gaze-diagnostic-heading strong,
+.signature-production .signature-learning-camera .screen-attention-recording > strong {
+  font-size: 8px;
+}
+
+.signature-production .signature-learning-camera .head-pose-capture button,
+.signature-production .signature-learning-camera .screen-attention-recording-buttons button,
+.signature-production .signature-learning-camera .screen-attention-download,
+.signature-production .signature-learning-camera .screen-calibration-controls button,
+.signature-production .signature-learning-camera .screen-calibration-secondary,
+.signature-production .signature-learning-camera .screen-calibration-download,
+.signature-production .signature-learning-camera .camera-toggle-button {
+  min-height: 27px;
+  padding: 4px 7px;
+  color: var(--signature-primary);
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 7px 3px 7px 3px;
+  box-shadow: none;
+  font: 650 7px/1.4 var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .camera-toggle-button:not(.camera-toggle-button--stop) {
+  color: #fff;
+  background: var(--signature-primary);
+}
+
+.signature-production .signature-learning-camera .screen-calibration-overlay-instructions {
+  color: var(--signature-ink);
+  border-color: var(--signature-line);
+  font-family: var(--signature-font-family);
+}
+
+.signature-production .signature-learning-camera .camera-diagnostic--ready,
+.signature-production .signature-learning-camera .camera-diagnostic--no-face {
+  color: var(--signature-primary);
+}
+
+.signature-production .signature-learning-camera .camera-diagnostic--detected,
+.signature-production .signature-learning-camera .screen-calibration-status--collecting {
+  color: #39755f;
+}
+
+.signature-production .signature-smart-books {
+  min-height: 105px;
+}
+
+@media (max-width: 760px) {
+  .signature-production .signature-page {
+    min-height: 100vh;
+  }
+
+  .signature-production .signature-dashboard-sidebar > nav a {
+    width: 39px;
+    height: 39px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    font-size: 16px;
+  }
+
+  .signature-production .signature-dashboard-sidebar > nav .signature-nav-label {
+    display: none;
+  }
+
+  .signature-production .signature-learning-camera {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 420px) {
+  .signature-production .signature-learning-secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .signature-production .signature-dashboard-sidebar > nav button,
+  .signature-production .signature-dashboard-sidebar > nav a {
+    overflow: hidden;
+    justify-content: center;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .signature-production .signature-dashboard-sidebar > nav button span,
+  .signature-production .signature-dashboard-sidebar > nav a span {
+    display: inline-block;
+    font-size: 13px;
+  }
+
+  .signature-production .signature-dashboard-sidebar > nav .signature-nav-label {
+    display: none;
+  }
+
+  .signature-production .signature-dashboard-sidebar .signature-sidebar-user > div,
+  .signature-production .signature-dashboard-sidebar .signature-sidebar-user > button {
+    display: none;
+  }
+
+  .signature-production .signature-dashboard-sidebar .signature-sidebar-user {
+    justify-content: center;
   }
 }

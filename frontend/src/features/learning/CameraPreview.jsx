@@ -29,7 +29,13 @@ function getCameraErrorMessage(error) {
   }
 }
 
-export default function CameraPreview({ videoPlaybackState = 'paused' }) {
+export default function CameraPreview({
+  videoPlaybackState = 'paused',
+  className = '',
+  onPersonalizedAttention,
+  experimentMode = false,
+  modelReady = false,
+}) {
   const [stream, setStream] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -40,7 +46,8 @@ export default function CameraPreview({ videoPlaybackState = 'paused' }) {
   const cameraAvailable = Boolean(
     stream?.getVideoTracks?.().some((track) => track.readyState !== 'ended'),
   );
-  const trackingEnabled = videoPlaybackState === 'playing' && cameraAvailable;
+  const trackingEnabled = cameraAvailable
+    && (experimentMode || videoPlaybackState === 'playing');
 
   const {
     status: detectionStatus,
@@ -55,13 +62,26 @@ export default function CameraPreview({ videoPlaybackState = 'paused' }) {
     stopDiagnosticRecording,
     resetDiagnosticRecording,
     startCalibration,
+    startGuidedCalibration,
+    liveGazeDiagnosticRecorderRef,
+    startLiveGazeDiagnosticRecording,
+    setLiveGazeDiagnosticStage,
+    endLiveGazeDiagnosticStage,
+    stopLiveGazeDiagnosticRecording,
     cancelCalibration,
     restartCalibration,
     repeatCalibrationTarget,
     startKeyboardEvaluation,
+    startOffscreenCalibration,
     completeCalibration,
     latestDetectionSampleRef,
-  } = useFaceLandmarker(videoRef, stream, undefined, trackingEnabled);
+  } = useFaceLandmarker(
+    videoRef,
+    stream,
+    undefined,
+    trackingEnabled,
+    onPersonalizedAttention,
+  );
   const detectionStatusText = {
     off: 'המצלמה כבויה',
     loading: 'טוען מודל לזיהוי פנים…',
@@ -137,7 +157,10 @@ export default function CameraPreview({ videoPlaybackState = 'paused' }) {
   }
 
   return (
-    <section className="learning-card camera-card" aria-labelledby="camera-title">
+    <section
+      className={`learning-card camera-card${experimentMode ? ' camera-card--experiment' : ''} ${className}`.trim()}
+      aria-labelledby="camera-title"
+    >
       <div className="learning-card-heading">
         <div>
           <span className="learning-card-kicker">הפעלה לפי בחירתכם</span>
@@ -196,14 +219,23 @@ export default function CameraPreview({ videoPlaybackState = 'paused' }) {
         resetRecording={resetDiagnosticRecording}
       />
       <ScreenCalibration
+        experimentMode={experimentMode}
+        modelReady={modelReady}
         cameraAvailable={cameraAvailable}
         videoPlaybackState={videoPlaybackState}
         sessionRef={screenCalibrationSessionRef}
+        liveDiagnosticRecorderRef={liveGazeDiagnosticRecorderRef}
         startCalibration={startCalibration}
+        startGuidedCalibration={startGuidedCalibration}
+        startLiveGazeDiagnosticRecording={startLiveGazeDiagnosticRecording}
+        setLiveGazeDiagnosticStage={setLiveGazeDiagnosticStage}
+        endLiveGazeDiagnosticStage={endLiveGazeDiagnosticStage}
+        stopLiveGazeDiagnosticRecording={stopLiveGazeDiagnosticRecording}
         cancelCalibration={cancelCalibration}
         restartCalibration={restartCalibration}
         repeatCalibrationTarget={repeatCalibrationTarget}
         startKeyboardEvaluation={startKeyboardEvaluation}
+        startOffscreenCalibration={startOffscreenCalibration}
         completeCalibration={completeCalibration}
       />
 

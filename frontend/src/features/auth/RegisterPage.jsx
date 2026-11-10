@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import './RegisterPage.css';
+import FocusIllustration from '../../components/FocusIllustration.jsx';
+import SignatureBrand from '../../components/SignatureBrand.jsx';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000')
   .replace(/\/+$/, '');
@@ -94,7 +95,7 @@ function PasswordField({
   return (
     <div className={`form-field${error ? ' form-field--error' : ''}`}>
       <label htmlFor={id}>{label}</label>
-      <div className="password-input-wrap">
+      <div className="signature-password-wrap">
         <input
           id={id}
           name={id}
@@ -108,7 +109,6 @@ function PasswordField({
           aria-describedby={error ? errorId : undefined}
         />
         <button
-          className="password-toggle"
           type="button"
           onClick={onToggle}
           aria-label={visible ? 'הסתרת סיסמה' : 'הצגת סיסמה'}
@@ -185,138 +185,127 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="auth-page" dir="rtl" lang="he">
-      <section className="auth-card" aria-labelledby="register-title">
-        <header className="auth-header">
-          <a className="brand" href="/" aria-label="FocusMind AI - דף הבית">
-            <span className="brand-mark" aria-hidden="true">F</span>
-            <span>FocusMind<span className="brand-accent"> AI</span></span>
-          </a>
-          <span className="header-note">המרחב שלך לצמיחה</span>
-        </header>
+    <main className="signature-production" dir="rtl" lang="he">
+      <section className="signature-page signature-auth-page signature-auth-page--register" aria-labelledby="register-title">
+        <div className="signature-auth-card">
+          <section className="signature-auth-form">
+            <SignatureBrand href="/" />
+            {success ? (
+              <div className="signature-auth-success" role="status">
+                <span aria-hidden="true">✓</span>
+                <div className="signature-page-title">
+                  <small>הדרך החדשה מתחילה</small>
+                  <h1 id="register-title">איזה כיף, נרשמת!</h1>
+                  <p>החשבון שלך נוצר בהצלחה. אפשר להמשיך ולהתחבר.</p>
+                </div>
+                <a className="signature-primary-button" href="/login">מעבר להתחברות <span aria-hidden="true">←</span></a>
+              </div>
+            ) : (
+              <>
+                <div className="signature-page-title">
+                  <small>צעד קטן, שינוי גדול</small>
+                  <h1 id="register-title">מתחילים להתמקד</h1>
+                  <p>יוצרים חשבון ומפנים מקום לדברים החשובים באמת.</p>
+                </div>
 
-        {success ? (
-          <div className="success-panel" role="status">
-            <span className="success-icon" aria-hidden="true">✓</span>
-            <h1 id="register-title">איזה כיף, נרשמת!</h1>
-            <p>החשבון שלך נוצר בהצלחה. אפשר להמשיך ולהתחבר.</p>
-            <a className="submit-button success-link" href="/login">מעבר להתחברות</a>
-          </div>
-        ) : (
-          <>
-            <div className="intro">
-              <span className="eyebrow">צעד קטן, שינוי גדול</span>
-              <h1 id="register-title">מתחילים להתמקד</h1>
-              <p>יוצרים חשבון ומפנים מקום לדברים החשובים באמת.</p>
+                <form onSubmit={handleSubmit} noValidate>
+                  {formError && <p role="alert">{formError}</p>}
+
+                  <div className="signature-form-row">
+                    <div className={`form-field${fieldErrors.displayName ? ' form-field--error' : ''}`}>
+                      <label htmlFor="displayName">שם מלא</label>
+                      <input
+                        id="displayName"
+                        name="displayName"
+                        type="text"
+                        value={values.displayName}
+                        onChange={updateField}
+                        autoComplete="name"
+                        minLength={2}
+                        maxLength={30}
+                        required
+                        aria-invalid={Boolean(fieldErrors.displayName)}
+                        aria-describedby={fieldErrors.displayName ? 'displayName-error' : undefined}
+                        placeholder="איך קוראים לך?"
+                      />
+                      {fieldErrors.displayName && (
+                        <span className="signature-form-error" id="displayName-error">{fieldErrors.displayName}</span>
+                      )}
+                    </div>
+
+                    <div className={`form-field${fieldErrors.email ? ' form-field--error' : ''}`}>
+                      <label htmlFor="email">כתובת אימייל</label>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={values.email}
+                        onChange={updateField}
+                        autoComplete="email"
+                        required
+                        aria-invalid={Boolean(fieldErrors.email)}
+                        aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+                        placeholder="name@example.com"
+                        dir="ltr"
+                      />
+                      {fieldErrors.email && (
+                        <span className="signature-form-error" id="email-error">{fieldErrors.email}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="signature-form-row">
+                    <PasswordField
+                      id="password"
+                      label="סיסמה"
+                      value={values.password}
+                      error={fieldErrors.password}
+                      visible={passwordVisible}
+                      onChange={updateField}
+                      onToggle={() => setPasswordVisible((visible) => !visible)}
+                      autoComplete="new-password"
+                    />
+                    <PasswordField
+                      id="confirmPassword"
+                      label="אימות סיסמה"
+                      value={values.confirmPassword}
+                      error={fieldErrors.confirmPassword}
+                      visible={confirmVisible}
+                      onChange={updateField}
+                      onToggle={() => setConfirmVisible((visible) => !visible)}
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <div className="signature-form-hint">
+                    בחרו סיסמה בת 8 תווים לפחות ואשרו אותה.
+                  </div>
+                  <button className="signature-primary-button signature-auth-submit" type="submit" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <span className="signature-loading-spinner" aria-hidden="true" />
+                        יוצרים את החשבון...
+                      </>
+                    ) : 'יצירת חשבון'}
+                    {!loading && <span aria-hidden="true">←</span>}
+                  </button>
+                </form>
+
+                <p className="signature-auth-switch">
+                  כבר יש לך חשבון? <a href="/login">מתחברים כאן</a>
+                </p>
+              </>
+            )}
+          </section>
+          <aside className="signature-register-art" aria-label="איור של מסע למידה חדש">
+            <FocusIllustration type="register" />
+            <div className="signature-auth-art-note">
+              <span>זרע קטן של סקרנות</span>
+              <strong>צומח לדרך חדשה.</strong>
             </div>
-
-            <form className="register-form" onSubmit={handleSubmit} noValidate>
-              {formError && <p className="form-message" role="alert">{formError}</p>}
-
-              <div className={`form-field${fieldErrors.displayName ? ' form-field--error' : ''}`}>
-                <label htmlFor="displayName">שם מלא</label>
-                <input
-                  id="displayName"
-                  name="displayName"
-                  type="text"
-                  value={values.displayName}
-                  onChange={updateField}
-                  autoComplete="name"
-                  minLength={2}
-                  maxLength={30}
-                  required
-                  aria-invalid={Boolean(fieldErrors.displayName)}
-                  aria-describedby={fieldErrors.displayName ? 'displayName-error' : undefined}
-                  placeholder="איך קוראים לך?"
-                />
-                {fieldErrors.displayName && (
-                  <span className="field-error" id="displayName-error">{fieldErrors.displayName}</span>
-                )}
-              </div>
-
-              <div className={`form-field${fieldErrors.email ? ' form-field--error' : ''}`}>
-                <label htmlFor="email">כתובת אימייל</label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={values.email}
-                  onChange={updateField}
-                  autoComplete="email"
-                  required
-                  aria-invalid={Boolean(fieldErrors.email)}
-                  aria-describedby={fieldErrors.email ? 'email-error' : undefined}
-                  placeholder="name@example.com"
-                  dir="ltr"
-                />
-                {fieldErrors.email && (
-                  <span className="field-error" id="email-error">{fieldErrors.email}</span>
-                )}
-              </div>
-
-              <PasswordField
-                id="password"
-                label="סיסמה"
-                value={values.password}
-                error={fieldErrors.password}
-                visible={passwordVisible}
-                onChange={updateField}
-                onToggle={() => setPasswordVisible((visible) => !visible)}
-                autoComplete="new-password"
-              />
-
-              <PasswordField
-                id="confirmPassword"
-                label="אימות סיסמה"
-                value={values.confirmPassword}
-                error={fieldErrors.confirmPassword}
-                visible={confirmVisible}
-                onChange={updateField}
-                onToggle={() => setConfirmVisible((visible) => !visible)}
-                autoComplete="new-password"
-              />
-
-              <button className="submit-button" type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <span className="spinner" aria-hidden="true" />
-                    יוצרים את החשבון...
-                  </>
-                ) : (
-                  'יצירת חשבון'
-                )}
-              </button>
-            </form>
-
-            <p className="login-prompt">
-              כבר יש לך חשבון? <a href="/login">מתחברים כאן</a>
-            </p>
-          </>
-        )}
-
-        <footer className="auth-footer">
-          <span className="footer-dot" aria-hidden="true" />
-          הצעדים שלך, בקצב שלך
-        </footer>
+          </aside>
+        </div>
       </section>
-
-      <aside className="visual-panel" aria-label="השראה יומית">
-        <div className="visual-glow visual-glow--one" />
-        <div className="visual-glow visual-glow--two" />
-        <div className="orbit orbit--outer" />
-        <div className="orbit orbit--inner" />
-        <div className="focus-orb" aria-hidden="true">
-          <span className="orb-ring" />
-          <span className="orb-core" />
-        </div>
-        <div className="visual-copy">
-          <span className="visual-kicker">FOCUS · GROW · REPEAT</span>
-          <p>כשהראש מתבהר,<br />הדרך נפתחת.</p>
-          <span className="visual-caption">התחילו לבנות הרגלים שמרגישים שלכם.</span>
-        </div>
-        <span className="visual-decoration visual-decoration--top" aria-hidden="true">✳</span>
-        <span className="visual-decoration visual-decoration--bottom" aria-hidden="true">✳</span>
-      </aside>
     </main>
   );
 }

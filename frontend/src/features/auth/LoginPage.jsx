@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext.jsx';
-import './LoginPage.css';
+import FocusIllustration from '../../components/FocusIllustration.jsx';
+import SignatureBrand from '../../components/SignatureBrand.jsx';
 
 function validate(values) {
   const errors = {};
@@ -17,15 +18,6 @@ function validate(values) {
   }
 
   return errors;
-}
-
-function FocusLogo() {
-  return (
-    <svg className="login-brand-mark" viewBox="0 0 48 48" aria-hidden="true">
-      <path d="M13 13 21 21M35 13 27 21M13 35l8-8m14 8-8-8" />
-      <circle cx="24" cy="24" r="4.25" />
-    </svg>
-  );
 }
 
 export default function LoginPage({ onAuthenticated }) {
@@ -74,107 +66,93 @@ export default function LoginPage({ onAuthenticated }) {
   }
 
   return (
-    <main className="login-page" dir="rtl" lang="he">
-      <section className="login-card" aria-labelledby="login-title">
-        <header className="login-header">
-          <a className="login-brand" href="/" aria-label="FocusMind AI - דף הבית">
-            <FocusLogo />
-            <span>FocusMind<span> AI</span></span>
-          </a>
-          <span className="login-header-note">המרחב שלך לצמיחה</span>
-        </header>
-
-        <div className="login-intro">
-          <span className="login-eyebrow">טוב שחזרת</span>
-          <h1 id="login-title">חוזרים לפוקוס</h1>
-          <p>התחברו כדי להמשיך להתקדם, צעד אחד בכל פעם.</p>
-        </div>
-
-        <form className="login-form" onSubmit={handleSubmit} noValidate>
-          {formError && <p className="login-form-error" role="alert">{formError}</p>}
-
-          <div className={`login-field${fieldErrors.email ? ' login-field--error' : ''}`}>
-            <label htmlFor="login-email">כתובת אימייל</label>
-            <input
-              id="login-email"
-              name="email"
-              type="email"
-              value={values.email}
-              onChange={updateField}
-              autoComplete="email"
-              autoCapitalize="none"
-              required
-              aria-invalid={Boolean(fieldErrors.email)}
-              aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
-              placeholder="name@example.com"
-              dir="ltr"
-            />
-            {fieldErrors.email && (
-              <span className="login-field-error" id="login-email-error">{fieldErrors.email}</span>
-            )}
-          </div>
-
-          <div className={`login-field${fieldErrors.password ? ' login-field--error' : ''}`}>
-            <label htmlFor="login-password">סיסמה</label>
-            <div className="login-password-wrap">
-              <input
-                id="login-password"
-                name="password"
-                type={passwordVisible ? 'text' : 'password'}
-                value={values.password}
-                onChange={updateField}
-                autoComplete="current-password"
-                required
-                aria-invalid={Boolean(fieldErrors.password)}
-                aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
-              />
-              <button
-                className="login-password-toggle"
-                type="button"
-                onClick={() => setPasswordVisible((visible) => !visible)}
-                aria-label={passwordVisible ? 'הסתרת סיסמה' : 'הצגת סיסמה'}
-                aria-pressed={passwordVisible}
-              >
-                {passwordVisible ? 'הסתרה' : 'הצגה'}
-              </button>
+    <main className="signature-production" dir="rtl" lang="he">
+      <section className="signature-page signature-auth-page signature-auth-page--login" aria-labelledby="login-title">
+        <div className="signature-auth-card">
+          <aside className="signature-auth-art" aria-label="איור של שולחן לימוד">
+            <FocusIllustration type="login" />
+            <div className="signature-auth-art-note">
+              <span aria-hidden="true">✧</span>
+              <strong>כל התחלה טובה<br />מתחילה ברגע של שקט.</strong>
             </div>
-            {fieldErrors.password && (
-              <span className="login-field-error" id="login-password-error">{fieldErrors.password}</span>
-            )}
-          </div>
+          </aside>
+          <section className="signature-auth-form">
+            <SignatureBrand href="/" />
+            <div className="signature-page-title">
+              <small>טוב שחזרת</small>
+              <h1 id="login-title">חוזרים לפוקוס</h1>
+              <p>התחברו כדי להמשיך להתקדם, צעד אחד בכל פעם.</p>
+            </div>
 
-          <button className="login-submit" type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="login-spinner" aria-hidden="true" />
-                מתחברים...
-              </>
-            ) : 'התחברות'}
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} noValidate>
+              {formError && <p role="alert">{formError}</p>}
+              <div className="form-field">
+                <label htmlFor="login-email">כתובת אימייל</label>
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  value={values.email}
+                  onChange={updateField}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  required
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
+                  placeholder="name@example.com"
+                  dir="ltr"
+                />
+                {fieldErrors.email && (
+                  <span className="signature-form-error" id="login-email-error">{fieldErrors.email}</span>
+                )}
+              </div>
 
-        <p className="login-register-prompt">
-          עדיין אין לך חשבון? <a href="/register">יוצרים חשבון חדש</a>
-        </p>
+              <div className="form-field">
+                <label htmlFor="login-password">סיסמה</label>
+                <span className="signature-password-wrap">
+                  <input
+                    id="login-password"
+                    name="password"
+                    type={passwordVisible ? 'text' : 'password'}
+                    value={values.password}
+                    onChange={updateField}
+                    autoComplete="current-password"
+                    required
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPasswordVisible((visible) => !visible)}
+                    aria-label={passwordVisible ? 'הסתרת סיסמה' : 'הצגת סיסמה'}
+                    aria-pressed={passwordVisible}
+                  >
+                    {passwordVisible ? 'הסתרה' : 'הצגה'}
+                  </button>
+                </span>
+                {fieldErrors.password && (
+                  <span className="signature-form-error" id="login-password-error">{fieldErrors.password}</span>
+                )}
+              </div>
 
-        <footer className="login-footer">
-          <span aria-hidden="true" />
-          המחשבות שלך. המרחב שלך. הדרך שלך.
-        </footer>
-      </section>
+              <div className="signature-form-hint">יש להזין כתובת אימייל וסיסמה כדי להמשיך.</div>
+              <button className="signature-primary-button signature-auth-submit" type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <span className="signature-loading-spinner" aria-hidden="true" />
+                    מתחברים...
+                  </>
+                ) : 'התחברות'}
+              </button>
+            </form>
 
-      <aside className="login-visual" aria-label="השראה יומית">
-        <div className="login-visual-orbit login-visual-orbit--outer" />
-        <div className="login-visual-orbit login-visual-orbit--inner" />
-        <div className="login-focus-orb" aria-hidden="true"><span /></div>
-        <div className="login-visual-copy">
-          <span>YOUR MIND. YOUR SPACE. YOUR WAY.</span>
-          <p>ראש שקט.<br />מטרות גדולות.</p>
-          <small>כל התחלה טובה מתחילה ברגע של פוקוס.</small>
+            <p className="signature-auth-switch">
+              עדיין אין לך חשבון? <a href="/register">יוצרים חשבון חדש</a>
+            </p>
+            <p className="signature-auth-footnote">המחשבות שלך. המרחב שלך. הדרך שלך.</p>
+          </section>
         </div>
-        <span className="login-decoration login-decoration--one" aria-hidden="true">✦</span>
-        <span className="login-decoration login-decoration--two" aria-hidden="true">✧</span>
-      </aside>
+      </section>
     </main>
   );
 }

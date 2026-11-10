@@ -1,32 +1,4 @@
-import { useState } from 'react';
-import './SignatureDesign.css';
-
-const pages = [
-  { id: 'landing', label: 'דף נחיתה' },
-  { id: 'login', label: 'התחברות' },
-  { id: 'register', label: 'הרשמה' },
-  { id: 'dashboard', label: 'דף הבית' },
-  { id: 'smart', label: 'למידה חכמה' },
-];
-
-const courses = [
-  { name: 'מבוא למדעי המוח', topic: 'מדעי החיים', progress: 68, lesson: 'שיעור 8 מתוך 12', icon: '◉', tone: 'teal' },
-  { name: 'חשיבה עיצובית', topic: 'יצירתיות', progress: 42, lesson: 'שיעור 5 מתוך 10', icon: '✳', tone: 'peach' },
-  { name: 'יסודות מדעי הנתונים', topic: 'טכנולוגיה', progress: 84, lesson: 'שיעור 10 מתוך 12', icon: '⌘', tone: 'blue' },
-];
-
-function Logo({ light = false }) {
-  return (
-    <a className={`signature-brand${light ? ' signature-brand--light' : ''}`} href="/design-preview" aria-label="FocusMind AI">
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M24 37c-10-2-15-9-13-19 9 1 14 6 14 14 2-12 9-18 20-18-1 14-8 22-21 23Z" />
-        <path d="M12 39h25M19 11a11 11 0 0 1 11 0" />
-        <circle cx="24" cy="22" r="2.5" />
-      </svg>
-      <span><strong>FocusMind AI</strong><small>מרחב ללמוד, לצמוח, להצליח</small></span>
-    </a>
-  );
-}
+import './FocusIllustration.css';
 
 function SketchPaperDefs({ id }) {
   return (
@@ -59,7 +31,7 @@ function SketchPaperDefs({ id }) {
 function Scene({ type }) {
   if (type === 'landing') {
     return (
-      <svg className="signature-scene" viewBox="0 0 700 440" role="img" aria-label="מחברת פתוחה הופכת לעולם של ספרים ורעיונות מצוירים בעיפרון">
+      <svg className="focus-illustration" viewBox="0 0 700 440" role="img" aria-label="מחברת פתוחה הופכת לעולם של ספרים ורעיונות מצוירים בעיפרון">
         <SketchPaperDefs id="signature-landing" />
         <rect width="700" height="440" fill="#F6F0E4" />
         <rect width="700" height="440" fill="url(#signature-landing-paper)" />
@@ -105,7 +77,7 @@ function Scene({ type }) {
   }
   if (type === 'login') {
     return (
-      <svg className="signature-scene" viewBox="0 0 520 520" role="img" aria-label="שולחן עבודה שקט עם מחברת פתוחה, עיפרון, ספל וענף קטן">
+      <svg className="focus-illustration" viewBox="0 0 520 520" role="img" aria-label="שולחן עבודה שקט עם מחברת פתוחה, עיפרון, ספל וענף קטן">
         <SketchPaperDefs id="signature-login" />
         <rect width="520" height="520" fill="#F4EFE5" />
         <rect width="520" height="520" fill="url(#signature-login-paper)" />
@@ -148,7 +120,7 @@ function Scene({ type }) {
   }
   if (type === 'register') {
     return (
-      <svg className="signature-scene" viewBox="0 0 540 500" role="img" aria-label="עיפרון מצייר שביל מתפתל שהופך לספרים ורעיונות חדשים">
+      <svg className="focus-illustration" viewBox="0 0 540 500" role="img" aria-label="עיפרון מצייר שביל מתפתל שהופך לספרים ורעיונות חדשים">
         <SketchPaperDefs id="signature-register" />
         <rect width="540" height="500" fill="#F5F0E6" />
         <rect width="540" height="500" fill="url(#signature-register-paper)" />
@@ -185,7 +157,7 @@ function Scene({ type }) {
   }
   if (type === 'dashboard') {
     return (
-      <svg className="signature-scene" viewBox="0 0 760 310" role="img" aria-label="ספרים מצוירים נערמים למדרגות המובילות לרעיון מואר">
+      <svg className="focus-illustration" viewBox="0 0 760 310" role="img" aria-label="ספרים מצוירים נערמים למדרגות המובילות לרעיון מואר">
         <SketchPaperDefs id="signature-dashboard" />
         <rect width="760" height="310" fill="#F5F0E5" />
         <rect width="760" height="310" fill="url(#signature-dashboard-paper)" />
@@ -222,7 +194,7 @@ function Scene({ type }) {
     );
   }
   return (
-    <svg className="signature-scene" viewBox="0 0 760 390" role="img" aria-label="מחברת למידה בעיפרון מוקפת בשעון, נורה, עיפרון וקשרי רעיונות">
+    <svg className="focus-illustration" viewBox="0 0 760 390" role="img" aria-label="מחברת למידה בעיפרון מוקפת בשעון, נורה, עיפרון וקשרי רעיונות">
       <SketchPaperDefs id="signature-smart" />
       <rect width="760" height="390" fill="#F4EFE5" />
       <rect width="760" height="390" fill="url(#signature-smart-paper)" />
@@ -264,187 +236,6 @@ function Scene({ type }) {
   );
 }
 
-function PageNavigation({ active, onChange }) {
-  return (
-    <nav className="signature-page-tabs" aria-label="דפי Design 15">
-      {pages.map((page, index) => (
-        <button
-          key={page.id}
-          type="button"
-          className={`signature-page-tab${active === page.id ? ' is-active' : ''}`}
-          aria-pressed={active === page.id}
-          onClick={() => onChange(page.id)}
-        >
-          <span>{String(index + 1).padStart(2, '0')}</span>{page.label}
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-function PageTitle({ eyebrow, title, children }) {
-  return <div className="signature-page-title"><small>{eyebrow}</small><h1>{title}</h1>{children && <p>{children}</p>}</div>;
-}
-
-function SmartButton({ children = 'להתחיל ללמוד' }) {
-  return <button className="signature-primary-button" type="button">{children}<span aria-hidden="true">←</span></button>;
-}
-
-function LandingPage() {
-  return (
-    <div className="signature-page signature-page--landing">
-      <header className="signature-site-header">
-        <Logo />
-        <nav className="signature-public-nav" aria-label="ניווט באתר"><a href="#signature-features">היתרונות שלנו</a><a href="#signature-smart">למידה חכמה</a><a href="#signature-how">איך זה עובד</a></nav>
-        <button type="button" className="signature-login-link">כניסה לחשבון</button>
-      </header>
-      <section className="signature-landing-hero">
-        <div className="signature-landing-copy">
-          <span className="signature-eyebrow"><i /> לומדים בדרך שמתאימה לך</span>
-          <PageTitle eyebrow="FOCUSMIND AI · למידה אישית" title={<>הדרך שלך ללמוד<br />מתחילה כאן.</>}>פלטפורמת למידה חכמה שמכירה את הקצב שלך, עוזרת לשמור על ריכוז והופכת כל יעד לצעד אפשרי.</PageTitle>
-          <div className="signature-landing-actions"><SmartButton>בואו נתחיל</SmartButton><a href="#signature-how">לגלות איך זה עובד <span>←</span></a></div>
-          <div className="signature-trust-note"><span>✦</span> לומדים בסקרנות. מתקדמים בביטחון.</div>
-        </div>
-        <div className="signature-landing-art"><Scene type="landing" /><span className="signature-art-caption">מרחב שקט לרעיונות גדולים</span></div>
-      </section>
-      <section className="signature-feature-strip" id="signature-features" aria-label="יתרונות הפלטפורמה">
-        <article><span>◌</span><div><strong>מסלול אישי</strong><small>תוכן שמותאם ליעדים ולקצב שלך.</small></div></article>
-        <article><span>↗</span><div><strong>התקדמות ברורה</strong><small>רואים כל צעד בדרך להצלחה.</small></div></article>
-        <article><span>✳</span><div><strong>למידה ממוקדת</strong><small>כלים שעוזרים להישאר ברגע.</small></div></article>
-      </section>
-      <section className="signature-smart-intro" id="signature-smart">
-        <div className="signature-smart-intro-icon">✦</div><div><small>מכירים את Smart Learning</small><h2>יותר מריכוז. למידה שמבינה אותך.</h2><p>מרחב למידה חכם שמחבר בין התוכן, ההתקדמות וההרגלים שלך — כדי לעזור לך ללמוד בצורה שנכונה לך.</p></div><SmartButton>לגלות למידה חכמה</SmartButton>
-      </section>
-    </div>
-  );
-}
-
-function BrandCard() {
-  return <div className="signature-auth-art"><Scene type="login" /><div className="signature-auth-art-note"><span>✧</span><strong>כל התחלה טובה<br />מתחילה ברגע של שקט.</strong></div></div>;
-}
-
-function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  return (
-    <div className="signature-page signature-auth-page signature-auth-page--login">
-      <div className="signature-auth-card">
-        <BrandCard />
-        <section className="signature-auth-form">
-          <Logo />
-          <PageTitle eyebrow="טוב שחזרת" title="מתחברים וממשיכים." >המרחב האישי שלך מחכה לך.</PageTitle>
-          <form onSubmit={(event) => event.preventDefault()}>
-            <label>כתובת אימייל<input type="email" name="email" autoComplete="email" placeholder="name@example.com" /></label>
-            <label>סיסמה<span className="signature-password-wrap"><input type={showPassword ? 'text' : 'password'} name="password" autoComplete="current-password" placeholder="הזנת סיסמה" /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'הסתרת סיסמה' : 'הצגת סיסמה'}>{showPassword ? 'הסתרה' : 'הצגה'}</button></span></label>
-            <div className="signature-form-hint" role="status">יש להזין כתובת אימייל וסיסמה כדי להמשיך.</div>
-            <button type="submit" className="signature-primary-button signature-submit">כניסה לחשבון <span aria-hidden="true">←</span></button>
-          </form>
-          <p className="signature-auth-switch">עדיין אין לך חשבון? <button type="button">יצירת חשבון חדש</button></p>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function RegisterPage() {
-  return (
-    <div className="signature-page signature-auth-page signature-auth-page--register">
-      <div className="signature-auth-card">
-        <section className="signature-auth-form">
-          <Logo />
-          <PageTitle eyebrow="מתחילים לצמוח" title="המסע שלך מתחיל כאן." >ניצור יחד מרחב למידה אישי שמתאים בדיוק לך.</PageTitle>
-          <form onSubmit={(event) => event.preventDefault()}>
-            <label>שם מלא<input type="text" name="name" autoComplete="name" placeholder="איך קוראים לך?" /></label>
-            <label>כתובת אימייל<input type="email" name="email" autoComplete="email" placeholder="name@example.com" /></label>
-            <div className="signature-form-row"><label>סיסמה<input type="password" name="password" autoComplete="new-password" placeholder="לפחות 8 תווים" /></label><label>אימות סיסמה<input type="password" name="confirm-password" autoComplete="new-password" placeholder="הקלדה חוזרת" /></label></div>
-            <div className="signature-form-hint" role="status">בחרי סיסמה בת 8 תווים לפחות ואשרי אותה.</div>
-            <button type="submit" className="signature-primary-button signature-submit">יצירת חשבון <span aria-hidden="true">←</span></button>
-          </form>
-          <p className="signature-auth-switch">כבר יש לך חשבון? <button type="button">כניסה לחשבון</button></p>
-        </section>
-        <div className="signature-register-art"><Scene type="register" /><div><span>זרע קטן של סקרנות</span><strong>צומח לדרך חדשה.</strong></div></div>
-      </div>
-    </div>
-  );
-}
-
-function CourseCards() {
-  return (
-    <div className="signature-course-grid">
-      {courses.map((course) => (
-        <article className={`signature-course signature-course--${course.tone}`} key={course.name}>
-          <span className="signature-course-icon" aria-hidden="true">{course.icon}</span>
-          <small>{course.topic}</small><h3>{course.name}</h3><p>{course.lesson}</p>
-          <div className="signature-course-progress"><div role="progressbar" aria-label={`התקדמות בקורס ${course.name}`} aria-valuenow={course.progress} aria-valuemin="0" aria-valuemax="100"><span style={{ width: `${course.progress}%` }} /></div><strong>{course.progress}%</strong></div>
-          <button type="button">המשך ללמוד <span aria-hidden="true">←</span></button>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function DashboardPage() {
-  return (
-    <div className="signature-page signature-dashboard">
-      <aside className="signature-dashboard-sidebar"><Logo /><nav aria-label="ניווט ראשי"><button className="is-active" type="button">⌂ <span>לוח הבקרה</span></button><button type="button">▤ <span>הקורסים שלי</span></button><button type="button">↗ <span>ההתקדמות שלי</span></button><button type="button">✳ <span>למידה חכמה</span></button></nav><div className="signature-sidebar-user"><span>נ</span><div><strong>נועה ישראלי</strong><small>תוכנית אישית</small></div></div></aside>
-      <div className="signature-dashboard-main">
-        <header className="signature-dashboard-top"><span>יום שלישי · 28 באוקטובר</span><button type="button" aria-label="הודעות">♧</button></header>
-        <div className="signature-dashboard-content">
-          <section className="signature-dashboard-hero">
-            <div><small>מרחב הלמידה שלך</small><h1>בוקר טוב, נועה</h1><p>עוד יום להזין את הסקרנות שלך ולהתקדם בדרך שלך.</p><SmartButton>המשך ללמוד</SmartButton></div>
-            <div className="signature-dashboard-art"><Scene type="dashboard" /><span>לומדים. צומחים. מתקדמים.</span></div>
-          </section>
-          <div className="signature-dashboard-stats">
-            <section className="signature-stat-card"><small>ההתקדמות השבועית</small><strong>72<em>%</em></strong><div role="progressbar" aria-label="ההתקדמות השבועית" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100"><span /></div><span>עלייה של 12% מהשבוע שעבר</span></section>
-            <section className="signature-stat-card signature-stat-card--streak"><small>רצף הלמידה שלך</small><strong>5 ימים</strong><span>איזה יופי של התמדה</span><i>✧</i></section>
-            <section className="signature-smart-card"><span>✳</span><small>SMART LEARNING</small><h2>מרחב הלמידה החכם שלך</h2><p>צפי בשיעור, שמרי על מיקוד והתקדמי בקצב שמתאים לך.</p><button type="button">למעבר ללמידה חכמה ←</button></section>
-          </div>
-          <section className="signature-dashboard-courses"><div className="signature-section-heading"><div><small>הדרך שלך נבנית צעד אחר צעד</small><h2>הקורסים הפעילים</h2></div><button type="button">לכל הקורסים ←</button></div><CourseCards /></section>
-          <aside className="signature-dashboard-ai"><span>✦</span><div><small>FOCUSMIND AI · תובנה אישית</small><strong>הזמן האהוב עלייך ללמוד הוא בשעות הבוקר.</strong><p>מפגש קצר של 25 דקות יכול לעזור לך לשמור על הרצף השבועי.</p></div><button type="button">לתכנון מפגש</button></aside>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SmartLearningPage() {
-  return (
-    <div className="signature-page signature-learning-page">
-      <header className="signature-learning-header"><Logo /><nav aria-label="ניווט למידה"><button type="button">הקורסים שלי</button><button className="is-active" type="button">למידה חכמה</button></nav><button className="signature-learning-back" type="button">חזרה לקורסים ←</button></header>
-      <div className="signature-learning-layout">
-        <main className="signature-learning-main">
-          <div className="signature-learning-breadcrumb">הקורסים שלי <span>←</span> מבוא למדעי המוח</div>
-          <div className="signature-learning-title"><div><small>שיעור 8 מתוך 12 · מדעי החיים</small><h1>איך המוח לומד וזוכר?</h1></div><span>התקדמות בקורס <strong>68%</strong></span></div>
-          <section className="signature-video-card" aria-label="תצוגה מקדימה של אזור הווידאו">
-            <div className="signature-video-scene"><Scene type="smart" /><div className="signature-video-overlay"><button type="button" aria-label="הפעלת תצוגת וידאו">▶</button><span>תצוגה מקדימה של השיעור</span></div><div className="signature-video-controls"><span>00:00 / 18:40</span><i><b /></i><span>⛶</span></div></div>
-            <div className="signature-session-meta"><span>שיעור וידאו · 18 דקות</span><span>נשמר אוטומטית במרחב הלמידה</span></div>
-          </section>
-          <div className="signature-learning-actions"><button type="button">← השיעור הקודם</button><SmartButton>סיום שיעור</SmartButton><button type="button">השיעור הבא →</button></div>
-          <section className="signature-learning-progress"><div><small>ההתקדמות שלך בקורס</small><strong>8 מתוך 12 שיעורים הושלמו</strong></div><div role="progressbar" aria-label="התקדמות בקורס" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100"><span /></div><b>68%</b></section>
-        </main>
-        <aside className="signature-learning-side">
-          <section className="signature-timer-card"><small>זמן למידה ממוקד</small><strong>24:36</strong><span>נותרו במפגש של 25 דקות</span><button type="button">השהיית המפגש</button><div className="signature-timer-track"><span /></div></section>
-          <section className="signature-assistant-card"><span>✳</span><small>FOCUSMIND AI · לצדך בלמידה</small><h2>שימי לב לרעיון המרכזי</h2><p>המוח מחזק זיכרונות כשאנחנו מחברים מידע חדש לידע שכבר קיים.</p><button type="button">הוספת הערה לשיעור</button></section>
-          <section className="signature-attention-card"><div className="signature-attention-icon">◎</div><div><strong>כלי מיקוד</strong><small>תכונות מצלמה ומיקוד יוצגו כאן</small></div><span>לא פעיל</span></section>
-          <div className="signature-smart-books" aria-hidden="true"><span>הלמידה נשארת שלך. אנחנו רק עוזרים בדרך.</span></div>
-        </aside>
-      </div>
-    </div>
-  );
-}
-
-export default function SignatureDesign({ concept }) {
-  const [activePage, setActivePage] = useState('landing');
-  const selectedPage = pages.find((page) => page.id === activePage) ?? pages[0];
-  return (
-    <section className="signature-design" data-design="signature" data-page={activePage} dir="rtl" lang="he" aria-label={`תצוגה מקדימה של ${concept.name}`}>
-      <div className="signature-gallery-heading"><span>כיוון עיצובי 15</span><strong>{concept.name}</strong><p>השילוב החתימתי: חמימות של Harmony, טבע אורגני ואלגנטיות מדויקת.</p></div>
-      <PageNavigation active={activePage} onChange={setActivePage} />
-      <div className="signature-page-heading"><span>תצוגת עמוד</span><strong>{selectedPage.label}</strong></div>
-      {activePage === 'landing' && <LandingPage />}
-      {activePage === 'login' && <LoginPage />}
-      {activePage === 'register' && <RegisterPage />}
-      {activePage === 'dashboard' && <DashboardPage />}
-      {activePage === 'smart' && <SmartLearningPage />}
-    </section>
-  );
+export default function FocusIllustration({ type }) {
+  return <Scene type={type} />;
 }

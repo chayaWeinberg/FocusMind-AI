@@ -23,6 +23,18 @@ describe('App routes and authentication', () => {
     vi.restoreAllMocks();
   });
 
+  it('exposes the isolated WebGazer experiment only in development without auth or backend calls', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/__experiments/webgazer');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'ניסוי מבט — הוכחת היתכנות' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'הפעלת מצלמה והתחלת WebGazer' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('keeps the existing registration page at /register and at the root', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(401, {}));
     vi.stubGlobal('fetch', fetchMock);
@@ -30,6 +42,7 @@ describe('App routes and authentication', () => {
     const { unmount } = render(<App />);
     expect(screen.getByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
     expect(screen.getByLabelText('שם מלא')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'עיפרון מצייר שביל מתפתל שהופך לספרים ורעיונות חדשים' })).toBeInTheDocument();
     await waitFor(async () => {
       expect(await fetchMock.mock.results[0].value).toMatchObject({ status: 401 });
     });
@@ -51,6 +64,7 @@ describe('App routes and authentication', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'ספרים מצוירים נערמים למדרגות המובילות לרעיון מואר' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'למידה חכמה' })).toHaveAttribute('href', '/learning');
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:8000/api/auth/me',
@@ -85,7 +99,8 @@ describe('App routes and authentication', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'למידה חכמה' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'ניסוי זיהוי מבט' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'הפעלת מצלמה' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'חזרה ללוח הבקרה' })).toHaveAttribute('href', '/dashboard');
   });
 
@@ -131,11 +146,22 @@ describe('App routes and authentication', () => {
 
     render(<App />);
     await screen.findByRole('heading', { name: 'חוזרים לפוקוס' });
+    expect(screen.getByRole('img', { name: 'שולחן עבודה שקט עם מחברת פתוחה, עיפרון, ספל וענף קטן' })).toBeInTheDocument();
     await user.type(screen.getByLabelText('כתובת אימייל'), 'noa@example.com');
     await user.type(screen.getByLabelText('סיסמה'), 'Password123!');
     await user.click(screen.getByRole('button', { name: 'התחברות' }));
 
     expect(await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/dashboard');
+  });
+
+  it('does not expose the removed Design Gallery route', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(401, {})));
+    window.history.pushState({}, '', '/design-preview');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'בחירת כיוון עיצובי' })).not.toBeInTheDocument();
   });
 });

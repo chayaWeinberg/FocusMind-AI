@@ -65,11 +65,17 @@ function HookHarness({
     stopDiagnosticRecording,
     resetDiagnosticRecording,
     startCalibration,
+    startGuidedCalibration,
     cancelCalibration,
     restartCalibration,
     repeatCalibrationTarget,
     startKeyboardEvaluation,
     completeCalibration,
+    liveGazeDiagnosticRecorderRef,
+    startLiveGazeDiagnosticRecording,
+    setLiveGazeDiagnosticStage,
+    endLiveGazeDiagnosticStage,
+    stopLiveGazeDiagnosticRecording,
   } = useFaceLandmarker(videoRef, stream, onResults, trackingEnabled);
   useEffect(() => {
     onRenderRef.current?.(
@@ -92,6 +98,12 @@ function HookHarness({
       repeatCalibrationTarget,
       startKeyboardEvaluation,
       completeCalibration,
+      startGuidedCalibration,
+      liveGazeDiagnosticRecorderRef,
+      startLiveGazeDiagnosticRecording,
+      setLiveGazeDiagnosticStage,
+      endLiveGazeDiagnosticStage,
+      stopLiveGazeDiagnosticRecording,
     );
   }, [
     status,
@@ -108,11 +120,17 @@ function HookHarness({
     resetDiagnosticRecording,
     screenCalibrationSessionRef,
     startCalibration,
+    startGuidedCalibration,
     cancelCalibration,
     restartCalibration,
     repeatCalibrationTarget,
     startKeyboardEvaluation,
     completeCalibration,
+    liveGazeDiagnosticRecorderRef,
+    startLiveGazeDiagnosticRecording,
+    setLiveGazeDiagnosticStage,
+    endLiveGazeDiagnosticStage,
+    stopLiveGazeDiagnosticRecording,
   ]);
 
   const setVideo = useCallback((video) => {
@@ -708,6 +726,86 @@ describe('useFaceLandmarker', () => {
     expect(calibrationSessionRef.current.getSnapshot(5000).status).toBe('interrupted');
   });
 
+  it('starts the guided session in a non-recording transition state', async () => {
+    const { stream } = createStream();
+    let calibrationSessionRef;
+    let startGuidedCalibration;
+    const onRender = (...args) => {
+      calibrationSessionRef = args[12];
+      startGuidedCalibration = args[19];
+    };
+    const { container } = render(<HookHarness stream={stream} onRender={onRender} trackingEnabled />);
+    await findVideo(container);
+
+    act(() => expect(startGuidedCalibration()).toBe(true));
+    const session = calibrationSessionRef.current;
+    const timestamp = performance.now();
+    expect(session.getSnapshot(timestamp)).toMatchObject({
+      status: 'guided-transition',
+      target: { label: 'CENTER' },
+    });
+    expect(session.recordSample({
+      faceDetected: true,
+    }, timestamp + 1).accepted).toBe(false);
+    expect(session.beginGuidedCollection(timestamp + 2)).toBe(true);
+    expect(session.getSnapshot(timestamp + 2).status).toBe('collecting');
+  });
+
+  it('records the real raw classifier reason and missing calibration requirements', async () => {
+    const { stream } = createStream();
+    let recorderRef;
+    let startDiagnostic;
+    let setStage;
+    const onRender = (...args) => {
+      recorderRef = args[20];
+      startDiagnostic = args[21];
+      setStage = args[22];
+    };
+    const { container } = render(<HookHarness stream={stream} onRender={onRender} trackingEnabled />);
+    const video = await findVideo(container);
+
+    act(() => {
+      expect(startDiagnostic()).toBe(true);
+      expect(setStage({
+        id: 'CENTER_BEFORE',
+        expectedLabel: 'CENTER',
+        expectedState: 'LOOKING_AT_SCREEN',
+      })).toBe(true);
+    });
+    video.currentTime = 2;
+    fireNextVideoFrame(video, 1200);
+
+    const snapshot = recorderRef.current.getSnapshot();
+    expect(snapshot.samples).toHaveLength(1);
+    expect(snapshot.samples[0]).toMatchObject({
+      expectedStage: 'CENTER_BEFORE',
+      modelReady: false,
+      missingRequirements: expect.arrayContaining([
+        'screen:CENTER:0/3',
+        'away:LOOK_AWAY_LEFT:eyes:0/3',
+      ]),
+      rawClassifierState: 'UNKNOWN',
+      smoothedState: 'UNKNOWN',
+      smoothingDiagnostics: {
+        state: 'UNKNOWN',
+        transitionHoldMs: 500,
+        unknownHoldMs: 500,
+      },
+      classifierReason: 'calibration-unavailable',
+      liveFeatures: {
+        faceDetected: false,
+        headPoseValid: false,
+        leftEyeValid: false,
+        rightEyeValid: false,
+        blendshapesValid: false,
+      },
+      classifierDiagnostics: {
+        closestScreenProfile: null,
+        closestOffscreenProfile: null,
+      },
+    });
+  });
+
   it('preserves same-frame pose and blendshapes for unreliable gaze without extra inference', async () => {
     const { stream, track } = createStream();
     const neutralMatrix = {
@@ -772,10 +870,15 @@ describe('useFaceLandmarker', () => {
       headPoseAvailable: true,
       headPoseValid: true,
       headPitch: 0,
+      headYaw: expect.any(Number),
+      leftEyeValid: true,
+      rightEyeValid: false,
+      leftEyeHorizontal: 0,
+      rightEyeHorizontal: null,
+      blendshapesValid: true,
       eyeMeasurementReliability: 'unreliable',
       eyeReliabilityReason: 'eyes-closed-or-invalid',
-      leftEyeHorizontalFinite: true,
-      rightEyeHorizontalFinite: false,
+      originalRejectionReason: 'eyes-closed-or-invalid',
       eyeLookDownLeft: 0.77,
       eyeLookDownRight: 0.88,
     });

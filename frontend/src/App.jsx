@@ -4,8 +4,31 @@ import LoginPage from './features/auth/LoginPage.jsx';
 import DashboardPage from './features/dashboard/DashboardPage.jsx';
 import SmartLearningPage from './features/learning/SmartLearningPage.jsx';
 import AuthProvider, { useAuth } from './features/auth/AuthContext.jsx';
-import DesignPreview from './features/design-preview/DesignPreview.jsx';
-import './features/auth/AuthRoutes.css';
+
+function DevelopmentWebGazerRoute() {
+  const [ExperimentPage, setExperimentPage] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    import('./features/learning/WebGazerExperimentPage.jsx')
+      .then(({ default: page }) => {
+        if (active) setExperimentPage(() => page);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError?.message || 'לא ניתן לטעון את ניסוי WebGazer.');
+      });
+    return () => { active = false; };
+  }, []);
+
+  if (error) {
+    return <main className="route-loading" role="alert">טעינת ניסוי WebGazer נכשלה: {error}</main>;
+  }
+  if (!ExperimentPage) {
+    return <main className="route-loading" role="status">טוענים את סביבת הניסוי…</main>;
+  }
+  return <ExperimentPage />;
+}
 
 function AuthRoutes({ path, navigate }) {
   const { status } = useAuth();
@@ -64,8 +87,8 @@ export default function App() {
     setPath(nextPath);
   }, []);
 
-  if (path === '/design-preview') {
-    return <DesignPreview />;
+  if (import.meta.env.DEV && path === '/__experiments/webgazer') {
+    return <DevelopmentWebGazerRoute />;
   }
 
   return (

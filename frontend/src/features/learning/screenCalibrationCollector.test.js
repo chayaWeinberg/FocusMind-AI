@@ -60,7 +60,8 @@ describe('screen calibration collector', () => {
         });
       }
     });
-    expect(session.getSnapshot(35_000).status).toBe('awaiting-keyboard-or-complete');
+    expect(session.getSnapshot(35_000).status)
+      .toBe('awaiting-keyboard-or-offscreen-or-complete');
   });
 
   it('rejects invalid measurements and retains rejection reason counts', () => {
@@ -108,7 +109,7 @@ describe('screen calibration collector', () => {
     expect(collector.getSnapshot().targets.CENTER.acceptedSamples).toEqual([]);
   });
 
-  it('preserves bounded scalar diagnostics for rejected samples without affecting accepted statistics', () => {
+  it('preserves per-feature validity for rejected samples without affecting accepted statistics', () => {
     const collector = createScreenCalibrationCollector();
     collector.reset(100);
     const rejectedSample = validSample({
@@ -135,7 +136,7 @@ describe('screen calibration collector', () => {
     const report = JSON.parse(collector.serialize());
     const center = report.screenCalibration.CENTER;
 
-    expect(report.schemaVersion).toBe(2);
+    expect(report.schemaVersion).toBe(4);
     expect(report.rejectedSampleDiagnostics).toEqual({
       perTargetBufferLimit: MAX_REJECTED_SAMPLES_PER_TARGET,
       retention: 'newest-samples-per-target',
@@ -150,31 +151,30 @@ describe('screen calibration collector', () => {
       target: 'CENTER',
       timestampMs: 150,
       rejectionReason: 'eyes-closed-or-invalid',
+      originalRejectionReason: 'eyes-closed-or-invalid',
       faceDetected: true,
       headPoseAvailable: true,
       headPoseValid: true,
-      headYaw: 15,
-      headPitch: -6,
+      headYaw: null,
+      headPitch: null,
       headRoll: null,
-      leftEyeHorizontal: 0.4,
+      leftEyeHorizontal: null,
       leftEyeVertical: null,
       rightEyeHorizontal: null,
-      rightEyeVertical: -0.2,
+      rightEyeVertical: null,
       eyeLookDownLeft: 0.8,
       eyeLookDownRight: null,
       eyeLookUpLeft: null,
       eyeLookUpRight: 0.1,
-      headYawFinite: true,
-      headPitchFinite: true,
-      headRollFinite: false,
-      leftEyeHorizontalFinite: true,
-      leftEyeVerticalFinite: false,
-      rightEyeHorizontalFinite: false,
-      rightEyeVerticalFinite: true,
-      eyeLookDownLeftFinite: true,
-      eyeLookDownRightFinite: false,
-      eyeLookUpLeftFinite: false,
-      eyeLookUpRightFinite: true,
+      eyeLookInLeft: null,
+      eyeLookOutLeft: null,
+      eyeLookInRight: null,
+      eyeLookOutRight: null,
+      headPoseValid: false,
+      leftEyeValid: false,
+      rightEyeValid: false,
+      blendshapesValid: true,
+      invalidFeatureGroups: ['headPose', 'leftEye', 'rightEye'],
       eyeMeasurementReliability: 'unreliable',
       eyeReliabilityReason: 'eyes-closed-or-invalid',
       eyeMeasurementsReliable: false,
@@ -188,6 +188,15 @@ describe('screen calibration collector', () => {
     );
     expect(() => JSON.stringify(report)).not.toThrow();
     expect(JSON.stringify(report)).not.toMatch(/NaN|Infinity/);
+    expect(report.diagnosticSummary).toMatchObject({
+      totalFramesObserved: 2,
+      validHeadPoseSampleCount: 1,
+      validLeftEyeMeasurementCount: 1,
+      validRightEyeMeasurementCount: 1,
+      validBlendshapeSampleCount: 2,
+      rejectionReasons: { 'eyes-closed-or-invalid': 1 },
+    });
+    expect(JSON.stringify(report)).not.toMatch(/landmarks|image|videoFrame/i);
   });
 
   it('uses nulls and explicit availability flags when rejected measurements are missing', () => {
@@ -211,15 +220,174 @@ describe('screen calibration collector', () => {
       headPoseAvailable: false,
       headPoseValid: false,
       headYaw: null,
-      headYawFinite: false,
       leftEyeHorizontal: null,
-      leftEyeHorizontalFinite: false,
+      leftEyeValid: false,
+      rightEyeValid: false,
+      blendshapesValid: false,
+      invalidFeatureGroups: ['headPose', 'leftEye', 'rightEye', 'blendshapes'],
       eyeMeasurementReliability: 'unreliable',
       eyeReliabilityReason: 'no-face',
       eyeMeasurementsFinite: false,
       eyeLookDownLeft: null,
-      eyeLookDownLeftFinite: false,
       blendshapesAvailable: false,
+    });
+  });
+
+  it('accepts keyboard diagnostics with valid head pose and invalid iris measurements', () => {
+    const collector = createScreenCalibrationCollector();
+    collector.reset(0);
+
+    expect(collector.record('KEYBOARD', validSample({
+      eyeGaze: {
+        reliability: 'unreliable',
+        reason: 'eyes-closed-or-invalid',
+      },
+      blendshapes: null,
+    }), 100)).toEqual({ accepted: true, rejectionReason: null });
+
+    const sample = collector.toJSON().keyboardEvaluation.acceptedSamples[0];
+    expect(sample).toMatchObject({
+      headPoseValid: true,
+      headYaw: 2,
+      headPitch: -1,
+      headRoll: 0.5,
+      leftEyeValid: false,
+      rightEyeValid: false,
+      leftEyeHorizontal: null,
+      leftEyeVertical: null,
+      rightEyeHorizontal: null,
+      rightEyeVertical: null,
+      blendshapesValid: false,
+      invalidFeatureGroups: ['leftEye', 'rightEye', 'blendshapes'],
+      originalRejectionReason: 'eyes-closed-or-invalid',
+      eyeMeasurementsReliable: false,
+    });
+  });
+
+  it.each([
+    {
+      name: 'left eye valid and right eye invalid',
+      leftEye: { horizontal: 0.2, vertical: -0.1 },
+      rightEye: { horizontal: null, vertical: -0.1 },
+      reliability: 'unreliable',
+      leftEyeValid: true,
+      rightEyeValid: false,
+    },
+    {
+      name: 'right eye valid and left eye invalid',
+      leftEye: { horizontal: 0.2, vertical: Number.NaN },
+      rightEye: { horizontal: -0.3, vertical: 0.1 },
+      reliability: 'unreliable',
+      leftEyeValid: false,
+      rightEyeValid: true,
+    },
+    {
+      name: 'both eyes invalid',
+      leftEye: { horizontal: 0.2, vertical: null },
+      rightEye: { horizontal: Number.NaN, vertical: 0.1 },
+      reliability: 'unreliable',
+      leftEyeValid: false,
+      rightEyeValid: false,
+    },
+    {
+      name: 'both eyes valid',
+      leftEye: { horizontal: 0.2, vertical: -0.1 },
+      rightEye: { horizontal: -0.3, vertical: 0.1 },
+      reliability: 'reliable',
+      leftEyeValid: true,
+      rightEyeValid: true,
+    },
+  ])('validates each eye independently: $name', ({
+    leftEye,
+    rightEye,
+    reliability,
+    leftEyeValid,
+    rightEyeValid,
+  }) => {
+    const collector = createScreenCalibrationCollector();
+    collector.reset(0);
+
+    expect(collector.record('KEYBOARD', validSample({
+      eyeGaze: { leftEye, rightEye, reliability, reason: null },
+    }), 100)).toEqual({ accepted: true, rejectionReason: null });
+
+    const sample = collector.getSnapshot().keyboardEvaluation.acceptedSamples[0];
+    expect(sample).toMatchObject({ leftEyeValid, rightEyeValid });
+    expect(sample.leftEyeHorizontal).toBe(leftEyeValid ? leftEye.horizontal : null);
+    expect(sample.leftEyeVertical).toBe(leftEyeValid ? leftEye.vertical : null);
+    expect(sample.rightEyeHorizontal).toBe(rightEyeValid ? rightEye.horizontal : null);
+    expect(sample.rightEyeVertical).toBe(rightEyeValid ? rightEye.vertical : null);
+    expect(sample.eyeMeasurementReliability).toBe(reliability);
+    expect(sample.eyeMeasurementsReliable).toBe(reliability === 'reliable');
+  });
+
+  it('accepts keyboard diagnostics with valid blendshapes and independent eye measurements', () => {
+    const collector = createScreenCalibrationCollector();
+    collector.reset(0);
+
+    expect(collector.record('KEYBOARD', validSample({
+      headPose: { yaw: null, pitch: Number.NaN, roll: null },
+      eyeGaze: {
+        leftEye: { horizontal: 0.25, vertical: -0.1 },
+        rightEye: { horizontal: 0.2, vertical: -0.15 },
+        reliability: 'unreliable',
+        reason: 'eyes-closed-or-invalid',
+      },
+    }), 100)).toEqual({ accepted: true, rejectionReason: null });
+
+    const sample = collector.toJSON().keyboardEvaluation.acceptedSamples[0];
+    expect(sample).toMatchObject({
+      headPoseValid: false,
+      headYaw: null,
+      headPitch: null,
+      headRoll: null,
+      leftEyeValid: true,
+      rightEyeValid: true,
+      leftEyeHorizontal: 0.25,
+      rightEyeHorizontal: 0.2,
+      blendshapesValid: true,
+      eyeLookDownLeft: 0.3,
+      invalidFeatureGroups: ['headPose'],
+      originalRejectionReason: 'invalid-head-pose',
+      eyeMeasurementsReliable: false,
+    });
+    expect(collector.getSnapshot().diagnosticSummary).toMatchObject({
+      totalFramesObserved: 1,
+      validHeadPoseSampleCount: 0,
+      validLeftEyeMeasurementCount: 1,
+      validRightEyeMeasurementCount: 1,
+      validBlendshapeSampleCount: 1,
+    });
+  });
+
+  it('rejects completely invalid keyboard samples and records the failed feature groups', () => {
+    const collector = createScreenCalibrationCollector();
+    collector.reset(0);
+
+    expect(collector.record('KEYBOARD', validSample({ faceDetected: false }), 100)).toEqual({
+      accepted: false,
+      rejectionReason: 'missing-face',
+    });
+
+    const report = collector.toJSON();
+    expect(report.keyboardEvaluation.rejectedSamples[0]).toMatchObject({
+      rejectionReason: 'missing-face',
+      headPoseValid: false,
+      leftEyeValid: false,
+      rightEyeValid: false,
+      blendshapesValid: false,
+      headYaw: null,
+      leftEyeHorizontal: null,
+      eyeLookDownLeft: null,
+      invalidFeatureGroups: ['headPose', 'leftEye', 'rightEye', 'blendshapes'],
+    });
+    expect(report.diagnosticSummary).toMatchObject({
+      totalFramesObserved: 1,
+      validHeadPoseSampleCount: 0,
+      validLeftEyeMeasurementCount: 0,
+      validRightEyeMeasurementCount: 0,
+      validBlendshapeSampleCount: 0,
+      rejectionReasons: { 'missing-face': 1 },
     });
   });
 
@@ -276,6 +444,11 @@ describe('screen calibration collector', () => {
       eyeLookUpLeft: 0.1,
       eyeLookDownRight: 0.31,
       eyeReliabilityReason: null,
+      headPoseValid: true,
+      leftEyeValid: true,
+      rightEyeValid: true,
+      blendshapesValid: true,
+      invalidFeatureGroups: [],
     });
     expect(center.acceptedSamples[0]).not.toHaveProperty('faceDetected');
     expect(center.acceptedSamples[0]).not.toHaveProperty('landmarks');
@@ -346,7 +519,8 @@ describe('screen calibration collector', () => {
       session.recordSample(validSample(), startAt);
       session.tick(startAt + 4000);
     });
-    expect(session.getSnapshot(20_000).status).toBe('awaiting-keyboard-or-complete');
+    expect(session.getSnapshot(20_000).status)
+      .toBe('awaiting-keyboard-or-offscreen-or-complete');
     expect(session.startKeyboardEvaluation(20_000)).toBe(true);
     session.tick(20_000);
     session.recordSample(validSample(), 20_000);
@@ -357,6 +531,7 @@ describe('screen calibration collector', () => {
       },
     }), 20_001);
     session.tick(24_000);
+    expect(session.getSnapshot(24_000).status).toBe('awaiting-offscreen-or-complete');
 
     const report = session.toJSON();
     expect(report.screenCalibration.CENTER.acceptedSampleCount).toBe(1);
@@ -364,17 +539,76 @@ describe('screen calibration collector', () => {
     expect(report.screenCalibration.CENTER.rejectedSamples).toEqual([]);
     expect(report.keyboardEvaluation).toMatchObject({
       target: 'KEYBOARD',
-      acceptedSampleCount: 1,
+      acceptedSampleCount: 2,
+      rejectedSampleCount: 0,
     });
     const reportWithKeyboardRejection = session.toJSON();
-    expect(reportWithKeyboardRejection.keyboardEvaluation.rejectedSamples).toHaveLength(1);
-    expect(reportWithKeyboardRejection.keyboardEvaluation.rejectedSamples[0]).toMatchObject({
+    expect(reportWithKeyboardRejection.keyboardEvaluation.rejectedSamples).toHaveLength(0);
+    expect(reportWithKeyboardRejection.keyboardEvaluation.acceptedSamples[1]).toMatchObject({
       target: 'KEYBOARD',
-      rejectionReason: 'eyes-closed-or-invalid',
+      headPoseValid: true,
+      leftEyeValid: false,
+      rightEyeValid: false,
+      blendshapesValid: true,
+      invalidFeatureGroups: ['leftEye', 'rightEye'],
+      originalRejectionReason: 'eyes-closed-or-invalid',
+      leftEyeHorizontal: null,
+      rightEyeHorizontal: null,
+      eyeLookDownLeft: 0.3,
+    });
+    expect(reportWithKeyboardRejection.diagnosticSummary).toMatchObject({
+      totalFramesObserved: 7,
+      validHeadPoseSampleCount: 7,
+      validLeftEyeMeasurementCount: 6,
+      validRightEyeMeasurementCount: 6,
+      validBlendshapeSampleCount: 7,
+      rejectionReasons: {},
     });
     expect(reportWithKeyboardRejection.screenCalibration)
       .not.toHaveProperty('KEYBOARD');
     expect(JSON.parse(session.serialize())).toEqual(reportWithKeyboardRejection);
+  });
+
+  it('collects independent eye-only and head-turn examples for every off-screen direction', () => {
+    const session = createScreenCalibrationSession({
+      countdownMs: 0,
+      targetDurationMs: 1000,
+      minimumReliableSamples: 1,
+    });
+    session.start(0);
+    CALIBRATION_TARGETS.forEach((target, index) => {
+      const startAt = index * 1000;
+      session.tick(startAt);
+      session.recordSample(validSample(), startAt);
+      session.tick(startAt + 1000);
+    });
+    expect(session.startOffscreenCalibration(5000)).toBe(true);
+
+    let timestamp = 5000;
+    ['LOOK_AWAY_LEFT', 'LOOK_AWAY_RIGHT', 'LOOK_AWAY_UP', 'LOOK_AWAY_DOWN']
+      .forEach((label) => {
+        ['eyes', 'head'].forEach((movementMode) => {
+          expect(session.getSnapshot(timestamp).target).toMatchObject({
+            label,
+            movementMode,
+          });
+          session.tick(timestamp + 1500);
+          for (let sampleIndex = 0; sampleIndex < 3; sampleIndex += 1) {
+            session.recordSample(validSample(), timestamp + 1500 + sampleIndex);
+          }
+          session.tick(timestamp + 4000);
+          timestamp += 4000;
+        });
+      });
+
+    const report = session.toJSON();
+    expect(session.getSnapshot(timestamp).status).toBe('complete');
+    expect(report.offscreenTargets.LOOK_AWAY_LEFT.acceptedSamples).toHaveLength(6);
+    expect(report.offscreenTargets.LOOK_AWAY_LEFT.acceptedSamples.map(
+      (sample) => sample.movementMode,
+    )).toEqual(['eyes', 'eyes', 'eyes', 'head', 'head', 'head']);
+    expect(report.offscreenTargets.LOOK_AWAY_DOWN.acceptedSamples).toHaveLength(6);
+    expect(report.screenCalibration).not.toHaveProperty('LOOK_AWAY_LEFT');
   });
 
   it('clears rejected diagnostics when a calibration session restarts', () => {

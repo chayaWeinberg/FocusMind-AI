@@ -5,6 +5,13 @@ import { createEyeMovementTracker } from './eyeMovementTracker.js';
 import { estimateScreenAttention } from './screenAttentionEstimator.js';
 import { createScreenAttentionTracker } from './screenAttentionTracker.js';
 import {
+  classifyPersonalizedScreenAttention,
+  createPersonalizedAttentionSmoother,
+  createPersonalizedScreenAttentionModel,
+  getPersonalizedScreenAttentionReadiness,
+} from './personalizedScreenAttention.js';
+import { createLiveGazeDiagnosticRecorder } from './liveGazeDiagnosticRecorder.js';
+import {
   RECORDING_DURATION_MS,
   createScreenAttentionDiagnosticRecorder,
 } from './screenAttentionDiagnosticRecorder.js';
@@ -45,7 +52,13 @@ function toError(error) {
   return new Error('Face Landmarker could not process the camera video.');
 }
 
-export default function useFaceLandmarker(videoRef, stream, onResults, trackingEnabled = false) {
+export default function useFaceLandmarker(
+  videoRef,
+  stream,
+  onResults,
+  trackingEnabled = false,
+  onPersonalizedAttention,
+) {
   const [status, setStatus] = useState('off');
   const [error, setError] = useState(null);
   const onResultsRef = useRef(onResults);
@@ -59,6 +72,10 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
   const latestScreenAttentionSummaryRef = useRef(null);
   const screenAttentionRecorderRef = useRef(null);
   const screenCalibrationSessionRef = useRef(null);
+  const liveGazeDiagnosticRecorderRef = useRef(null);
+  const personalizedAttentionModelRef = useRef(null);
+  const personalizedAttentionSmootherRef = useRef(null);
+  const onPersonalizedAttentionRef = useRef(onPersonalizedAttention);
   const recordingTimeoutRef = useRef(null);
   const latestDetectionSampleRef = useRef(null);
   if (!eyeMovementTrackerRef.current) {
@@ -70,11 +87,27 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
   if (!screenAttentionRecorderRef.current) {
     screenAttentionRecorderRef.current = createScreenAttentionDiagnosticRecorder();
   }
+  if (!personalizedAttentionSmootherRef.current) {
+    personalizedAttentionSmootherRef.current = createPersonalizedAttentionSmoother();
+  }
   if (!screenCalibrationSessionRef.current) {
     screenCalibrationSessionRef.current = createScreenCalibrationSession();
   }
+  if (!liveGazeDiagnosticRecorderRef.current) {
+    liveGazeDiagnosticRecorderRef.current = createLiveGazeDiagnosticRecorder();
+  }
   onResultsRef.current = onResults;
+  onPersonalizedAttentionRef.current = onPersonalizedAttention;
   trackingEnabledRef.current = trackingEnabled;
+
+  function reportUnknown(reason) {
+    onPersonalizedAttentionRef.current?.(
+      'UNKNOWN',
+      false,
+      reason,
+      Boolean(personalizedAttentionModelRef.current),
+    );
+  }
 
   const stopDiagnosticRecording = useCallback(() => {
     if (recordingTimeoutRef.current !== null) {
@@ -111,9 +144,48 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
 
   const startCalibration = useCallback(() => {
     if (!trackingEnabledRef.current) return false;
+    personalizedAttentionModelRef.current = null;
+    personalizedAttentionSmootherRef.current.reset();
+    onPersonalizedAttentionRef.current?.(
+      'UNKNOWN',
+      false,
+      'calibration-unavailable',
+      false,
+    );
     screenCalibrationSessionRef.current.start(performance.now());
     return true;
   }, []);
+
+  const startGuidedCalibration = useCallback(() => {
+    if (!trackingEnabledRef.current) return false;
+    personalizedAttentionModelRef.current = null;
+    personalizedAttentionSmootherRef.current.reset();
+    onPersonalizedAttentionRef.current?.(
+      'UNKNOWN',
+      false,
+      'calibration-unavailable',
+      false,
+    );
+    screenCalibrationSessionRef.current.startGuided(performance.now());
+    return true;
+  }, []);
+
+  const startLiveGazeDiagnosticRecording = useCallback(() => {
+    if (!trackingEnabledRef.current) return false;
+    return liveGazeDiagnosticRecorderRef.current.start(performance.now());
+  }, []);
+
+  const setLiveGazeDiagnosticStage = useCallback((stage) => (
+    liveGazeDiagnosticRecorderRef.current.setStage(stage, performance.now())
+  ), []);
+
+  const endLiveGazeDiagnosticStage = useCallback(() => (
+    liveGazeDiagnosticRecorderRef.current.endStage(performance.now())
+  ), []);
+
+  const stopLiveGazeDiagnosticRecording = useCallback(() => (
+    liveGazeDiagnosticRecorderRef.current.stop(performance.now())
+  ), []);
 
   const cancelCalibration = useCallback(() => {
     screenCalibrationSessionRef.current.cancel();
@@ -135,12 +207,19 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
     screenCalibrationSessionRef.current.completeWithoutKeyboard();
   }, []);
 
+  const startOffscreenCalibration = useCallback(() => {
+    if (!trackingEnabledRef.current) return false;
+    return screenCalibrationSessionRef.current.startOffscreenCalibration(performance.now());
+  }, []);
+
   useEffect(() => {
     eyeMovementTrackerRef.current.reset();
     latestEyeMovementSummaryRef.current = null;
     screenAttentionTrackerRef.current.reset();
     latestScreenAttentionSummaryRef.current = null;
     if (!trackingEnabled) {
+      personalizedAttentionSmootherRef.current.reset();
+      reportUnknown('camera-unavailable');
       stopDiagnosticRecording();
       screenCalibrationSessionRef.current.interrupt();
     }
@@ -156,6 +235,8 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
       latestEyeMovementSummaryRef.current = null;
       screenAttentionTrackerRef.current.reset();
       latestScreenAttentionSummaryRef.current = null;
+      personalizedAttentionSmootherRef.current.reset();
+      reportUnknown('camera-unavailable');
       latestDetectionSampleRef.current = null;
       setStatus((currentStatus) => (currentStatus === 'off' ? currentStatus : 'off'));
       setError((currentError) => (currentError ? null : currentError));
@@ -199,6 +280,8 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
       loopRunning = false;
       stopDiagnosticRecording();
       screenCalibrationSessionRef.current.interrupt();
+      personalizedAttentionSmootherRef.current.reset();
+      reportUnknown('analysis-paused');
       latestEyeGazeRef.current = null;
       latestEyeLookBlendshapesRef.current = null;
       eyeMovementTrackerRef.current.reset();
@@ -256,12 +339,23 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
             ? extractEyeLookBlendshapes(result)
             : null;
           if (trackingEnabledRef.current) {
-            screenCalibrationSessionRef.current.recordSample({
+            const calibrationSample = {
               faceDetected: hasFace,
               headPose: latestPoseRef.current,
               eyeGaze: latestEyeGazeRef.current,
               blendshapes: eyeLookBlendshapes,
-            }, now);
+            };
+            const calibrationResult = screenCalibrationSessionRef.current.recordSample(
+              calibrationSample,
+              now,
+            );
+            if (calibrationResult.accepted) {
+              const calibration = screenCalibrationSessionRef.current
+                .getSnapshot(now).collector;
+              personalizedAttentionModelRef.current = createPersonalizedScreenAttentionModel(
+                calibration,
+              );
+            }
           }
           if (trackingEnabledRef.current) {
             latestEyeMovementSummaryRef.current = eyeMovementTrackerRef.current.addSample(
@@ -276,6 +370,110 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
               attentionEstimate,
               now,
             );
+            const liveMeasurement = {
+                faceDetected: hasFace,
+                headPoseValid: Boolean(
+                  hasFace
+                  && Number.isFinite(latestPoseRef.current?.yaw)
+                  && Number.isFinite(latestPoseRef.current?.pitch)
+                  && Number.isFinite(latestPoseRef.current?.roll)
+                ),
+                headYaw: latestPoseRef.current?.yaw,
+                headPitch: latestPoseRef.current?.pitch,
+                headRoll: latestPoseRef.current?.roll,
+                leftEyeValid: Boolean(
+                  hasFace
+                  && Number.isFinite(latestEyeGazeRef.current?.leftEye?.horizontal)
+                  && Number.isFinite(latestEyeGazeRef.current?.leftEye?.vertical)
+                ),
+                leftEyeHorizontal: latestEyeGazeRef.current?.leftEye?.horizontal,
+                leftEyeVertical: latestEyeGazeRef.current?.leftEye?.vertical,
+                rightEyeValid: Boolean(
+                  hasFace
+                  && Number.isFinite(latestEyeGazeRef.current?.rightEye?.horizontal)
+                  && Number.isFinite(latestEyeGazeRef.current?.rightEye?.vertical)
+                ),
+                rightEyeHorizontal: latestEyeGazeRef.current?.rightEye?.horizontal,
+                rightEyeVertical: latestEyeGazeRef.current?.rightEye?.vertical,
+                blendshapesValid: Boolean(
+                  hasFace
+                  && eyeLookBlendshapes
+                  && EYE_LOOK_BLENDSHAPES.some((name) => (
+                    Number.isFinite(eyeLookBlendshapes[name])
+                  ))
+                ),
+                ...Object.fromEntries(EYE_LOOK_BLENDSHAPES.map((name) => [
+                  name,
+                  eyeLookBlendshapes?.[name],
+                ])),
+              };
+            const personalizedEstimate = classifyPersonalizedScreenAttention(
+              personalizedAttentionModelRef.current,
+              liveMeasurement,
+            );
+            const personalizedState = personalizedAttentionSmootherRef.current.addSample(
+              personalizedEstimate,
+              now,
+            );
+            onPersonalizedAttentionRef.current?.(
+              personalizedState,
+              personalizedState === 'UNKNOWN' && personalizedEstimate.calibrationDrift,
+              personalizedEstimate.reason,
+              Boolean(personalizedAttentionModelRef.current),
+            );
+            const liveDiagnosticSnapshot = liveGazeDiagnosticRecorderRef.current
+              .getSnapshot();
+            if (liveDiagnosticSnapshot.recording && liveDiagnosticSnapshot.activeStage) {
+              const calibration = screenCalibrationSessionRef.current
+                .getSnapshot(now).collector;
+              const readiness = getPersonalizedScreenAttentionReadiness(calibration);
+              liveGazeDiagnosticRecorderRef.current.record({
+                modelReady: Boolean(personalizedAttentionModelRef.current),
+                missingRequirements: personalizedAttentionModelRef.current
+                  ? []
+                  : readiness.missingRequirements,
+                calibrationSampleCounts: readiness.calibrationSampleCounts,
+                liveFeatures: {
+                  faceDetected: hasFace,
+                  headPoseValid: liveMeasurement.headPoseValid,
+                  leftEyeValid: liveMeasurement.leftEyeValid,
+                  rightEyeValid: liveMeasurement.rightEyeValid,
+                  blendshapesValid: liveMeasurement.blendshapesValid,
+                  headYaw: Number.isFinite(liveMeasurement.headYaw)
+                    ? liveMeasurement.headYaw
+                    : null,
+                  headPitch: Number.isFinite(liveMeasurement.headPitch)
+                    ? liveMeasurement.headPitch
+                    : null,
+                  headRoll: Number.isFinite(liveMeasurement.headRoll)
+                    ? liveMeasurement.headRoll
+                    : null,
+                  leftEyeHorizontal: Number.isFinite(liveMeasurement.leftEyeHorizontal)
+                    ? liveMeasurement.leftEyeHorizontal
+                    : null,
+                  leftEyeVertical: Number.isFinite(liveMeasurement.leftEyeVertical)
+                    ? liveMeasurement.leftEyeVertical
+                    : null,
+                  rightEyeHorizontal: Number.isFinite(liveMeasurement.rightEyeHorizontal)
+                    ? liveMeasurement.rightEyeHorizontal
+                    : null,
+                  rightEyeVertical: Number.isFinite(liveMeasurement.rightEyeVertical)
+                    ? liveMeasurement.rightEyeVertical
+                    : null,
+                  blendshapes: eyeLookBlendshapes,
+                  eyeMeasurementReliability: latestEyeGazeRef.current?.reliability ?? null,
+                  eyeReliabilityReason: latestEyeGazeRef.current?.reason ?? null,
+                },
+                rawClassifierState: personalizedEstimate.state,
+                smoothedState: personalizedState,
+                smoothingDiagnostics: personalizedAttentionSmootherRef.current.getSnapshot(),
+                classifierReason: personalizedEstimate.reason,
+                classifierScore: personalizedEstimate.score,
+                availableFeatureGroups: personalizedEstimate.availableFeatureGroups,
+                calibrationDrift: personalizedEstimate.calibrationDrift,
+                classifierDiagnostics: personalizedEstimate.diagnostics,
+              }, now);
+            }
             if (screenAttentionRecorderRef.current.getSnapshot().recording) {
               screenAttentionRecorderRef.current.record({
                 headYaw: Number.isFinite(latestPoseRef.current?.yaw)
@@ -343,6 +541,8 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
             latestEyeMovementSummaryRef.current = null;
             screenAttentionTrackerRef.current.reset();
             latestScreenAttentionSummaryRef.current = null;
+            personalizedAttentionSmootherRef.current.reset();
+            reportUnknown('analysis-unavailable');
             latestDetectionSampleRef.current = null;
             setError(normalizedError);
             setStatus('error');
@@ -405,6 +605,8 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
       latestEyeMovementSummaryRef.current = null;
       screenAttentionTrackerRef.current.reset();
       latestScreenAttentionSummaryRef.current = null;
+      personalizedAttentionSmootherRef.current.reset();
+      reportUnknown('camera-unavailable');
       latestDetectionSampleRef.current = null;
       setStatus('off');
     }
@@ -447,6 +649,8 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
           latestEyeMovementSummaryRef.current = null;
           screenAttentionTrackerRef.current.reset();
           latestScreenAttentionSummaryRef.current = null;
+          personalizedAttentionSmootherRef.current.reset();
+          reportUnknown('analysis-unavailable');
           latestDetectionSampleRef.current = null;
           setError(normalizedError);
           setStatus('error');
@@ -471,6 +675,8 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
       latestEyeMovementSummaryRef.current = null;
       screenAttentionTrackerRef.current.reset();
       latestScreenAttentionSummaryRef.current = null;
+      personalizedAttentionSmootherRef.current.reset();
+      reportUnknown('analysis-paused');
       latestDetectionSampleRef.current = null;
       stopLoop();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -489,14 +695,21 @@ export default function useFaceLandmarker(videoRef, stream, onResults, trackingE
     latestScreenAttentionSummaryRef,
     screenAttentionRecorderRef,
     screenCalibrationSessionRef,
+    liveGazeDiagnosticRecorderRef,
     startDiagnosticRecording,
     stopDiagnosticRecording,
     resetDiagnosticRecording,
     startCalibration,
+    startGuidedCalibration,
+    startLiveGazeDiagnosticRecording,
+    setLiveGazeDiagnosticStage,
+    endLiveGazeDiagnosticStage,
+    stopLiveGazeDiagnosticRecording,
     cancelCalibration,
     restartCalibration,
     repeatCalibrationTarget,
     startKeyboardEvaluation,
+    startOffscreenCalibration,
     completeCalibration,
     latestDetectionSampleRef,
   };
