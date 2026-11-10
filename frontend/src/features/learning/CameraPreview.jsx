@@ -5,29 +5,7 @@ import EyeGazeDiagnostic from './EyeGazeDiagnostic.jsx';
 import EyeMovementDiagnostic from './EyeMovementDiagnostic.jsx';
 import ScreenAttentionDiagnostic from './ScreenAttentionDiagnostic.jsx';
 import ScreenCalibration from './ScreenCalibration.jsx';
-
-function stopStream(stream) {
-  stream.getTracks().forEach((track) => track.stop());
-}
-
-function getCameraErrorMessage(error) {
-  switch (error?.name) {
-    case 'NotAllowedError':
-    case 'PermissionDeniedError':
-    case 'SecurityError':
-      return 'הגישה למצלמה נדחתה. אפשר לאשר גישה למצלמה בהגדרות הדפדפן ולנסות שוב.';
-    case 'NotFoundError':
-    case 'DevicesNotFoundError':
-      return 'לא נמצאה מצלמה זמינה במכשיר.';
-    case 'NotReadableError':
-    case 'TrackStartError':
-      return 'לא ניתן להפעיל את המצלמה. ייתכן שהיא נמצאת בשימוש באפליקציה אחרת.';
-    case 'OverconstrainedError':
-      return 'המצלמה הזמינה אינה תומכת בהגדרות הנדרשות.';
-    default:
-      return 'אירעה שגיאה בעת הפעלת המצלמה. אפשר לנסות שוב.';
-  }
-}
+import { getCameraErrorMessage, stopStream } from '../vision/cameraStream.js';
 
 export default function CameraPreview({
   videoPlaybackState = 'paused',

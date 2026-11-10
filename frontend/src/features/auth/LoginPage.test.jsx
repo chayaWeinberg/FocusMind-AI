@@ -48,7 +48,7 @@ describe('LoginPage', () => {
     expect(screen.getByText('יש להזין סיסמה.')).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/me',
+      '/api/auth/me',
       expect.objectContaining({ credentials: 'include' }),
     );
 
@@ -81,7 +81,7 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('button', { name: 'התחברות' })).toBeEnabled();
     expect(fetchMock).toHaveBeenLastCalledWith(
-      'http://localhost:8000/api/auth/login',
+      '/api/auth/login',
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',

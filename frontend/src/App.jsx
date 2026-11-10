@@ -5,6 +5,22 @@ import DashboardPage from './features/dashboard/DashboardPage.jsx';
 import SmartLearningPage from './features/learning/SmartLearningPage.jsx';
 import AuthProvider, { useAuth } from './features/auth/AuthContext.jsx';
 
+export const ROUTES = Object.freeze({
+  register: '/register',
+  login: '/login',
+  dashboard: '/dashboard',
+  learning: '/learning',
+  webGazerExperiment: '/__experiments/webgazer',
+});
+
+const PROTECTED_PATHS = new Set([ROUTES.dashboard, ROUTES.learning]);
+// Paths rendered by the SPA without a full page load when a link is clicked.
+const CLIENT_PATHS = new Set(['/', ROUTES.register, ROUTES.login, ...PROTECTED_PATHS]);
+
+function normalizePath(pathname) {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+}
+
 function DevelopmentWebGazerRoute() {
   const [ExperimentPage, setExperimentPage] = useState(null);
   const [error, setError] = useState('');
@@ -30,53 +46,85 @@ function DevelopmentWebGazerRoute() {
   return <ExperimentPage />;
 }
 
+function Redirecting({ children }) {
+  return <main className="route-loading" dir="rtl" lang="he" role="status">{children}</main>;
+}
+
 function AuthRoutes({ path, navigate }) {
   const { status } = useAuth();
+  const isProtected = PROTECTED_PATHS.has(path);
+  const isLogin = path === ROUTES.login;
+  // "/", "/register" and any unknown path show the registration page.
+  const isRegister = !isProtected && !isLogin;
 
   useEffect(() => {
     if (status === 'loading') return;
-    if ((path === '/dashboard' || path === '/learning') && status === 'unauthenticated') {
-      navigate('/login', true);
-    } else if (path === '/login' && status === 'authenticated') {
-      navigate('/dashboard', true);
+    if (isProtected && status === 'unauthenticated') {
+      navigate(ROUTES.login, true);
+    } else if ((isLogin || isRegister) && status === 'authenticated') {
+      navigate(ROUTES.dashboard, true);
     }
-  }, [navigate, path, status]);
+  }, [isLogin, isProtected, isRegister, navigate, status]);
 
-  if (status === 'loading' && (path === '/login' || path === '/dashboard' || path === '/learning')) {
+  if (status === 'loading' && (isProtected || isLogin)) {
     return (
-      <main className="route-loading" dir="rtl" lang="he" role="status">
+      <Redirecting>
         <span className="route-loading-spinner" aria-hidden="true" />
         טוענים את המרחב האישי שלך...
-      </main>
+      </Redirecting>
     );
   }
 
-  if (path === '/login') {
+  if (isLogin) {
     return status === 'authenticated'
-      ? <main className="route-loading" role="status">מעבירים ללוח הבקרה...</main>
-      : <LoginPage onAuthenticated={() => navigate('/dashboard', true)} />;
+      ? <Redirecting>מעבירים ללוח הבקרה...</Redirecting>
+      : <LoginPage onAuthenticated={() => navigate(ROUTES.dashboard, true)} />;
   }
 
-  if (path === '/dashboard') {
-    return status === 'authenticated'
-      ? <DashboardPage />
-      : <main className="route-loading" role="status">מעבירים להתחברות...</main>;
+  if (isProtected) {
+    if (status !== 'authenticated') return <Redirecting>מעבירים להתחברות...</Redirecting>;
+    return path === ROUTES.dashboard ? <DashboardPage /> : <SmartLearningPage />;
   }
 
-  if (path === '/learning') {
-    return status === 'authenticated'
-      ? <SmartLearningPage />
-      : <main className="route-loading" role="status">מעבירים להתחברות...</main>;
-  }
+  return status === 'authenticated'
+    ? <Redirecting>מעבירים ללוח הבקרה...</Redirecting>
+    : <RegisterPage />;
+}
 
-  return <RegisterPage />;
+function useClientNavigation(navigate) {
+  // Internal <a href> links switch screens without a full reload, so the
+  // session is not re-fetched and the camera is released cleanly on unmount.
+  useEffect(() => {
+    function handleClick(event) {
+      if (
+        event.defaultPrevented
+        || event.button !== 0
+        || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+      ) {
+        return;
+      }
+      const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
+
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin || url.hash || url.search) return;
+      const nextPath = normalizePath(url.pathname);
+      if (!CLIENT_PATHS.has(nextPath)) return;
+
+      event.preventDefault();
+      if (nextPath !== normalizePath(window.location.pathname)) navigate(nextPath);
+    }
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [navigate]);
 }
 
 export default function App() {
-  const [path, setPath] = useState(window.location.pathname);
+  const [path, setPath] = useState(() => normalizePath(window.location.pathname));
 
   useEffect(() => {
-    const updatePath = () => setPath(window.location.pathname);
+    const updatePath = () => setPath(normalizePath(window.location.pathname));
     window.addEventListener('popstate', updatePath);
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
@@ -85,9 +133,12 @@ export default function App() {
     const method = replace ? 'replaceState' : 'pushState';
     window.history[method]({}, '', nextPath);
     setPath(nextPath);
+    window.scrollTo?.(0, 0);
   }, []);
 
-  if (import.meta.env.DEV && path === '/__experiments/webgazer') {
+  useClientNavigation(navigate);
+
+  if (import.meta.env.DEV && path === ROUTES.webGazerExperiment) {
     return <DevelopmentWebGazerRoute />;
   }
 

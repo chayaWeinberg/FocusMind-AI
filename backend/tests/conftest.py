@@ -1,8 +1,39 @@
+"""Shared test configuration.
+
+Unit tests never touch a real database: they replace the ``get_db`` dependency
+with an in-memory fake. Integration tests (``tests/integration``) talk to a
+real MongoDB and are skipped automatically when none is reachable.
+
+Settings are resolved in this order, so local runs reuse the developer's .env
+(including MongoDB credentials) while CI works with no .env at all:
+real environment variables > .env files > the safe defaults below.
+"""
+
 import os
 
+from dotenv import dotenv_values
 
-os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
-os.environ.setdefault("MONGO_DB_NAME", "focusmind_test")
-os.environ.setdefault("SECRET_KEY", "test-signing-key-with-at-least-32-bytes")
-os.environ.setdefault("CORS_ORIGINS", '["http://localhost:3000"]')
-os.environ.setdefault("ENV", "development")
+from app.core.config import ENV_FILES  # noqa: E402  (does not instantiate Settings)
+
+_TEST_DEFAULTS = {
+    "MONGO_URI": "mongodb://localhost:27017",
+    "MONGO_DB_NAME": "focusmind_test",
+    "SECRET_KEY": "test-signing-key-with-at-least-32-bytes",
+    "CORS_ORIGINS": '["http://localhost:3000"]',
+}
+
+_file_keys = {
+    key.upper()
+    for env_file in ENV_FILES
+    if env_file.is_file()
+    for key in dotenv_values(env_file)
+}
+
+for _key, _value in _TEST_DEFAULTS.items():
+    if _key not in os.environ and _key not in _file_keys:
+        os.environ[_key] = _value
+
+# Always test the development cookie behaviour and keep hashing fast.
+# Tests that need production behaviour patch ``settings.environment`` locally.
+os.environ["ENV"] = "development"
+os.environ["BCRYPT_ROUNDS"] = "4"

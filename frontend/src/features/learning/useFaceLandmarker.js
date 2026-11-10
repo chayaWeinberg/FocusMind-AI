@@ -16,35 +16,21 @@ import {
   createScreenAttentionDiagnosticRecorder,
 } from './screenAttentionDiagnosticRecorder.js';
 import { createScreenCalibrationSession } from './screenCalibrationCollector.js';
+import {
+  EYE_LOOK_BLENDSHAPES,
+  createVideoFaceLandmarker,
+  extractBlendshapeScores,
+} from '../vision/faceLandmarker.js';
 
-const MODEL_PATH = '/models/face_landmarker.task';
-const WASM_PATH = '/mediapipe/wasm';
+// EXPERIMENTAL: this hook drives the current gaze experiments (head pose, eye
+// gaze, rule-based and personalized screen attention, diagnostic recorders).
+// The new attention engine will live in features/attention-engine and reuse
+// only the shared sensing layer in features/vision.
+
 const DETECTION_INTERVAL_MS = 200;
-const EYE_LOOK_BLENDSHAPES = [
-  'eyeLookInLeft',
-  'eyeLookOutLeft',
-  'eyeLookInRight',
-  'eyeLookOutRight',
-  'eyeLookUpLeft',
-  'eyeLookUpRight',
-  'eyeLookDownLeft',
-  'eyeLookDownRight',
-];
 
 function extractEyeLookBlendshapes(results) {
-  const categories = results.faceBlendshapes?.[0]?.categories;
-  if (!Array.isArray(categories) || categories.length === 0) return null;
-
-  const scores = Object.fromEntries(EYE_LOOK_BLENDSHAPES.map((name) => [name, null]));
-  categories.forEach(({ categoryName, score }) => {
-    if (
-      Object.prototype.hasOwnProperty.call(scores, categoryName)
-      && Number.isFinite(score)
-    ) {
-      scores[categoryName] = score;
-    }
-  });
-  return scores;
+  return extractBlendshapeScores(results, EYE_LOOK_BLENDSHAPES);
 }
 
 function toError(error) {
@@ -617,24 +603,10 @@ export default function useFaceLandmarker(
 
     async function initialize() {
       try {
-        const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
-        if (cancelled || permanentlyStopped) return;
-
-        const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
-        if (cancelled || permanentlyStopped) return;
-
-        const landmarker = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: MODEL_PATH },
-          runningMode: 'VIDEO',
-          numFaces: 1,
-          outputFacialTransformationMatrixes: true,
-          outputFaceBlendshapes: true,
+        const landmarker = await createVideoFaceLandmarker({
+          isCancelled: () => cancelled || permanentlyStopped,
         });
-
-        if (cancelled || permanentlyStopped) {
-          landmarker.close();
-          return;
-        }
+        if (!landmarker) return;
 
         faceLandmarker = landmarker;
         setStatus('ready');

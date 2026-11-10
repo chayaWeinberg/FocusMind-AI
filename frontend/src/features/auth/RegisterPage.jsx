@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import FocusIllustration from '../../components/FocusIllustration.jsx';
 import SignatureBrand from '../../components/SignatureBrand.jsx';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000')
-  .replace(/\/+$/, '');
+import { registerRequest } from './authApi.js';
 
 const initialValues = {
   displayName: '',
@@ -140,6 +138,7 @@ export default function RegisterPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (loading) return;
     const errors = validate(values);
     setFieldErrors(errors);
     setFormError('');
@@ -150,15 +149,11 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName: values.displayName.trim(),
-          email: values.email.trim().toLowerCase(),
-          password: values.password,
-          confirmPassword: values.confirmPassword,
-        }),
+      const response = await registerRequest({
+        displayName: values.displayName.trim(),
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+        confirmPassword: values.confirmPassword,
       });
 
       if (response.status === 201) {
@@ -166,13 +161,7 @@ export default function RegisterPage() {
       } else if (response.status === 409) {
         setFormError('כתובת האימייל הזו כבר רשומה. אפשר להתחבר לחשבון שלך.');
       } else if (response.status === 422) {
-        let responseBody;
-        try {
-          responseBody = await response.json();
-        } catch {
-          responseBody = null;
-        }
-        setFieldErrors(serverFieldErrors(responseBody));
+        setFieldErrors(serverFieldErrors(response.body));
         setFormError('חלק מהפרטים אינם תקינים. בדקו את השדות ונסו שוב.');
       } else {
         setFormError('לא הצלחנו להשלים את ההרשמה כרגע. נסו שוב בעוד רגע.');

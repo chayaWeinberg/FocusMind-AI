@@ -1,6 +1,8 @@
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.errors import PyMongoError
 
 from app.core.config import settings
@@ -23,6 +25,14 @@ from app.services.auth import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
+Database = Annotated[AsyncDatabase, Depends(get_db)]
+
+# The cookie is scoped to /api so that future authenticated endpoints
+# (sessions, analytics, ...) receive it, while static frontend requests do not.
+COOKIE_PATH = "/api"
+# Older builds scoped the cookie to /api/auth; logout clears that one too.
+LEGACY_COOKIE_PATHS = ("/api/auth",)
+
 
 def _secure_cookie() -> bool:
     return settings.environment == "production"
@@ -35,14 +45,23 @@ def _unauthorized() -> HTTPException:
     )
 
 
+def _database_error(action: str, detail: str) -> HTTPException:
+    logger.error("%s failed due to a database error.", action)
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=detail,
+    )
+
+
 @router.post(
     "/register",
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def register(registration: RegistrationRequest) -> RegistrationResponse:
+async def register(
+    registration: RegistrationRequest, database: Database
+) -> RegistrationResponse:
     try:
-        database = await get_db()
         user = await register_user(database, registration)
     except EmailAlreadyRegisteredError:
         raise HTTPException(
@@ -50,26 +69,21 @@ async def register(registration: RegistrationRequest) -> RegistrationResponse:
             detail="An account with this email already exists.",
         ) from None
     except PyMongoError:
-        logger.error("User registration failed due to a database error.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration could not be completed.",
+        raise _database_error(
+            "User registration", "Registration could not be completed."
         ) from None
 
     return RegistrationResponse(message="Registration successful.", user=user)
 
 
 @router.post("/login", response_model=RegisteredUser)
-async def login(credentials: LoginRequest, response: Response) -> RegisteredUser:
+async def login(
+    credentials: LoginRequest, response: Response, database: Database
+) -> RegisteredUser:
     try:
-        database = await get_db()
         result = await authenticate_user(database, credentials)
     except PyMongoError:
-        logger.error("User login failed due to a database error.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Login could not be completed.",
-        ) from None
+        raise _database_error("User login", "Login could not be completed.") from None
 
     if result is None:
         raise _unauthorized()
@@ -82,39 +96,41 @@ async def login(credentials: LoginRequest, response: Response) -> RegisteredUser
         httponly=True,
         secure=_secure_cookie(),
         samesite="lax",
-        path="/api/auth",
+        path=COOKIE_PATH,
     )
+    response.headers["Cache-Control"] = "no-store"
     return user
 
 
 @router.get("/me", response_model=RegisteredUser)
-async def get_current_user(request: Request) -> RegisteredUser:
+async def get_current_user(
+    request: Request, response: Response, database: Database
+) -> RegisteredUser:
     token = request.cookies.get(ACCESS_TOKEN_COOKIE)
-    if token is None:
+    if not token:
         raise _unauthorized()
 
     try:
-        database = await get_db()
         user = await get_user_from_access_token(database, token)
     except PyMongoError:
-        logger.error("Authenticated user lookup failed due to a database error.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="User information could not be retrieved.",
+        raise _database_error(
+            "Authenticated user lookup", "User information could not be retrieved."
         ) from None
 
     if user is None:
         raise _unauthorized()
+    response.headers["Cache-Control"] = "no-store"
     return user
 
 
 @router.post("/logout")
 async def logout(response: Response) -> dict[str, str]:
-    response.delete_cookie(
-        key=ACCESS_TOKEN_COOKIE,
-        path="/api/auth",
-        secure=_secure_cookie(),
-        httponly=True,
-        samesite="lax",
-    )
+    for path in (COOKIE_PATH, *LEGACY_COOKIE_PATHS):
+        response.delete_cookie(
+            key=ACCESS_TOKEN_COOKIE,
+            path=path,
+            secure=_secure_cookie(),
+            httponly=True,
+            samesite="lax",
+        )
     return {"message": "Logged out successfully."}

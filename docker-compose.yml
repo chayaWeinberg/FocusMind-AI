@@ -1,3 +1,5 @@
+# Full stack in Docker:   docker compose up --build
+# Only the database:      docker compose up -d mongo   (then run backend/frontend locally)
 services:
   mongo:
     image: mongo:7
@@ -11,6 +13,12 @@ services:
       - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   backend:
     build: ./backend
@@ -29,14 +37,17 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
     container_name: focusmind-frontend
     restart: unless-stopped
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      # The browser calls /api on the frontend origin; Vite forwards it to the
+      # backend container. VITE_API_URL is left empty on purpose.
+      VITE_API_PROXY_TARGET: http://backend:8000
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

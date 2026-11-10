@@ -67,7 +67,7 @@ describe('App routes and authentication', () => {
     expect(screen.getByRole('img', { name: 'ספרים מצוירים נערמים למדרגות המובילות לרעיון מואר' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'למידה חכמה' })).toHaveAttribute('href', '/learning');
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/me',
+      '/api/auth/me',
       expect.objectContaining({ credentials: 'include' }),
     );
   });
@@ -130,7 +130,7 @@ describe('App routes and authentication', () => {
     expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/logout',
+      '/api/auth/logout',
       expect.objectContaining({ method: 'POST', credentials: 'include' }),
     );
   });
@@ -153,6 +153,54 @@ describe('App routes and authentication', () => {
 
     expect(await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/dashboard');
+  });
+
+  it('sends an authenticated visitor from the registration page to the dashboard', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, userInfo)));
+    window.history.pushState({}, '', '/register');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/dashboard');
+  });
+
+  it('navigates internal links without a full reload or a second session request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, userInfo));
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/dashboard');
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ });
+    await user.click(screen.getByRole('link', { name: 'למידה חכמה' }));
+
+    expect(await screen.findByRole('heading', { name: 'ניסוי זיהוי מבט' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/learning');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    window.history.back();
+    await waitFor(() => expect(window.location.pathname).toBe('/dashboard'));
+    expect(await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ })).toBeInTheDocument();
+  });
+
+  it('treats a trailing slash on a protected route like the route itself', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(401, {})));
+    window.history.pushState({}, '', '/dashboard/');
+
+    render(<App />);
+
+    await waitFor(() => expect(window.location.pathname).toBe('/login'));
+  });
+
+  it('shows the login page with an error state when the backend is unreachable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    window.history.pushState({}, '', '/dashboard');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
   });
 
   it('does not expose the removed Design Gallery route', async () => {

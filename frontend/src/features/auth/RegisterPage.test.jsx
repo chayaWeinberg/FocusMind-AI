@@ -33,7 +33,7 @@ describe('RegisterPage', () => {
 
     await screen.findByRole('heading', { name: 'איזה כיף, נרשמת!' });
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/register',
+      '/api/auth/register',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

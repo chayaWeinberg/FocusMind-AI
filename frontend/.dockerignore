@@ -1,0 +1,12 @@
+# Host-installed packages contain Windows/macOS native binaries; the image
+# installs its own with `npm ci`.
+node_modules/
+dist/
+coverage/
+.vite/
+# Generated at startup by scripts/copy-mediapipe-assets.mjs
+public/mediapipe/webgazer-face-mesh/
+.env
+.env.*
+Dockerfile
+.dockerignore

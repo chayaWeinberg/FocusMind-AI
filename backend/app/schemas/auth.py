@@ -6,8 +6,8 @@ class RegistrationRequest(BaseModel):
 
     display_name: str = Field(alias="displayName", min_length=2, max_length=30)
     email: EmailStr
-    password: str = Field(min_length=8)
-    confirm_password: str = Field(alias="confirmPassword", min_length=8)
+    password: str = Field(min_length=8, max_length=256)
+    confirm_password: str = Field(alias="confirmPassword", min_length=8, max_length=256)
 
     @field_validator("display_name", mode="before")
     @classmethod
@@ -30,7 +30,7 @@ class LoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr
-    password: str = Field(min_length=1)
+    password: str = Field(min_length=1, max_length=256)
 
     @field_validator("email", mode="before")
     @classmethod

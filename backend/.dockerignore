@@ -30,6 +30,7 @@ Thumbs.db
 # Git
 .git/
 .gitignore
+tests/
 
 # Docker files (no need to copy into the image)
 Dockerfile

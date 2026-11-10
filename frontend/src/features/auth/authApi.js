@@ -1,15 +1,45 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000')
-  .replace(/\/+$/, '');
+// All authentication requests go through this module.
+//
+// By default requests are same-origin (`/api/...`): Vite proxies them to the
+// backend in development (see vite.config.js), so the session cookie stays
+// first-party. VITE_API_URL can still point at a separate API origin.
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+export const REQUEST_TIMEOUT_MS = 15000;
+
+export class ApiNetworkError extends Error {
+  constructor(message = 'The server could not be reached.') {
+    super(message);
+    this.name = 'ApiNetworkError';
+  }
+}
 
 async function request(path, options = {}) {
-  return fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      credentials: 'include',
+      signal: controller.signal,
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // Network failure, CORS rejection or timeout — callers show a generic message.
+    throw new ApiNetworkError();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function readJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 function toSafeUser(value) {
@@ -27,6 +57,22 @@ function toSafeUser(value) {
     displayName: value.displayName,
     email: value.email,
   };
+}
+
+export async function registerRequest(registration) {
+  const response = await request('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(registration),
+  });
+
+  if (response.status === 201) {
+    const body = await readJson(response);
+    return { status: response.status, user: body?.user ? toSafeUser(body.user) : null };
+  }
+  if (response.status === 422) {
+    return { status: response.status, body: await readJson(response) };
+  }
+  return { status: response.status };
 }
 
 export async function loginRequest(credentials) {

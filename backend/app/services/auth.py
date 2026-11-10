@@ -14,8 +14,10 @@ from app.repositories.users import UserRepository
 from app.schemas.auth import LoginRequest, RegisteredUser, RegistrationRequest
 
 ACCESS_TOKEN_COOKIE = "focusmind_access_token"
-ACCESS_TOKEN_TTL = timedelta(minutes=30)
+ACCESS_TOKEN_TTL = timedelta(minutes=settings.access_token_ttl_minutes)
 JWT_ALGORITHM = "HS256"
+JWT_REQUIRED_CLAIMS = ["sub", "exp", "iat"]
+
 
 class EmailAlreadyRegisteredError(Exception):
     pass
@@ -26,11 +28,21 @@ def _password_digest(password: str) -> bytes:
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(_password_digest(password), bcrypt.gensalt()).decode("ascii")
+    salt = bcrypt.gensalt(rounds=settings.bcrypt_rounds)
+    return bcrypt.hashpw(_password_digest(password), salt).decode("ascii")
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(_password_digest(password), hashed_password.encode("ascii"))
+    try:
+        return bcrypt.checkpw(_password_digest(password), hashed_password.encode("ascii"))
+    except (ValueError, UnicodeEncodeError):
+        # A corrupted stored hash must fail closed instead of raising a 500.
+        return False
+
+
+# Checked when the email is unknown, so a login attempt for a missing account
+# takes as long as one with a wrong password (no account enumeration by timing).
+_DUMMY_PASSWORD_HASH = hash_password("focusmind-timing-equalizer")
 
 
 def create_access_token(user_id: str) -> str:
@@ -48,6 +60,7 @@ def decode_access_token(token: str) -> str | None:
             token,
             settings.secret_key.get_secret_value(),
             algorithms=[JWT_ALGORITHM],
+            options={"require": JWT_REQUIRED_CLAIMS},
         )
     except jwt.InvalidTokenError:
         return None
@@ -85,6 +98,7 @@ async def authenticate_user(
     repository = UserRepository(database)
     user = await repository.find_by_email(str(credentials.email))
     if user is None or "_id" not in user:
+        await asyncio.to_thread(verify_password, credentials.password, _DUMMY_PASSWORD_HASH)
         return None
 
     valid_password = await asyncio.to_thread(

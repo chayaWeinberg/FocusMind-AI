@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from types import SimpleNamespace
@@ -10,8 +11,11 @@ from pydantic import SecretStr, ValidationError
 
 from app.api.routes import auth as auth_routes
 from app.core.config import Settings, settings
+from app.db import database as database_module
+from app.db.database import get_db
 from app.main import app
 from app.schemas.auth import LoginRequest
+from app.services import auth as auth_service
 from app.services.auth import (
     ACCESS_TOKEN_COOKIE,
     ACCESS_TOKEN_TTL,
@@ -19,6 +23,24 @@ from app.services.auth import (
     create_access_token,
     hash_password,
 )
+
+
+def set_cookies(response) -> list[SimpleCookie]:
+    """Parse every Set-Cookie header separately (logout sends more than one)."""
+    parsed = []
+    for header in response.headers.get_list("set-cookie"):
+        cookie = SimpleCookie()
+        cookie.load(header)
+        parsed.append(cookie)
+    return parsed
+
+
+def session_cookie(response, path: str = auth_routes.COOKIE_PATH):
+    for cookie in set_cookies(response):
+        morsel = cookie.get(ACCESS_TOKEN_COOKIE)
+        if morsel is not None and morsel["path"] == path:
+            return morsel
+    raise AssertionError(f"No {ACCESS_TOKEN_COOKIE} cookie for path {path}")
 
 
 class FakeUsersCollection:
@@ -51,14 +73,18 @@ class FakeDatabase:
 
 
 @pytest.fixture
-def auth_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, FakeDatabase]:
+def auth_client() -> Iterator[tuple[TestClient, FakeDatabase]]:
     database = FakeDatabase()
 
     async def fake_get_db() -> FakeDatabase:
         return database
 
-    monkeypatch.setattr(auth_routes, "get_db", fake_get_db)
-    return TestClient(app), database
+    app.dependency_overrides[get_db] = fake_get_db
+    try:
+        # No "with": the lifespan (real MongoDB connection) must not run here.
+        yield TestClient(app), database
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture
@@ -96,15 +122,14 @@ def test_login_sets_secure_session_cookie_and_returns_safe_user(
     assert "password123" not in response.text
     assert ACCESS_TOKEN_COOKIE not in response.json()
 
-    cookies = SimpleCookie()
-    cookies.load(response.headers["set-cookie"])
-    cookie = cookies[ACCESS_TOKEN_COOKIE]
+    cookie = session_cookie(response)
     assert cookie["httponly"]
     assert cookie["samesite"].lower() == "lax"
     assert cookie["secure"] == ""
     assert cookie["max-age"] == str(int(ACCESS_TOKEN_TTL.total_seconds()))
-    assert cookie["path"] == "/api/auth"
+    assert cookie["path"] == "/api"
     assert cookie.value not in response.text
+    assert response.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.parametrize(
@@ -218,19 +243,15 @@ def test_production_session_cookie_is_secure(
     )
 
     assert response.status_code == 200
-    cookies = SimpleCookie()
-    cookies.load(response.headers["set-cookie"])
-    assert cookies[ACCESS_TOKEN_COOKIE]["secure"]
+    assert session_cookie(response)["secure"]
 
     logout_response = auth_client[0].post("/api/auth/logout")
-    cleared_cookies = SimpleCookie()
-    cleared_cookies.load(logout_response.headers["set-cookie"])
-    cleared_cookie = cleared_cookies[ACCESS_TOKEN_COOKIE]
-    assert cleared_cookie["secure"]
-    assert cleared_cookie["httponly"]
-    assert cleared_cookie["samesite"].lower() == "lax"
-    assert cleared_cookie["path"] == "/api/auth"
-    assert cleared_cookie["max-age"] == "0"
+    for path in ("/api", "/api/auth"):
+        cleared_cookie = session_cookie(logout_response, path)
+        assert cleared_cookie["secure"]
+        assert cleared_cookie["httponly"]
+        assert cleared_cookie["samesite"].lower() == "lax"
+        assert cleared_cookie["max-age"] == "0"
 
 
 @pytest.mark.parametrize("token_kind", ["invalid", "expired"])
@@ -250,8 +271,32 @@ def test_me_rejects_invalid_or_expired_tokens(
             algorithm=JWT_ALGORITHM,
         )
 
-    client.cookies.set(ACCESS_TOKEN_COOKIE, token, path="/api/auth")
+    client.cookies.set(ACCESS_TOKEN_COOKIE, token, path="/api")
     assert client.get("/api/auth/me").status_code == 401
+
+
+def test_me_rejects_tokens_without_expiry_or_with_a_foreign_signature(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    user_id = str(registered_user["_id"])
+    now = datetime.now(timezone.utc)
+    tokens = [
+        jwt.encode(
+            {"sub": user_id, "iat": now},
+            settings.secret_key.get_secret_value(),
+            algorithm=JWT_ALGORITHM,
+        ),
+        jwt.encode(
+            {"sub": user_id, "iat": now, "exp": now + timedelta(minutes=5)},
+            "another-signing-key-with-at-least-32-bytes",
+            algorithm=JWT_ALGORITHM,
+        ),
+    ]
+    for token in tokens:
+        client.cookies.set(ACCESS_TOKEN_COOKIE, token, path="/api")
+        assert client.get("/api/auth/me").status_code == 401
 
 
 def test_me_rejects_a_user_that_no_longer_exists(
@@ -259,7 +304,7 @@ def test_me_rejects_a_user_that_no_longer_exists(
 ) -> None:
     client, _ = auth_client
     client.cookies.set(
-        ACCESS_TOKEN_COOKIE, create_access_token(str(ObjectId())), path="/api/auth"
+        ACCESS_TOKEN_COOKIE, create_access_token(str(ObjectId())), path="/api"
     )
 
     assert client.get("/api/auth/me").status_code == 401
@@ -272,11 +317,108 @@ def test_logout_clears_cookie_with_matching_attributes(
 
     assert response.status_code == 200
     assert response.json() == {"message": "Logged out successfully."}
-    cookies = SimpleCookie()
-    cookies.load(response.headers["set-cookie"])
-    cookie = cookies[ACCESS_TOKEN_COOKIE]
-    assert cookie["max-age"] == "0"
-    assert cookie["path"] == "/api/auth"
-    assert cookie["httponly"]
-    assert cookie["samesite"].lower() == "lax"
-    assert cookie["secure"] == ""
+    # Clears the current cookie and the one older builds scoped to /api/auth.
+    for path in ("/api", "/api/auth"):
+        cookie = session_cookie(response, path)
+        assert cookie["max-age"] == "0"
+        assert cookie["httponly"]
+        assert cookie["samesite"].lower() == "lax"
+        assert cookie["secure"] == ""
+
+
+def test_login_for_unknown_email_still_runs_password_verification(
+    auth_client: tuple[TestClient, FakeDatabase],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    original_verify = auth_service.verify_password
+
+    def tracking_verify(password: str, hashed_password: str) -> bool:
+        calls.append(hashed_password)
+        return original_verify(password, hashed_password)
+
+    monkeypatch.setattr(auth_service, "verify_password", tracking_verify)
+    response = auth_client[0].post(
+        "/api/auth/login",
+        json={"email": "nobody@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 401
+    assert calls == [auth_service._DUMMY_PASSWORD_HASH]
+
+
+def test_corrupted_stored_hash_fails_closed(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    registered_user["hashed_password"] = "not-a-bcrypt-hash"
+    response = auth_client[0].post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_overlong_passwords_are_rejected(
+    auth_client: tuple[TestClient, FakeDatabase],
+) -> None:
+    client, _ = auth_client
+    huge = "x" * 257
+    assert client.post(
+        "/api/auth/login", json={"email": "user@example.com", "password": huge}
+    ).status_code == 422
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "displayName": "Test User",
+            "email": "user@example.com",
+            "password": huge,
+            "confirmPassword": huge,
+        },
+    )
+    assert response.status_code == 422
+    assert huge not in response.text
+
+
+def test_wildcard_cors_origin_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate(
+            {
+                "mongo_uri": "mongodb://localhost:27017",
+                "mongo_db_name": "focusmind_test",
+                "secret_key": SecretStr("x" * 40),
+                "cors_origins": ["*"],
+            }
+        )
+
+
+def test_requests_return_503_when_database_is_not_connected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(database_module, "_db", None)
+    response = TestClient(app).post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 503
+    assert "mongodb" not in response.text.lower()
+
+
+def test_health_reports_database_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = TestClient(app)
+
+    async def healthy() -> bool:
+        return True
+
+    async def unhealthy() -> bool:
+        return False
+
+    monkeypatch.setattr("app.main.ping_db", healthy)
+    assert client.get("/api/health").json() == {"status": "ok", "database": True}
+
+    monkeypatch.setattr("app.main.ping_db", unhealthy)
+    response = client.get("/api/health")
+    assert response.status_code == 503
+    assert response.json() == {"status": "degraded", "database": False}
