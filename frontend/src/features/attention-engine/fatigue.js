@@ -14,6 +14,7 @@ export const FATIGUE_DEFAULTS = Object.freeze({
   highBlinkRatePerMinute: 30,
   longClosureMs: 1500,
   longClosureHoldMs: 5000,
+  longClosureWindowMs: 2 * 60_000,
   yawnJawOpen: 0.55,
   yawnMinimumMs: 1200,
   yawnHoldMs: 10_000,
@@ -24,6 +25,8 @@ export function createFatigueMonitor(options = {}) {
   const config = { ...FATIGUE_DEFAULTS, ...options };
   let blinks = [];
   let yawns = [];
+  let longClosures = [];
+  let closureCounted = false;
   let closedSince = null;
   let lastLongClosureAt = null;
   let jawOpenSince = null;
@@ -34,6 +37,8 @@ export function createFatigueMonitor(options = {}) {
   function reset() {
     blinks = [];
     yawns = [];
+    longClosures = [];
+    closureCounted = false;
     closedSince = null;
     lastLongClosureAt = null;
     jawOpenSince = null;
@@ -70,6 +75,7 @@ export function createFatigueMonitor(options = {}) {
       eyesClosedMs,
       jawOpen,
       yawnsInWindow: yawns.length,
+      longClosuresInWindow: longClosures.length,
     };
   }
 
@@ -80,11 +86,13 @@ export function createFatigueMonitor(options = {}) {
       lastTimestamp = timestamp;
       blinks = blinks.filter((time) => timestamp - time <= config.blinkWindowMs);
       yawns = yawns.filter((time) => timestamp - time <= config.yawnWindowMs);
+      longClosures = longClosures.filter((time) => timestamp - time <= config.longClosureWindowMs);
 
       const closed = eyesClosed(signals);
       if (closed === null) {
         // No face / no eye data: interrupt running episodes, do not count time.
         closedSince = null;
+        closureCounted = false;
         jawOpenSince = null;
         yawnCountedForCurrentOpening = false;
         return summary(timestamp, null, null);
@@ -93,11 +101,18 @@ export function createFatigueMonitor(options = {}) {
 
       if (closed) {
         if (closedSince === null) closedSince = timestamp;
-        if (timestamp - closedSince >= config.longClosureMs) lastLongClosureAt = timestamp;
+        if (timestamp - closedSince >= config.longClosureMs) {
+          lastLongClosureAt = timestamp;
+          if (!closureCounted) {
+            longClosures.push(timestamp);
+            closureCounted = true;
+          }
+        }
       } else if (closedSince !== null) {
         const duration = timestamp - closedSince;
         if (duration >= config.blinkMinimumMs && duration <= config.blinkMaximumMs) blinks.push(timestamp);
         closedSince = null;
+        closureCounted = false;
       }
 
       const jawOpen = signals.blendshapes?.jawOpen;

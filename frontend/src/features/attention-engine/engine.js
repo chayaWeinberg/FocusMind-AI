@@ -1,68 +1,33 @@
-// The attention engine: signals -> fusion -> temporal smoothing (+ fatigue).
-// Pure JavaScript, no DOM/React, so it can be tested on synthetic or recorded
-// Face Landmarker results. useAttentionEngine() feeds it from the camera.
+// The attention engine: signals -> adaptive baseline + fusion -> temporal
+// smoothing (+ possible fatigue indicators and an estimated concentration
+// score). Calibration-free.
+// Pure JavaScript (no DOM/React), tested with synthetic Face Landmarker results.
 
-import { ATTENTION_REASONS, ATTENTION_STATES } from './contracts.js';
+import { ATTENTION_REASONS } from './contracts.js';
 import { extractSignals } from './signals.js';
+import { createAdaptiveBaseline } from './baseline.js';
 import { fuseSignals } from './fusion.js';
 import { createTemporalSmoother } from './temporal.js';
 import { createFatigueMonitor } from './fatigue.js';
-
-function round(value, digits = 3) {
-  if (!Number.isFinite(value)) return null;
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
-}
-
-function signalSummary(signals, raw) {
-  return {
-    headYaw: round(signals.head.yaw, 1),
-    headPitch: round(signals.head.pitch, 1),
-    headRoll: round(signals.head.roll, 1),
-    eyeHorizontal: round(signals.eyes.horizontal),
-    eyeVertical: round(signals.eyes.vertical),
-    eyeOpenness: round(signals.eyes.openness),
-    faceQuality: round(signals.quality.face, 2),
-    headQuality: round(signals.quality.head, 2),
-    eyeQuality: round(signals.quality.eyes, 2),
-    onScreenProbability: round(raw.onScreenProbability, 2),
-  };
-}
+import { createConcentrationEstimator } from './concentration.js';
 
 export function createAttentionEngine(options = {}) {
+  const baseline = createAdaptiveBaseline(options.baseline);
   const smoother = createTemporalSmoother(options.temporal);
   const fatigue = createFatigueMonitor(options.fatigue);
-  let model = null;
-  let calibrating = false;
-
-  function frameFrom(snapshot, timestamp, fatigueSummary, extra = {}) {
-    return {
-      timestamp,
-      state: snapshot.state,
-      confidence: snapshot.confidence,
-      reason: snapshot.reason,
-      fatigueIndicators: fatigueSummary?.indicators ?? [],
-      since: snapshot.since,
-      calibrated: Boolean(model),
-      ...extra,
-    };
-  }
+  const concentration = createConcentrationEstimator(options.concentration);
 
   return {
-    setCalibration(nextModel) {
-      model = nextModel || null;
-      smoother.reset(model ? ATTENTION_REASONS.PAUSED : ATTENTION_REASONS.NOT_CALIBRATED);
-    },
-    getCalibration() {
-      return model;
-    },
-    setCalibrating(value) {
-      calibrating = Boolean(value);
-      smoother.reset(ATTENTION_REASONS.CALIBRATING);
+    /** Re-learn the screen-facing pose (e.g. after the user moved). */
+    recenter() {
+      baseline.reset();
+      smoother.reset(ATTENTION_REASONS.ADAPTING);
     },
     reset(reason = ATTENTION_REASONS.PAUSED) {
+      baseline.reset();
       smoother.reset(reason);
       fatigue.reset();
+      concentration.reset();
     },
     /**
      * @param {object|null} result Face Landmarker result for one video frame
@@ -72,43 +37,26 @@ export function createAttentionEngine(options = {}) {
     process(result, timestamp, frameSize) {
       const signals = extractSignals(result, frameSize);
       const fatigueSummary = fatigue.update(signals, timestamp);
-
-      if (calibrating) {
-        const raw = {
-          state: ATTENTION_STATES.UNCERTAIN,
-          confidence: 0,
-          reason: ATTENTION_REASONS.CALIBRATING,
-          gazePoint: null,
-          onScreenProbability: null,
-          modelUsed: 'none',
-          recalibrationSuggested: false,
-        };
-        return {
-          frame: {
-            timestamp,
-            state: ATTENTION_STATES.UNCERTAIN,
-            confidence: 0,
-            reason: ATTENTION_REASONS.CALIBRATING,
-            fatigueIndicators: fatigueSummary.indicators,
-            since: timestamp,
-            calibrated: Boolean(model),
-            signals: signalSummary(signals, raw),
-          },
-          raw,
-          signals,
-          fatigue: fatigueSummary,
-        };
-      }
-
-      const raw = fuseSignals(signals, model, options.fusion);
+      const raw = fuseSignals(signals, baseline.getBaseline(), options.fusion);
+      const adaptation = baseline.observe(signals, timestamp, raw);
+      if (adaptation === 'posture-changed') smoother.reset(ATTENTION_REASONS.ADAPTING);
       const snapshot = smoother.add(raw, timestamp);
+      const status = baseline.getStatus(timestamp);
+      const estimate = concentration.update({ state: snapshot.state, fatigue: fatigueSummary }, timestamp);
       return {
-        frame: frameFrom(snapshot, timestamp, fatigueSummary, {
-          signals: signalSummary(signals, raw),
-          recalibrationSuggested: raw.recalibrationSuggested,
-        }),
+        frame: {
+          timestamp,
+          state: snapshot.state,
+          confidence: snapshot.confidence,
+          reason: snapshot.reason,
+          fatigueIndicators: fatigueSummary.indicators,
+          since: snapshot.since,
+          adapted: status.ready,
+          adaptationProgress: status.progress,
+          concentration: estimate,
+        },
         raw,
-        evidence: snapshot.evidence,
+        adaptation,
         signals,
         fatigue: fatigueSummary,
       };
@@ -118,12 +66,14 @@ export function createAttentionEngine(options = {}) {
       smoother.reset(reason);
       return {
         timestamp,
-        state: ATTENTION_STATES.UNCERTAIN,
+        state: 'UNCERTAIN',
         confidence: 0,
         reason,
         fatigueIndicators: [],
         since: timestamp,
-        calibrated: Boolean(model),
+        adapted: Boolean(baseline.getBaseline()),
+        adaptationProgress: baseline.getBaseline() ? 1 : 0,
+        concentration: null,
       };
     },
   };

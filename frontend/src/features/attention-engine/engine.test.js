@@ -1,56 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { fitRidgeRegression, solveLinearSystem } from './math.js';
-import { eyesClosed, extractSignals } from './signals.js';
-import {
-  CALIBRATION_FAILURES,
-  CALIBRATION_TARGETS,
-  createCalibrationSession,
-  fitCalibration,
-  predictGazePoint,
-} from './calibration.js';
-import { fuseSignals, onScreenProbability } from './fusion.js';
+import { GAZE_MODEL, combinedGaze, eyesClosed, extractSignals } from './signals.js';
+import { createAdaptiveBaseline } from './baseline.js';
+import { fuseSignals } from './fusion.js';
 import { createTemporalSmoother } from './temporal.js';
 import { createFatigueMonitor } from './fatigue.js';
 import { createAttentionEngine } from './engine.js';
+import { CONCENTRATION_FACTORS, CONCENTRATION_LEVELS, createConcentrationEstimator } from './concentration.js';
 import { ATTENTION_REASONS as R, ATTENTION_STATES as S, FATIGUE_INDICATORS, isValidAttentionFrame } from './contracts.js';
-import { FRAME, NO_FACE, simulatedUser, syntheticResult } from './testing/syntheticFace.js';
+import { FRAME, NO_FACE, seededRandom, simulatedUser, syntheticResult } from './testing/syntheticFace.js';
 
 const FRAME_MS = 66;
 
-/** Runs a full calibration with a simulated user and returns the model. */
-function calibrate(user, { startAt = 0 } = {}) {
-  const session = createCalibrationSession();
-  session.start(startAt);
-  let time = startAt;
-  while (session.getSnapshot().status === 'running') {
-    time += FRAME_MS;
-    const target = session.getSnapshot().target;
-    session.addSample(extractSignals(user.lookAt(target.x, target.y), FRAME), time);
+/** Simulates normal studying: gaze wandering over the screen. */
+function studyOnScreen(user, consume, { from = 0, duration = 4000, seed = 2 } = {}) {
+  const random = seededRandom(seed);
+  let time = from;
+  for (; time < from + duration; time += FRAME_MS) {
+    consume(user.lookAt(0.15 + random() * 0.7, 0.15 + random() * 0.7), time);
   }
-  return { session, time };
+  return time;
 }
 
-describe('math', () => {
-  it('solves linear systems and detects singular ones', () => {
-    expect(solveLinearSystem([[2, 1], [1, 3]], [3, 5])).toEqual([0.8, 1.4].map((v) => expect.closeTo(v, 9)));
-    expect(solveLinearSystem([[1, 2], [2, 4]], [1, 2])).toBeNull();
+/** A baseline learned passively from a short on-screen period. */
+function learnedBaseline(user) {
+  const baseline = createAdaptiveBaseline();
+  studyOnScreen(user, (result, time) => {
+    const signals = extractSignals(result, FRAME);
+    baseline.observe(signals, time, fuseSignals(signals, baseline.getBaseline()));
   });
-
-  it('ridge regression recovers a linear mapping', () => {
-    const inputs = [];
-    const outputs = [];
-    for (let a = -1; a <= 1; a += 0.25) {
-      for (let b = -1; b <= 1; b += 0.25) {
-        inputs.push([a * 10, b]);
-        outputs.push([0.5 + 0.03 * a * 10, 0.2 - 0.4 * b]);
-      }
-    }
-    const model = fitRidgeRegression(inputs, outputs, { lambda: 1e-6 });
-    const [x, y] = model.predict([5, 0.5]);
-    expect(x).toBeCloseTo(0.65, 4);
-    expect(y).toBeCloseTo(0, 4);
-  });
-});
+  return baseline;
+}
 
 describe('signals', () => {
   it('recovers head pose and iris offset, compensating head roll', () => {
@@ -80,6 +59,18 @@ describe('signals', () => {
     expect(extractSignals(syntheticResult({ center: { x: 0.12, y: 0.5 } }), FRAME).quality.face).toBeLessThan(0.5);
   });
 
+  it('combines head and eyes with matching signs', () => {
+    const gaze = combinedGaze(extractSignals(syntheticResult({ yaw: 10, pitch: 5, irisH: 0.1, irisV: 0.05 }), FRAME));
+    expect(gaze.horizontal).toBeCloseTo(GAZE_MODEL.headWeight * 10 + GAZE_MODEL.eyeDegreesPerUnit * 0.1, 3);
+    expect(gaze.vertical).toBeCloseTo(GAZE_MODEL.headWeight * 5 + GAZE_MODEL.eyeDegreesPerUnit * 0.05, 3);
+  });
+
+  it('does not mistake looking down (lowered lids) for closed eyes', () => {
+    expect(eyesClosed(extractSignals(syntheticResult({ blink: 0.6, lookDown: 0.7 }), FRAME))).toBe(false);
+    expect(eyesClosed(extractSignals(syntheticResult({ blink: 0.6 }), FRAME))).toBe(true);
+    expect(eyesClosed(extractSignals(syntheticResult({ blink: 0.9, lookDown: 0.7 }), FRAME))).toBe(true);
+  });
+
   it('handles a frame without a face', () => {
     const signals = extractSignals(NO_FACE, FRAME);
     expect(signals.faceDetected).toBe(false);
@@ -87,117 +78,136 @@ describe('signals', () => {
   });
 });
 
-describe('calibration', () => {
-  it('runs through all 9 targets and fits an accurate personal model', () => {
-    const { session } = calibrate(simulatedUser());
-    const snapshot = session.getSnapshot();
-    expect(snapshot.status).toBe('done');
-    const model = session.getModel();
-    expect(model.full).not.toBeNull();
-    expect(model.headOnly).not.toBeNull();
-    expect(model.error).toBeLessThan(0.1);
-    expect(model.quality).toBe('excellent');
-
-    const point = predictGazePoint(model.full, extractSignals(simulatedUser({ seed: 99 }).lookAt(0.3, 0.7), FRAME));
-    expect(point.x).toBeCloseTo(0.3, 1);
-    expect(point.y).toBeCloseTo(0.7, 1);
+describe('adaptive baseline (no calibration)', () => {
+  it('learns the screen-facing pose within a few seconds of normal studying', () => {
+    const user = simulatedUser({ pitchOffset: -12 }); // camera above the screen
+    const baseline = learnedBaseline(user).getBaseline();
+    expect(baseline).not.toBeNull();
+    expect(baseline.pitch).toBeCloseTo(-12, 0);
+    expect(baseline.yaw).toBeCloseTo(0, 0);
+    expect(Math.abs(baseline.gazeH)).toBeLessThan(1);
+    expect(Math.abs(baseline.gazeV - GAZE_MODEL.headWeight * -12)).toBeLessThan(1.5);
   });
 
-  it('adapts to a different user and camera position', () => {
-    const otherUser = simulatedUser({ yawGain: 25, pitchGain: -10, irisGainH: -0.5, seed: 3 });
-    const { session } = calibrate(otherUser);
-    const model = session.getModel();
-    const point = predictGazePoint(model.full, extractSignals(otherUser.lookAt(0.8, 0.2), FRAME));
-    expect(point.x).toBeCloseTo(0.8, 1);
-    expect(point.y).toBeCloseTo(0.2, 1);
+  it('absorbs a camera placed beside the screen', () => {
+    const sideCamera = simulatedUser({ yawOffset: 25 });
+    const baseline = learnedBaseline(sideCamera);
+    expect(baseline.getBaseline().yaw).toBeCloseTo(25, 0);
+    const raw = fuseSignals(extractSignals(sideCamera.lookAt(0.5, 0.5), FRAME), baseline.getBaseline());
+    expect(raw.state).toBe(S.ON_SCREEN);
   });
 
-  it('fails when the face is missing for a target, even after a retry', () => {
-    const session = createCalibrationSession();
-    session.start(0);
-    for (let time = FRAME_MS; time < 10_000 && session.getSnapshot().status === 'running'; time += FRAME_MS) {
-      session.addSample(extractSignals(NO_FACE, FRAME), time);
+  it('ignores frames where the user does not face the camera during warm-up', () => {
+    const baseline = createAdaptiveBaseline();
+    for (let time = 0; time < 5000; time += FRAME_MS) {
+      baseline.observe(extractSignals(syntheticResult({ yaw: 60 }), FRAME), time);
     }
-    expect(session.getSnapshot()).toMatchObject({ status: 'failed', failure: CALIBRATION_FAILURES.FACE_NOT_DETECTED });
+    expect(baseline.getBaseline()).toBeNull();
+    expect(baseline.getStatus(5000).ready).toBe(false);
   });
 
-  it('rejects a calibration where the user did not follow the targets', () => {
+  it('does not move the baseline while the user looks away', () => {
     const user = simulatedUser();
-    const groups = CALIBRATION_TARGETS.map((target) => ({
-      target,
-      samples: Array.from({ length: 15 }, () => extractSignals(user.lookAt(0.5, 0.5), FRAME)),
-    }));
-    const result = fitCalibration(groups);
-    expect(result.ok).toBe(false);
+    const baseline = learnedBaseline(user);
+    const before = baseline.getBaseline().yaw;
+    for (let time = 5000; time < 15000; time += FRAME_MS) {
+      const signals = extractSignals(user.lookAt(2.2, 0.5), FRAME);
+      baseline.observe(signals, time, fuseSignals(signals, baseline.getBaseline()));
+    }
+    expect(baseline.getBaseline().yaw).toBeCloseTo(before, 5);
   });
 
-  it('can be cancelled', () => {
-    const session = createCalibrationSession();
-    session.start(0);
-    session.cancel();
-    expect(session.getSnapshot()).toMatchObject({ status: 'failed', failure: CALIBRATION_FAILURES.CANCELLED });
+  it('re-learns automatically after a clear posture change', () => {
+    const user = simulatedUser();
+    const baseline = learnedBaseline(user);
+    let outcome;
+    for (let time = 5000; time < 8000; time += FRAME_MS) {
+      const signals = extractSignals(user.lookAt(0.5, 0.5, { translation: { x: 0, y: 0, z: -85 } }), FRAME);
+      outcome = baseline.observe(signals, time, fuseSignals(signals, baseline.getBaseline()));
+      if (outcome === 'posture-changed') break;
+    }
+    expect(outcome).toBe('posture-changed');
+    expect(baseline.getBaseline()).toBeNull();
   });
 });
 
 describe('fusion', () => {
   const user = simulatedUser();
-  const { session } = calibrate(user);
-  const model = session.getModel();
-  const fuse = (result) => fuseSignals(extractSignals(result, FRAME), model);
+  const baseline = learnedBaseline(user).getBaseline();
+  const fuse = (result) => fuseSignals(extractSignals(result, FRAME), baseline);
 
-  it.each([[0.5, 0.5], [0.15, 0.2], [0.85, 0.85]])('detects looking at the screen at (%s, %s)', (x, y) => {
+  it.each([[0.5, 0.5], [0.1, 0.15], [0.9, 0.85]])('detects looking at the screen at (%s, %s)', (x, y) => {
     const raw = fuse(user.lookAt(x, y));
     expect(raw.state).toBe(S.ON_SCREEN);
-    expect(raw.modelUsed).toBe('full');
+    expect(raw.modelUsed).toBe('head+eyes');
     expect(raw.confidence).toBeGreaterThan(0.6);
   });
 
-  it.each([[1.6, 0.5], [-0.6, 0.5], [0.5, 1.7]])('detects looking away at (%s, %s)', (x, y) => {
+  it.each([[1.9, 0.5], [-0.9, 0.5], [0.5, 2.2]])('detects looking away at (%s, %s)', (x, y) => {
     expect(fuse(user.lookAt(x, y)).state).toBe(S.OFF_SCREEN);
   });
 
-  it('treats a head turned far beyond the calibrated range as looking away', () => {
-    const raw = fuse(syntheticResult({ yaw: 45, pitch: -6 }));
-    expect(raw).toMatchObject({ state: S.OFF_SCREEN, reason: R.HEAD_TURNED_AWAY });
+  it('detects an eyes-only glance away with a still head', () => {
+    const raw = fuse(user.lookAt(0.5, 0.5, { irisH: 0.6 }));
+    expect(raw).toMatchObject({ state: S.OFF_SCREEN, reason: R.GAZE_OFF_SCREEN });
+  });
+
+  it('treats a strongly turned head as looking away', () => {
+    expect(fuse(syntheticResult({ yaw: 50, pitch: -6 }))).toMatchObject({ state: S.OFF_SCREEN, reason: R.HEAD_TURNED_AWAY });
   });
 
   it('reports a missing face', () => {
     expect(fuse(NO_FACE)).toMatchObject({ state: S.FACE_ABSENT, reason: R.NO_FACE });
   });
 
-  it('falls back to the head-only model when the eyes are closed', () => {
+  it('uses the head only, with capped confidence, when the eyes are closed', () => {
     const raw = fuse(user.lookAt(0.5, 0.5, { eyeAspect: 0.05, blink: 1 }));
-    expect(raw.modelUsed).toBe('head-only');
+    expect(raw.modelUsed).toBe('head');
+    expect(raw.state).toBe(S.ON_SCREEN);
+    expect(raw.confidence).toBeLessThanOrEqual(0.75);
   });
 
-  it('moves monotonically from on-screen to off-screen across the edge', () => {
-    const order = { [S.ON_SCREEN]: 0, [S.UNCERTAIN]: 1, [S.OFF_SCREEN]: 2 };
-    const states = [0.8, 0.95, 1.0, 1.05, 1.1, 1.2, 1.4].map((x) => fuse(user.lookAt(x, 0.5)).state);
-    expect(states[0]).toBe(S.ON_SCREEN);
-    expect(states.at(-1)).toBe(S.OFF_SCREEN);
-    states.slice(1).forEach((state, index) => {
-      expect(order[state]).toBeGreaterThanOrEqual(order[states[index]]);
+  /** A face whose combined gaze is (h, v) degrees from the baseline, with the head at baseline + headTurn. */
+  function gazeOffsetBy(h, v, headTurn = 0) {
+    const yaw = baseline.yaw + headTurn;
+    const { pitch } = baseline;
+    const { eyeDegreesPerUnit, headWeight } = GAZE_MODEL;
+    return syntheticResult({
+      yaw,
+      pitch,
+      irisH: (baseline.gazeH + h - headWeight * yaw) / eyeDegreesPerUnit,
+      irisV: (baseline.gazeV + v - headWeight * pitch) / eyeDegreesPerUnit,
     });
+  }
+
+  it('combines head and eyes: a natural glance away is caught although the head alone stays small', () => {
+    const signals = extractSignals(user.lookAt(1.6, 0.5), FRAME);
+    expect(Math.abs(signals.head.yaw - baseline.yaw)).toBeLessThan(baseline.tolerances.yaw);
+    expect(fuseSignals(signals, baseline).state).toBe(S.OFF_SCREEN);
   });
 
-  it('gives a 50% on-screen probability exactly at the (margin-expanded) edge', () => {
-    expect(onScreenProbability({ x: 1.05, y: 0.5 }, 0.15, 0.05)).toBeCloseTo(0.5, 5);
+  it('stays on screen when the head turns but the eyes keep looking at the screen', () => {
+    const raw = fuse(gazeOffsetBy(0, 0, 20));
+    expect(raw.state).toBe(S.ON_SCREEN);
+    expect(Math.abs(raw.offset.horizontal)).toBeLessThan(1);
   });
 
-  it('asks for recalibration when the user moved away from the calibrated position', () => {
-    const raw = fuse(user.lookAt(0.5, 0.5, { translation: { x: 0, y: 0, z: -80 } }));
-    expect(raw).toMatchObject({ state: S.UNCERTAIN, reason: R.OUTSIDE_CALIBRATION, recalibrationSuggested: true });
+  it('reports the gaze offset and tolerance in degrees', () => {
+    const raw = fuse(gazeOffsetBy(10, -5));
+    expect(raw.offset.horizontal).toBeCloseTo(10, 0);
+    expect(raw.offset.vertical).toBeCloseTo(-5, 0);
+    expect(raw.tolerance.horizontal).toBeGreaterThanOrEqual(22);
   });
 
-  it('without calibration is uncertain, except for an obvious head turn', () => {
-    expect(fuseSignals(extractSignals(user.lookAt(0.5, 0.5), FRAME), null))
-      .toMatchObject({ state: S.UNCERTAIN, reason: R.NOT_CALIBRATED });
-    expect(fuseSignals(extractSignals(syntheticResult({ yaw: 55 }), FRAME), null).state).toBe(S.OFF_SCREEN);
+  it('is uncertain, not distracted, exactly at the tolerance', () => {
+    const raw = fuse(gazeOffsetBy(baseline.tolerances.gazeH, 0));
+    expect(raw.state).toBe(S.UNCERTAIN);
+    expect(raw.onScreenProbability).toBeCloseTo(0.5, 1);
   });
 
-  it('turns a larger model error into a softer probability', () => {
-    const point = { x: 1.1, y: 0.5 };
-    expect(onScreenProbability(point, 0.05, 0.05)).toBeLessThan(onScreenProbability(point, 0.3, 0.05));
+  it('is uncertain while adapting and when the face is poorly visible', () => {
+    expect(fuseSignals(extractSignals(user.lookAt(0.5, 0.5), FRAME), null)).toMatchObject({ state: S.UNCERTAIN, reason: R.ADAPTING });
+    expect(fuse(syntheticResult({ faceWidth: 0.06 }))).toMatchObject({ state: S.UNCERTAIN, reason: R.LOW_LANDMARK_QUALITY });
   });
 });
 
@@ -258,6 +268,16 @@ describe('fatigue indicators', () => {
     ]));
   });
 
+  it('counts each long eye closure once', () => {
+    const monitor = createFatigueMonitor();
+    let summary;
+    for (let time = 0; time <= 12_000; time += 50) {
+      const closed = time % 6000 < 2500; // two closures of 2.5 s
+      summary = monitor.update(extractSignals(syntheticResult({ blink: closed ? 0.95 : 0 }), FRAME), time);
+    }
+    expect(summary.longClosuresInWindow).toBe(2);
+  });
+
   it('does not report a blink rate before 20 seconds of observation', () => {
     const monitor = createFatigueMonitor();
     const summary = monitor.update(extractSignals(syntheticResult(), FRAME), 0);
@@ -266,33 +286,117 @@ describe('fatigue indicators', () => {
   });
 });
 
-describe('attention engine end to end', () => {
-  it('produces valid frames through calibration, looking away and face absence', () => {
-    const user = simulatedUser({ seed: 11 });
-    const engine = createAttentionEngine();
-    const { session } = calibrate(user);
-    engine.setCalibration(session.getModel());
+describe('concentration estimate', () => {
+  const alert = { eyesClosed: false, eyesClosedMs: 0, indicators: [], yawnsInWindow: 0, longClosuresInWindow: 0, blinkRatePerMinute: 15 };
 
-    const run = (result, from, duration) => {
-      let output;
-      for (let time = from; time < from + duration; time += FRAME_MS) {
-        output = engine.process(result(), time, FRAME);
-        expect(isValidAttentionFrame(output.frame)).toBe(true);
-      }
-      return output;
-    };
+  function feed(estimator, { state = S.ON_SCREEN, fatigue = alert, from = 0, duration = 10_000 } = {}) {
+    let estimate;
+    for (let time = from; time < from + duration; time += FRAME_MS) {
+      estimate = estimator.update({ state, fatigue }, time);
+    }
+    return estimate;
+  }
 
-    expect(run(() => user.lookAt(0.4, 0.6), 0, 2000).frame).toMatchObject({ state: S.ON_SCREEN, calibrated: true });
-    expect(run(() => user.lookAt(1.8, 0.5), 2000, 2000).frame.state).toBe(S.OFF_SCREEN);
-    expect(run(() => NO_FACE, 4000, 2000).frame).toMatchObject({ state: S.FACE_ABSENT, reason: R.NO_FACE });
-    expect(run(() => user.lookAt(0.5, 0.5), 6000, 2000).frame.state).toBe(S.ON_SCREEN);
+  it('waits for enough measured time, then reports a high score for steady on-screen gaze', () => {
+    const estimator = createConcentrationEstimator();
+    expect(feed(estimator, { duration: 3000 })).toMatchObject({ ready: false, score: null });
+    const estimate = feed(estimator, { from: 3000, duration: 7000 });
+    expect(estimate).toMatchObject({ ready: true, score: 100, level: CONCENTRATION_LEVELS.HIGH, factors: [] });
   });
 
-  it('publishes CALIBRATING while calibration runs', () => {
+  it('drops when the user looks away, and recovers after looking back', () => {
+    const estimator = createConcentrationEstimator();
+    feed(estimator, { duration: 20_000 });
+    const away = feed(estimator, { state: S.OFF_SCREEN, from: 20_000, duration: 10_000 });
+    expect(away.score).toBeLessThan(50);
+    expect(away.level).toBe(CONCENTRATION_LEVELS.LOW);
+    expect(away.factors).toContain(CONCENTRATION_FACTORS.LOOKING_AWAY);
+    expect(feed(estimator, { from: 30_000, duration: 30_000 }).score).toBeGreaterThan(85);
+  });
+
+  it('treats uncertain moments as neutral', () => {
+    const estimator = createConcentrationEstimator();
+    const before = feed(estimator, { duration: 10_000 }).score;
+    expect(feed(estimator, { state: S.UNCERTAIN, from: 10_000, duration: 10_000 }).score).toBe(before);
+  });
+
+  it('is capped while the eyes are closed for a long time, even facing the screen', () => {
+    const estimator = createConcentrationEstimator();
+    feed(estimator, { duration: 10_000 });
+    const closed = feed(estimator, { from: 10_000, duration: 100, fatigue: { ...alert, eyesClosed: true, eyesClosedMs: 2000 } });
+    expect(closed.score).toBeLessThanOrEqual(25);
+    expect(closed.factors).toContain(CONCENTRATION_FACTORS.EYES_CLOSED_NOW);
+  });
+
+  it('lowers the score for yawns, long closures and a high blink rate', () => {
+    const estimator = createConcentrationEstimator();
+    const tired = feed(estimator, {
+      fatigue: { ...alert, yawnsInWindow: 2, longClosuresInWindow: 1, indicators: [FATIGUE_INDICATORS.BLINK_RATE_HIGH] },
+    });
+    expect(tired.score).toBe(Math.round(100 * (1 - (0.24 + 0.15 + 0.1))));
+    expect(tired.factors).toEqual(expect.arrayContaining([
+      CONCENTRATION_FACTORS.YAWNS, CONCENTRATION_FACTORS.LONG_CLOSURES, CONCENTRATION_FACTORS.BLINK_RATE,
+    ]));
+  });
+});
+
+describe('attention engine end to end (calibration-free)', () => {
+  function run(engine, result, from, duration) {
+    let output;
+    for (let time = from; time < from + duration; time += FRAME_MS) {
+      output = engine.process(result(time), time, FRAME);
+      expect(isValidAttentionFrame(output.frame)).toBe(true);
+    }
+    return output;
+  }
+
+  it('adapts, then detects on-screen, looking away, face absent and return', () => {
+    const user = simulatedUser({ seed: 11 });
     const engine = createAttentionEngine();
-    engine.setCalibrating(true);
-    const output = engine.process(syntheticResult(), 0, FRAME);
-    expect(output.frame).toMatchObject({ state: S.UNCERTAIN, reason: R.CALIBRATING });
-    expect(isValidAttentionFrame(output.frame)).toBe(true);
+    const random = seededRandom(4);
+    const wander = () => user.lookAt(0.2 + random() * 0.6, 0.2 + random() * 0.6);
+
+    expect(engine.process(wander(), 0, FRAME).frame).toMatchObject({ state: S.UNCERTAIN, adapted: false });
+    expect(run(engine, wander, FRAME_MS, 5000).frame).toMatchObject({ state: S.ON_SCREEN, adapted: true });
+    expect(run(engine, () => user.lookAt(2, 0.5), 5000, 2500).frame.state).toBe(S.OFF_SCREEN);
+    expect(run(engine, () => NO_FACE, 7500, 2500).frame).toMatchObject({ state: S.FACE_ABSENT, reason: R.NO_FACE });
+    expect(run(engine, wander, 10000, 2500).frame.state).toBe(S.ON_SCREEN);
+  });
+
+  it('estimates concentration from gaze and fatigue signs', () => {
+    const user = simulatedUser({ seed: 5 });
+    const engine = createAttentionEngine();
+    const random = seededRandom(8);
+    const wander = () => user.lookAt(0.2 + random() * 0.6, 0.2 + random() * 0.6);
+
+    const focused = run(engine, wander, 0, 15_000).frame.concentration;
+    expect(focused).toMatchObject({ ready: true, level: CONCENTRATION_LEVELS.HIGH });
+    expect(focused.score).toBeGreaterThanOrEqual(90);
+
+    const sleepy = run(engine, () => user.lookAt(0.5, 0.5, { eyeAspect: 0.05, blink: 1 }), 15_000, 3000).frame.concentration;
+    expect(sleepy.score).toBeLessThanOrEqual(25);
+
+    const distracted = run(engine, () => user.lookAt(2, 0.5), 18_000, 12_000).frame.concentration;
+    expect(distracted.level).toBe(CONCENTRATION_LEVELS.LOW);
+  });
+
+  it('ignores normal blinks while looking at the screen', () => {
+    const user = simulatedUser({ seed: 3 });
+    const engine = createAttentionEngine();
+    run(engine, () => user.lookAt(0.5, 0.5), 0, 5000);
+    const output = run(engine, (time) => (time % 3000 < 200
+      ? user.lookAt(0.5, 0.5, { eyeAspect: 0.05, blink: 1 })
+      : user.lookAt(0.5, 0.5)), 5000, 9000);
+    expect(output.frame.state).toBe(S.ON_SCREEN);
+  });
+
+  it('re-centers on request', () => {
+    const user = simulatedUser();
+    const engine = createAttentionEngine();
+    run(engine, () => user.lookAt(0.5, 0.5), 0, 5000);
+    engine.recenter();
+    expect(engine.process(user.lookAt(0.5, 0.5), 5100, FRAME).frame).toMatchObject({
+      state: S.UNCERTAIN, reason: R.ADAPTING, adapted: false,
+    });
   });
 });

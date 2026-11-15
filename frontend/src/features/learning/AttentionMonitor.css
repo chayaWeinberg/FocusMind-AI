@@ -1,0 +1,349 @@
+/* Attention monitor, session summary and timeline on the Smart Learning page.
+   Built on the FocusMind Signature tokens and card shapes. */
+
+.smart-learning-page {
+  --attention-on: var(--signature-primary);
+  --attention-off: #d9822b;
+  --attention-absent: #8a7fb8;
+  --attention-uncertain: #a3aeac;
+  --attention-unmeasured: #e4e7e3;
+}
+
+.smart-learning-heading {
+  margin: 4px 0 14px;
+}
+
+.smart-learning-heading > span {
+  color: var(--signature-primary);
+  font: 700 8px/1.4 var(--signature-font-family);
+}
+
+.smart-learning-heading h1 {
+  margin: 2px 0 0;
+  color: var(--signature-ink);
+  font: 400 22px/1.2 var(--signature-font-family);
+}
+
+.signature-attention-monitor {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 15px 6px 15px 6px;
+  box-shadow: var(--signature-shadow);
+}
+
+.attention-monitor-heading small {
+  color: var(--signature-primary);
+  font: 700 8px/1.4 var(--signature-font-family);
+}
+
+.attention-monitor-heading h2 {
+  margin: 2px 0 0;
+  color: var(--signature-ink);
+  font: 400 15px/1.3 var(--signature-font-family);
+}
+
+.attention-monitor-video {
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  background: #22302f;
+  border-radius: 11px 4px 11px 4px;
+}
+
+.attention-monitor-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirrored preview; analysis uses the original frame */
+}
+
+.attention-monitor-video-off {
+  display: grid;
+  height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 12px;
+  color: #dfe9e7;
+  text-align: center;
+  font: 8px/1.5 var(--signature-font-family);
+}
+
+.attention-monitor-video-off > span:first-child {
+  font-size: 18px;
+}
+
+.attention-monitor-state {
+  color: var(--signature-muted);
+  font: 650 14px/1.3 var(--signature-font-family);
+}
+
+.attention-monitor-state--on_screen { color: var(--attention-on); }
+.attention-monitor-state--off_screen { color: var(--attention-off); }
+.attention-monitor-state--face_absent { color: var(--attention-absent); }
+.attention-monitor-state--uncertain { color: var(--signature-muted); }
+
+.attention-monitor-confidence {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--signature-muted);
+  font: 7px/1.4 var(--signature-font-family);
+}
+
+.attention-monitor-confidence b {
+  color: var(--signature-ink);
+  font-weight: 700;
+}
+
+.attention-monitor-bar {
+  height: 4px;
+  overflow: hidden;
+  background: rgba(22, 125, 131, 0.13);
+  border-radius: 99px;
+}
+
+.attention-monitor-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--signature-primary);
+  transition: width 150ms linear;
+}
+
+.attention-monitor-reason,
+.attention-monitor-privacy,
+.attention-monitor-hint,
+.attention-monitor-fatigue,
+.attention-monitor-error {
+  margin: 0;
+  font: 8px/1.6 var(--signature-font-family);
+}
+
+.attention-monitor-reason { color: var(--signature-muted); }
+.attention-monitor-hint { color: var(--attention-off); font-weight: 650; }
+.attention-monitor-fatigue { color: #967254; font-weight: 650; }
+.attention-monitor-error { color: #b4442c; }
+.attention-monitor-privacy {
+  padding-top: 6px;
+  color: var(--signature-muted);
+  border-top: 1px solid var(--signature-line);
+  font-size: 7px;
+}
+
+.attention-monitor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.signature-attention-monitor .signature-primary-button {
+  min-height: 32px;
+}
+
+.signature-secondary-button {
+  min-height: 32px;
+  padding: 0 14px;
+  color: var(--signature-primary);
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 9px 4px 9px 4px;
+  cursor: pointer;
+  font: 650 10px/1.4 var(--signature-font-family);
+}
+
+.attention-monitor-link {
+  padding: 0;
+  color: var(--signature-primary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: 700 8px/1.4 var(--signature-font-family);
+}
+
+.signature-attention-monitor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.signature-attention-monitor button:focus-visible,
+.attention-monitor-link:focus-visible {
+  outline: 2px solid var(--signature-peach);
+  outline-offset: 2px;
+}
+
+.attention-summary .attention-summary-note {
+  margin-top: 8px;
+  font-size: 7px;
+}
+
+/* Timeline: one slot per 5 seconds of session time */
+.attention-timeline {
+  display: flex;
+  height: 14px;
+  margin-top: 8px;
+  gap: 1px;
+  overflow: hidden;
+  background: var(--attention-unmeasured);
+  border-radius: 5px;
+}
+
+.attention-slot {
+  display: inline-block;
+  flex: 1 1 0;
+  min-width: 2px;
+  background: var(--attention-unmeasured);
+}
+
+.attention-slot--on_screen { background: var(--attention-on); }
+.attention-slot--off_screen { background: var(--attention-off); }
+.attention-slot--face_absent { background: var(--attention-absent); }
+.attention-slot--uncertain { background: var(--attention-uncertain); }
+.attention-slot--not_measured { background: var(--attention-unmeasured); }
+
+.attention-legend {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 7px 0 0;
+  padding: 0;
+  gap: 4px 10px;
+  color: var(--signature-muted);
+  list-style: none;
+  font: 7px/1.4 var(--signature-font-family);
+}
+
+.attention-legend .attention-slot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-inline-end: 4px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+/* Estimated concentration */
+.attention-concentration {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(22, 125, 131, 0.05);
+  border: 1px solid var(--signature-line);
+  border-radius: 11px 4px 11px 4px;
+  --concentration-color: var(--signature-muted);
+}
+
+.attention-concentration--high { --concentration-color: var(--attention-on); }
+.attention-concentration--medium { --concentration-color: #c08a2c; }
+.attention-concentration--low { --concentration-color: #b4442c; }
+
+.attention-concentration-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  color: var(--signature-muted);
+  font: 700 8px/1.4 var(--signature-font-family);
+}
+
+.attention-concentration-head strong {
+  color: var(--concentration-color);
+  font: 650 22px/1 var(--signature-font-family);
+}
+
+.attention-concentration-head b {
+  color: var(--concentration-color);
+  font-size: 10px;
+}
+
+.attention-concentration-bar > span {
+  background: var(--concentration-color);
+}
+
+.attention-concentration p,
+.attention-concentration-factors {
+  margin: 0;
+  color: var(--signature-muted);
+  font: 8px/1.6 var(--signature-font-family);
+}
+
+.attention-concentration-factors {
+  padding-inline-start: 14px;
+  color: #967254;
+  font-weight: 650;
+}
+
+.attention-concentration-metrics,
+.attention-monitor-details dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  gap: 4px 10px;
+}
+
+.attention-concentration-metrics div,
+.attention-monitor-details dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.attention-concentration-metrics dt,
+.attention-monitor-details dt {
+  color: var(--signature-muted);
+  font: 7px/1.5 var(--signature-font-family);
+}
+
+.attention-concentration-metrics dd,
+.attention-monitor-details dd {
+  margin: 0;
+  color: var(--signature-ink);
+  font: 700 8px/1.5 var(--signature-font-family);
+  white-space: nowrap;
+}
+
+.attention-monitor-details dd small {
+  color: var(--signature-muted);
+  font-weight: 400;
+}
+
+/* Measurement details (collapsible) */
+.attention-monitor-details {
+  color: var(--signature-muted);
+  font: 8px/1.6 var(--signature-font-family);
+}
+
+.attention-monitor-details summary {
+  color: var(--signature-primary);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.attention-monitor-details summary:focus-visible {
+  outline: 2px solid var(--signature-peach);
+  outline-offset: 2px;
+}
+
+.attention-monitor-details dl {
+  margin-top: 6px;
+}
+
+.attention-monitor-details p {
+  margin: 6px 0 0;
+  font-size: 7px;
+}
+
+.attention-summary-concentration strong {
+  color: var(--signature-primary);
+}
+
+@media (max-width: 420px) {
+  .attention-concentration-metrics,
+  .attention-monitor-details dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

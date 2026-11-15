@@ -10,7 +10,7 @@ const validFrame = {
   timestamp: 1000,
   state: ATTENTION_STATES.UNCERTAIN,
   confidence: 0.3,
-  reason: ATTENTION_REASONS.SIGNALS_DISAGREE,
+  reason: ATTENTION_REASONS.NEAR_SCREEN_EDGE,
   fatigueIndicators: [FATIGUE_INDICATORS.YAWN],
 };
 

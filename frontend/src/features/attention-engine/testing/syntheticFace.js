@@ -1,7 +1,7 @@
 // Synthetic MediaPipe Face Landmarker results for tests.
 // Geometry is built in pixel space, then normalized like MediaPipe does.
 
-import { EYE_LANDMARKS } from '../signals.js';
+import { EYE_LANDMARKS, GAZE_MODEL } from '../signals.js';
 
 export const FRAME = Object.freeze({ frameWidth: 640, frameHeight: 480 });
 const RADIANS = Math.PI / 180;
@@ -33,6 +33,7 @@ export function poseMatrix({ yaw = 0, pitch = 0, roll = 0, translation = { x: 0,
  * @param {{x:number,y:number}} [face.center] normalized face center
  * @param {number} [face.blink] eyeBlink blendshape score
  * @param {number} [face.jawOpen] jawOpen blendshape score
+ * @param {number} [face.lookDown] eyeLookDown blendshape score
  * @param {{x:number,y:number,z:number}} [face.translation]
  */
 export function syntheticResult(face = {}) {
@@ -40,7 +41,7 @@ export function syntheticResult(face = {}) {
     yaw = 0, pitch = 0, roll = 0,
     irisH = 0, irisV = 0, eyeAspect = 0.3,
     faceWidth = 0.3, center = { x: 0.5, y: 0.5 },
-    blink = 0, jawOpen = 0,
+    blink = 0, jawOpen = 0, lookDown = 0,
     translation = { x: 0, y: 0, z: -50 },
   } = face;
   const { frameWidth, frameHeight } = FRAME;
@@ -90,6 +91,8 @@ export function syntheticResult(face = {}) {
       categories: [
         { categoryName: 'eyeBlinkLeft', score: blink },
         { categoryName: 'eyeBlinkRight', score: blink },
+        { categoryName: 'eyeLookDownLeft', score: lookDown },
+        { categoryName: 'eyeLookDownRight', score: lookDown },
         { categoryName: 'jawOpen', score: jawOpen },
       ],
     }],
@@ -108,20 +111,33 @@ export function seededRandom(seed = 1) {
 }
 
 /**
- * A simulated user: looking at screen point (gx, gy) moves the head a bit and
- * the eyes the rest, with a camera mounted above the screen (pitch offset).
+ * A simulated user looking at screen point (gx, gy), 0..1 = inside the screen.
+ * The world gaze direction is shared between the head (headShare) and the
+ * eyes; the iris offset follows the engine's measurement model (GAZE_MODEL).
+ * Looking toward the screen's right (from the user) is the subject's right,
+ * i.e. negative yaw and negative iris-horizontal; looking down is positive.
+ * yawOffset/pitchOffset place the camera beside/above the screen.
  */
-export function simulatedUser({ noise = 0.6, seed = 7, yawGain = -18, pitchGain = 14, irisGainH = 0.8, irisGainV = 0.3 } = {}) {
+export function simulatedUser({
+  noise = 0.6, seed = 7,
+  screenWidthDegrees = 32, screenHeightDegrees = 18, headShare = 0.35,
+  yawOffset = 0, pitchOffset = -6,
+} = {}) {
   const random = seededRandom(seed);
   const jitter = (scale) => (random() - 0.5) * 2 * scale;
+  const { eyeDegreesPerUnit, headWeight } = GAZE_MODEL;
   return {
     lookAt(gx, gy, extra = {}) {
+      const gazeH = -screenWidthDegrees * (gx - 0.5);
+      const gazeV = screenHeightDegrees * (gy - 0.5);
+      const headH = headShare * gazeH;
+      const headV = headShare * gazeV;
       return syntheticResult({
-        yaw: yawGain * (gx - 0.5) + jitter(noise),
-        pitch: pitchGain * (gy - 0.5) - 6 + jitter(noise),
+        yaw: yawOffset + headH + jitter(noise),
+        pitch: pitchOffset + headV + jitter(noise),
         roll: jitter(noise),
-        irisH: irisGainH * (gx - 0.5) + jitter(noise * 0.02),
-        irisV: irisGainV * (gy - 0.5) + jitter(noise * 0.02),
+        irisH: (gazeH - headWeight * headH) / eyeDegreesPerUnit + jitter(noise * 0.01),
+        irisV: (gazeV - headWeight * headV) / eyeDegreesPerUnit + jitter(noise * 0.01),
         ...extra,
       });
     },

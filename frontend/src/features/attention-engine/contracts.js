@@ -1,15 +1,15 @@
-// Contracts for the NEW attention engine (not implemented yet).
+// Output contract of the attention engine.
 //
 // The engine estimates *where the user is looking relative to the screen*
 // from webcam signals. It does NOT measure cognitive concentration: a person
 // can look at the screen without focusing, and look away while thinking.
-// Every output must therefore carry a confidence and a reason, and the UI must
-// describe it as "looking at the screen", never as "concentrating".
+// Every output therefore carries a confidence and a reason, and uncertain
+// measurements are never reported as attention or distraction. The
+// concentration score (concentration.js) is an *estimate* derived from gaze
+// direction and fatigue signs, and is always presented as one.
 //
-// Privacy invariants (apply to every module in this folder):
-//  - video frames and landmarks are processed in the browser only;
-//  - only aggregated, non-biometric session summaries may ever leave the device,
-//    and only with explicit user consent (not implemented).
+// Privacy: frames and landmarks are processed in the browser only and are
+// never stored or sent anywhere.
 
 export const ATTENTION_STATES = Object.freeze({
   ON_SCREEN: 'ON_SCREEN',
@@ -18,7 +18,7 @@ export const ATTENTION_STATES = Object.freeze({
   UNCERTAIN: 'UNCERTAIN',
 });
 
-// Why a state was chosen. UNCERTAIN must always come with one of these.
+// Why a state was chosen. UNCERTAIN always comes with one of these.
 export const ATTENTION_REASONS = Object.freeze({
   GAZE_ON_SCREEN: 'gaze-on-screen',
   HEAD_TURNED_AWAY: 'head-turned-away',
@@ -26,11 +26,8 @@ export const ATTENTION_REASONS = Object.freeze({
   NO_FACE: 'no-face',
   LOW_LANDMARK_QUALITY: 'low-landmark-quality',
   EYES_NOT_MEASURABLE: 'eyes-not-measurable',
-  SIGNALS_DISAGREE: 'signals-disagree',
   NEAR_SCREEN_EDGE: 'near-screen-edge',
-  CALIBRATING: 'calibrating',
-  NOT_CALIBRATED: 'not-calibrated',
-  OUTSIDE_CALIBRATION: 'outside-calibration',
+  ADAPTING: 'adapting',
   CAMERA_UNAVAILABLE: 'camera-unavailable',
   PAUSED: 'paused',
 });
@@ -44,7 +41,7 @@ export const FATIGUE_INDICATORS = Object.freeze({
 });
 
 /**
- * One smoothed engine output, produced at most a few times per second.
+ * One smoothed engine output.
  *
  * @typedef {object} AttentionFrame
  * @property {number} timestamp            performance.now() milliseconds
@@ -52,14 +49,13 @@ export const FATIGUE_INDICATORS = Object.freeze({
  * @property {number} confidence           0..1
  * @property {string} reason               one of ATTENTION_REASONS
  * @property {string[]} fatigueIndicators  zero or more FATIGUE_INDICATORS
- * @property {Record<string, number|null>} [signals] per-signal scores for diagnostics only
  */
 
 const STATE_VALUES = new Set(Object.values(ATTENTION_STATES));
 const REASON_VALUES = new Set(Object.values(ATTENTION_REASONS));
 const FATIGUE_VALUES = new Set(Object.values(FATIGUE_INDICATORS));
 
-/** Runtime check used by engine tests and by consumers in development. */
+/** Runtime check used by engine tests. */
 export function isValidAttentionFrame(frame) {
   return Boolean(
     frame

@@ -2,7 +2,7 @@
 // measurements the engine uses, each with an explicit quality score.
 // Pure function, no DOM: easy to test with synthetic or recorded data.
 
-import { estimateHeadPose } from '../learning/headPoseEstimator.js';
+import { estimateHeadPose } from '../vision/headPoseEstimator.js';
 import { extractBlendshapeScores } from '../vision/faceLandmarker.js';
 import { clamp, isFiniteNumber } from './math.js';
 
@@ -16,8 +16,33 @@ export const EYE_LANDMARKS = Object.freeze({
 export const SIGNAL_BLENDSHAPES = Object.freeze([
   'eyeBlinkLeft',
   'eyeBlinkRight',
+  'eyeLookDownLeft',
+  'eyeLookDownRight',
   'jawOpen',
 ]);
+
+// Combined gaze direction (degrees) from head pose + iris offset.
+// Sign conventions match: positive yaw and positive iris-horizontal both mean
+// the subject looks to their left (image-right of the unmirrored camera);
+// positive pitch and positive iris-vertical both mean looking down.
+// The iris offset is measured relative to the eye corners, which already move
+// with the head, so only part of the head rotation is added (headWeight).
+export const GAZE_MODEL = Object.freeze({
+  eyeDegreesPerUnit: 80, // iris offset in half eye widths -> eye rotation
+  headWeight: 0.6,
+});
+
+/** @returns {{horizontal:number, vertical:number}|null} null without usable head + eyes */
+export function combinedGaze(signals, model = GAZE_MODEL) {
+  if (!signals?.head?.valid || !signals.eyes?.valid) return null;
+  const { yaw, pitch } = signals.head;
+  const { horizontal, vertical } = signals.eyes;
+  if (![yaw, pitch, horizontal, vertical].every(isFiniteNumber)) return null;
+  return {
+    horizontal: model.headWeight * yaw + model.eyeDegreesPerUnit * horizontal,
+    vertical: model.headWeight * pitch + model.eyeDegreesPerUnit * vertical,
+  };
+}
 
 export const SIGNAL_LIMITS = Object.freeze({
   minimumEyeWidthPx: 8,
@@ -232,12 +257,27 @@ export function extractSignals(result, frame = DEFAULT_FRAME) {
   };
 }
 
+export const CLOSED_EYES_LIMITS = Object.freeze({
+  blink: 0.5,
+  // Looking down (keyboard, notebook) lowers the lids and raises the blink
+  // score; then only a clearly closed eye counts as closed.
+  lookDown: 0.45,
+  blinkWhileLookingDown: 0.75,
+});
+
 /** Eyes-closed estimate used by the fatigue monitor (blendshapes preferred). */
 export function eyesClosed(signals) {
   if (!signals?.faceDetected) return null;
   const left = signals.blendshapes?.eyeBlinkLeft;
   const right = signals.blendshapes?.eyeBlinkRight;
-  if (isFiniteNumber(left) && isFiniteNumber(right)) return (left + right) / 2 >= 0.5;
+  if (isFiniteNumber(left) && isFiniteNumber(right)) {
+    const blink = (left + right) / 2;
+    const downLeft = signals.blendshapes.eyeLookDownLeft;
+    const downRight = signals.blendshapes.eyeLookDownRight;
+    const lookingDown = isFiniteNumber(downLeft) && isFiniteNumber(downRight)
+      && (downLeft + downRight) / 2 >= CLOSED_EYES_LIMITS.lookDown;
+    return blink >= (lookingDown ? CLOSED_EYES_LIMITS.blinkWhileLookingDown : CLOSED_EYES_LIMITS.blink);
+  }
   if (isFiniteNumber(signals.eyes.openness)) {
     return signals.eyes.openness < SIGNAL_LIMITS.closedEyeAspectRatio;
   }
