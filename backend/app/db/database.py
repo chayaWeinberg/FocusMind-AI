@@ -63,8 +63,11 @@ async def ping_db() -> bool:
 
 
 async def create_indexes() -> None:
+    from app.repositories.courses import create_course_indexes
+
     db = get_database()
     await db.users.create_index("email", unique=True)
+    await create_course_indexes(db)
 
 
 async def initialize_db(mongo_uri: str, db_name: str, timeout_ms: int = 5000) -> None:

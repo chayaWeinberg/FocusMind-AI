@@ -24,6 +24,18 @@ class Settings(BaseSettings):
     environment: Literal["development", "production"] = Field(
         default="development", validation_alias="ENV"
     )
+    # Uploaded lesson videos. Must be persistent storage (a Docker volume in
+    # Compose). Relative paths are resolved against the backend directory.
+    video_storage_dir: Path = Path("storage/videos")
+    max_video_upload_bytes: int = Field(default=1024 * 1024 * 1024, ge=1024, le=20 * 1024**3)
+    user_video_quota_bytes: int = Field(default=5 * 1024**3, ge=1024, le=500 * 1024**3)
+    # Seed the example catalog on startup (idempotent). Off unless configured.
+    seed_catalog: bool = False
+
+    @field_validator("video_storage_dir")
+    @classmethod
+    def resolve_storage_dir(cls, value: Path) -> Path:
+        return value if value.is_absolute() else (BACKEND_DIR / value).resolve()
 
     @field_validator("secret_key")
     @classmethod

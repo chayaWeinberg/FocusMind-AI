@@ -78,6 +78,14 @@ live-gaze-diagnostic*.json
 screen-attention-diagnostic*.json
 webgazer-gaze-experiment*.json
 
+# Playwright end-to-end artifacts (generated test video, traces, reports)
+frontend/e2e/.generated/
+frontend/test-results/
+frontend/playwright-report/
+
+# Uploaded lesson videos (local development storage)
+backend/storage/
+
 # Temporary files
 *.tmp
 *.bak

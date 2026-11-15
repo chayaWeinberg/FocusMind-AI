@@ -34,6 +34,14 @@ services:
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       CORS_ORIGINS: ${CORS_ORIGINS}
       ENV: ${ENV:-development}
+      # Uploaded lesson videos live on a named volume, so they survive
+      # container recreation. Served only through the authorized API.
+      VIDEO_STORAGE_DIR: /data/videos
+      MAX_VIDEO_UPLOAD_BYTES: ${MAX_VIDEO_UPLOAD_BYTES:-1073741824}
+      USER_VIDEO_QUOTA_BYTES: ${USER_VIDEO_QUOTA_BYTES:-5368709120}
+      SEED_CATALOG: ${SEED_CATALOG:-false}
+    volumes:
+      - video_data:/data/videos
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -55,3 +63,4 @@ services:
 
 volumes:
   mongo_data:
+  video_data:

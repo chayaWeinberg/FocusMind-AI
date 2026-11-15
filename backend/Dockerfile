@@ -32,8 +32,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-# Run as an unprivileged user.
-RUN useradd --create-home --uid 10001 focusmind
+# Run as an unprivileged user. /data/videos is the mount point of the
+# persistent video volume (docker-compose.yml); a fresh named volume inherits
+# this ownership.
+RUN useradd --create-home --uid 10001 focusmind     && mkdir -p /data/videos     && chown -R focusmind:focusmind /data/videos
+ENV VIDEO_STORAGE_DIR=/data/videos
 USER focusmind
 
 EXPOSE 8000
