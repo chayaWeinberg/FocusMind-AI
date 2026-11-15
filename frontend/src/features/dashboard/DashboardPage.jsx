@@ -2,6 +2,20 @@ import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import FocusIllustration from '../../components/FocusIllustration.jsx';
 import SignatureBrand from '../../components/SignatureBrand.jsx';
+import { SidebarNav } from '../../components/AppShell.jsx';
+import { listMyCourses } from '../courses/coursesApi.js';
+import { CATALOG_URL, COURSES_URL, NEW_COURSE_URL } from '../courses/courseRoutes.js';
+import { ContinueLink, CourseCard } from '../courses/CourseParts.jsx';
+import useLoader from '../courses/useLoader.js';
+import '../courses/Courses.css';
+
+function overallProgress(courses) {
+  const totals = courses.reduce((sum, course) => ({
+    completed: sum.completed + (course.progress?.completedLessons || 0),
+    total: sum.total + (course.progress?.totalLessons || 0),
+  }), { completed: 0, total: 0 });
+  return totals.total ? { ...totals, percent: Math.round((100 * totals.completed) / totals.total) } : null;
+}
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
@@ -22,30 +36,16 @@ export default function DashboardPage() {
   }
 
   const displayName = user?.displayName || 'לומד';
+  const myCourses = useLoader(listMyCourses, []);
+  const courses = myCourses.status === 'ready' ? myCourses.data : [];
+  const progress = overallProgress(courses);
 
   return (
     <main className="signature-production" dir="rtl" lang="he">
       <div className="signature-page signature-dashboard">
         <aside className="signature-dashboard-sidebar">
           <SignatureBrand />
-          <nav aria-label="ניווט ראשי">
-            <a href="/dashboard" className="is-active" aria-current="page" aria-label="לוח הבקרה">
-              <span className="signature-nav-icon" aria-hidden="true">⌂</span>
-              <span className="signature-nav-label">לוח הבקרה</span>
-            </a>
-            <button type="button" aria-label="הקורסים שלי" disabled>
-              <span className="signature-nav-icon" aria-hidden="true">▤</span>
-              <span className="signature-nav-label">הקורסים שלי</span>
-            </button>
-            <button type="button" aria-label="ההתקדמות שלי" disabled>
-              <span className="signature-nav-icon" aria-hidden="true">◔</span>
-              <span className="signature-nav-label">ההתקדמות שלי</span>
-            </button>
-            <a href="/learning" aria-label="למידה חכמה">
-              <span className="signature-nav-icon" aria-hidden="true">✧</span>
-              <span className="signature-nav-label">למידה חכמה</span>
-            </a>
-          </nav>
+          <SidebarNav active="dashboard" />
           <div className="signature-sidebar-user">
             <span aria-hidden="true">{displayName.slice(0, 1)}</span>
             <div>
@@ -90,9 +90,21 @@ export default function DashboardPage() {
             <section className="signature-dashboard-stats" aria-label="נתוני למידה">
               <article className="signature-stat-card">
                 <small>התקדמות כללית</small>
-                <strong aria-label="אין עדיין נתוני התקדמות">—</strong>
-                <span>נתוני ההתקדמות יופיעו כאן לאחר למידה.</span>
-                <div className="signature-progress-empty" aria-label="אין עדיין נתוני התקדמות" />
+                {progress ? (
+                  <>
+                    <strong aria-label={`התקדמות כללית ${progress.percent}%`}>{progress.percent}%</strong>
+                    <span>{progress.completed} מתוך {progress.total} שיעורים הושלמו בכל הקורסים.</span>
+                    <div role="progressbar" aria-label="התקדמות כללית" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
+                      <span style={{ width: `${progress.percent}%` }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <strong aria-label="אין עדיין נתוני התקדמות">—</strong>
+                    <span>נתוני ההתקדמות יופיעו כאן לאחר למידה.</span>
+                    <div className="signature-progress-empty" aria-label="אין עדיין נתוני התקדמות" />
+                  </>
+                )}
               </article>
               <article className="signature-stat-card signature-stat-card--streak">
                 <small>ימי למידה ברצף</small>
@@ -114,17 +126,28 @@ export default function DashboardPage() {
                   <small>מסלול הלמידה שלך</small>
                   <h2 id="courses-title">הקורסים שלי</h2>
                 </div>
+                <a className="course-link" href={COURSES_URL}>לכל הקורסים <span aria-hidden="true">←</span></a>
               </div>
-              <div className="signature-course-grid">
-                <article className="signature-course signature-course--empty">
-                  <span className="signature-course-icon" aria-hidden="true">◌</span>
-                  <div>
-                    <small>עדיין אין קורסים</small>
-                    <h3>הקורסים שלך יופיעו כאן</h3>
-                    <p>כשתתווסף למידה בקורסים, נציג כאן את ההתקדמות שלך.</p>
-                  </div>
-                </article>
-              </div>
+              {courses.length > 0 ? (
+                <div className="course-grid">
+                  {courses.slice(0, 3).map((course) => (
+                    <CourseCard key={course.id} course={course} actions={<ContinueLink course={course} />} />
+                  ))}
+                </div>
+              ) : (
+                <div className="signature-course-grid">
+                  <article className="signature-course signature-course--empty">
+                    <span className="signature-course-icon" aria-hidden="true">◌</span>
+                    <div>
+                      <small>{myCourses.status === 'loading' ? 'טוענים…' : 'עדיין אין קורסים'}</small>
+                      <h3>הקורסים שלך יופיעו כאן</h3>
+                      <p>
+                        <a href={NEW_COURSE_URL}>יצירת קורס אישי</a> או <a href={CATALOG_URL}>הרשמה לקורס מהקטלוג</a>.
+                      </p>
+                    </div>
+                  </article>
+                </div>
+              )}
             </section>
 
             <section className="signature-dashboard-ai" aria-label="תובנות למידה">

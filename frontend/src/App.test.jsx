@@ -23,17 +23,18 @@ describe('App routes and authentication', () => {
     vi.restoreAllMocks();
   });
 
-  it('exposes the isolated WebGazer experiment only in development without auth or backend calls', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    window.history.pushState({}, '', '/__experiments/webgazer');
+  it.each(['/__experiments/webgazer', '/__experiments/attention-engine'])(
+    'no longer exposes the removed experiment route %s',
+    async (path) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(401, {})));
+      window.history.pushState({}, '', path);
 
-    render(<App />);
+      render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'ניסוי מבט — הוכחת היתכנות' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'הפעלת מצלמה והתחלת WebGazer' })).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+      expect(await screen.findByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
+      expect(screen.queryByText(/WebGazer|ניסוי/)).not.toBeInTheDocument();
+    },
+  );
 
   it('keeps the existing registration page at /register and at the root', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(401, {}));
@@ -99,7 +100,7 @@ describe('App routes and authentication', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'ניסוי זיהוי מבט' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'למידה חכמה', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'הפעלת מצלמה' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'חזרה ללוח הבקרה' })).toHaveAttribute('href', '/dashboard');
   });
@@ -115,10 +116,15 @@ describe('App routes and authentication', () => {
   });
 
   it('logs out and clears the authenticated route', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse(200, userInfo))
-      .mockResolvedValueOnce(jsonResponse(200, { message: 'Logged out successfully.' }))
-      .mockResolvedValueOnce(jsonResponse(401, {}));
+    let loggedOut = false;
+    const fetchMock = vi.fn(async (url) => {
+      if (url === '/api/courses/mine') return jsonResponse(200, []);
+      if (url === '/api/auth/logout') {
+        loggedOut = true;
+        return jsonResponse(200, { message: 'Logged out successfully.' });
+      }
+      return loggedOut ? jsonResponse(401, {}) : jsonResponse(200, userInfo);
+    });
     vi.stubGlobal('fetch', fetchMock);
     window.history.pushState({}, '', '/dashboard');
     const user = userEvent.setup();
@@ -175,9 +181,10 @@ describe('App routes and authentication', () => {
     await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ });
     await user.click(screen.getByRole('link', { name: 'למידה חכמה' }));
 
-    expect(await screen.findByRole('heading', { name: 'ניסוי זיהוי מבט' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'למידה חכמה', level: 1 })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/learning');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // One session request only (the dashboard also loads the user's courses).
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/me')).toHaveLength(1);
 
     window.history.back();
     await waitFor(() => expect(window.location.pathname).toBe('/dashboard'));

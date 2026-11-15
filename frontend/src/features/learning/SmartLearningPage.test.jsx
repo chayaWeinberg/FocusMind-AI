@@ -1,13 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import useFaceLandmarker from './useFaceLandmarker.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import SmartLearningPage from './SmartLearningPage.jsx';
-
-const faceLandmarkerHook = vi.hoisted(() => ({ mock: vi.fn() }));
-
-vi.mock('./useFaceLandmarker.js', () => ({
-  default: faceLandmarkerHook.mock,
-}));
 
 function chooseFile(input, name = 'lesson.mp4') {
   const file = new File(['video-content'], name, { type: 'video/mp4' });
@@ -44,17 +37,14 @@ function timerText() {
   return screen.getByLabelText(/^זמן למידה פעיל/).querySelector('span').textContent;
 }
 
-describe('SmartLearningPage', () => {
-  beforeEach(() => {
-    vi.mocked(useFaceLandmarker).mockReturnValue({ status: 'off' });
-  });
 
+describe('SmartLearningPage', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it('renders AI, timeline, and ReplayAI empty states without fake results or camera access', () => {
+  it('shows the product page with live attention monitoring and no experiment UI', () => {
     const getUserMedia = vi.fn();
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -62,39 +52,24 @@ describe('SmartLearningPage', () => {
     });
     render(<SmartLearningPage />);
 
+    expect(screen.getByRole('heading', { name: 'למידה חכמה', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'כיוון המבט' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'מצב הקשב' })).toHaveTextContent('המצלמה כבויה');
+    expect(screen.getByRole('button', { name: 'הפעלת מצלמה' })).toBeInTheDocument();
     expect(screen.getByText('בחרו סרטון כדי להתחיל')).toBeInTheDocument();
-    expect(screen.getByText('ניתוח ריכוז באמצעות AI יהיה זמין בקרוב')).toBeInTheDocument();
-    expect(screen.getByLabelText('עדיין אין נתונים')).toHaveTextContent('—');
-    expect(screen.getByText('בהמתנה')).toBeInTheDocument();
-    expect(screen.getByText('לא הופעלה')).toBeInTheDocument();
-    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
-      .toHaveTextContent('ממתין להשלמת כיול');
-    expect(screen.getByText(/השלימו את שלבי הכיול/)).toBeInTheDocument();
-    expect(screen.getByText('ציר הזמן עדיין ריק')).toBeInTheDocument();
-    expect(screen.getByText('עדיין לא נאספו מדידות')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ציר זמן של כיוון המבט' })).toBeInTheDocument();
+    expect(screen.getByText(/הסטטיסטיקה תתחיל להיאסף/)).toBeInTheDocument();
     expect(screen.getByText(/קטעי וידאו מומלצים לחזרה/)).toBeInTheDocument();
-    expect(screen.getByLabelText('אבחון כיוון למסך')).toHaveTextContent('המצלמה אינה זמינה');
+    expect(screen.getByText(/אינה מדידה מדויקת של ריכוז/)).toBeInTheDocument();
+    // The concentration estimate appears only once the camera is measuring.
+    expect(screen.queryByRole('region', { name: 'הערכת ריכוז' })).not.toBeInTheDocument();
+
+    // Removed experiment and placeholder UI
+    expect(screen.queryByText(/כיול/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/ניסוי/)).not.toBeInTheDocument();
+    expect(screen.queryByText('ניתוח ריכוז באמצעות AI יהיה זמין בקרוב')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ציון ריכוז/)).not.toBeInTheDocument();
     expect(getUserMedia).not.toHaveBeenCalled();
-  });
-
-  it('updates the live attention label from the camera analysis callback', () => {
-    render(<SmartLearningPage />);
-    const reportAttention = vi.mocked(useFaceLandmarker).mock.calls.at(-1)[4];
-
-    act(() => reportAttention('LOOKING_AT_SCREEN', false, null, true));
-    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
-      .toHaveTextContent('מסתכלת על המסך');
-
-    act(() => reportAttention('LOOKING_AWAY', false, null, true));
-    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
-      .toHaveTextContent('מבט מחוץ למסך');
-
-    act(() => reportAttention('UNKNOWN', false, 'face-not-detected', true));
-    expect(screen.getByRole('status', { name: 'סטטוס מבט על המסך' }))
-      .toHaveTextContent('לא ניתן לקבוע');
-    expect(screen.getByText('לא זוהו פנים. מקמו את הפנים מול המצלמה.')).toBeInTheDocument();
-    act(() => reportAttention('UNKNOWN', true, 'calibration-drift', true));
-    expect(screen.getByText('נראה שינוי בתנוחה. מומלץ לבצע כיול מחדש.')).toBeInTheDocument();
   });
 
   it('selects and replaces local videos, releasing prior and unmounted object URLs', () => {
@@ -173,73 +148,6 @@ describe('SmartLearningPage', () => {
     fireEvent.playing(video);
     advanceTime(30_000);
     expect(timerText()).toBe('00:01:00');
-  });
-
-  it('keeps gaze tracking active with the camera while lesson playback is paused', async () => {
-    const track = { readyState: 'live', stop: vi.fn() };
-    const stream = {
-      getTracks: () => [track],
-      getVideoTracks: () => [track],
-    };
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
-    });
-    const video = setupVideoPage();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'הפעלת מצלמה' }));
-      await Promise.resolve();
-    });
-    expect(screen.getByRole('button', { name: 'כיבוי מצלמה' })).toBeInTheDocument();
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-
-    fireEvent.playing(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-
-    fireEvent.loadStart(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    fireEvent.playing(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-
-    fireEvent.waiting(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    fireEvent.playing(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-
-    fireEvent.pause(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    fireEvent.seeking(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    fireEvent.seeked(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    fireEvent.playing(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-
-    fireEvent.ended(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-  });
-
-  it('disables sampling when the camera is turned off during playback', async () => {
-    const track = { readyState: 'live', stop: vi.fn() };
-    const stream = {
-      getTracks: () => [track],
-      getVideoTracks: () => [track],
-    };
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
-    });
-    const video = setupVideoPage();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'הפעלת מצלמה' }));
-      await Promise.resolve();
-    });
-
-    fireEvent.playing(video);
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'כיבוי מצלמה' }));
-    expect(vi.mocked(useFaceLandmarker).mock.calls.at(-1)[3]).toBe(false);
-    expect(track.stop).toHaveBeenCalledTimes(1);
   });
 
   it('does not count seeking time and resumes when playback continues', () => {

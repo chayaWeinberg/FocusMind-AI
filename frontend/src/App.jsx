@@ -3,6 +3,10 @@ import RegisterPage from './features/auth/RegisterPage.jsx';
 import LoginPage from './features/auth/LoginPage.jsx';
 import DashboardPage from './features/dashboard/DashboardPage.jsx';
 import SmartLearningPage from './features/learning/SmartLearningPage.jsx';
+import MyCoursesPage from './features/courses/MyCoursesPage.jsx';
+import CatalogPage from './features/courses/CatalogPage.jsx';
+import CourseDetailsPage from './features/courses/CourseDetailsPage.jsx';
+import CourseEditorPage from './features/courses/CourseEditorPage.jsx';
 import AuthProvider, { useAuth } from './features/auth/AuthContext.jsx';
 
 export const ROUTES = Object.freeze({
@@ -10,54 +14,63 @@ export const ROUTES = Object.freeze({
   login: '/login',
   dashboard: '/dashboard',
   learning: '/learning',
-  webGazerExperiment: '/__experiments/webgazer',
-  attentionEngineExperiment: '/__experiments/attention-engine',
+  courses: '/courses',
+  catalog: '/courses/catalog',
+  newCourse: '/courses/new',
 });
 
-const PROTECTED_PATHS = new Set([ROUTES.dashboard, ROUTES.learning]);
+const ID = '([^/]+)';
+// Signed-in pages. Order matters: fixed paths before parameterised ones.
+const PROTECTED_ROUTES = [
+  { name: 'dashboard', pattern: /^\/dashboard$/ },
+  { name: 'learning', pattern: /^\/learning$/ },
+  { name: 'lesson', pattern: new RegExp(`^/learning/lessons/${ID}$`) },
+  { name: 'courses', pattern: /^\/courses$/ },
+  { name: 'catalog', pattern: /^\/courses\/catalog$/ },
+  { name: 'newCourse', pattern: /^\/courses\/new$/ },
+  { name: 'course', pattern: new RegExp(`^/courses/${ID}$`) },
+  { name: 'editCourse', pattern: new RegExp(`^/courses/${ID}/edit$`) },
+];
+
+export function matchProtectedRoute(path) {
+  for (const route of PROTECTED_ROUTES) {
+    const match = route.pattern.exec(path);
+    if (match) {
+      let param = null;
+      try {
+        param = match[1] ? decodeURIComponent(match[1]) : null;
+      } catch {
+        return null;
+      }
+      return { name: route.name, param };
+    }
+  }
+  return null;
+}
+
 // Paths rendered by the SPA without a full page load when a link is clicked.
-const CLIENT_PATHS = new Set(['/', ROUTES.register, ROUTES.login, ...PROTECTED_PATHS]);
+const PUBLIC_CLIENT_PATHS = new Set(['/', ROUTES.register, ROUTES.login]);
+const isClientPath = (path) => PUBLIC_CLIENT_PATHS.has(path) || matchProtectedRoute(path) !== null;
+
+function ProtectedPage({ route }) {
+  switch (route.name) {
+    case 'dashboard': return <DashboardPage />;
+    case 'learning': return <SmartLearningPage />;
+    // A new key per lesson resets the player, timer and statistics.
+    case 'lesson': return <SmartLearningPage key={route.param} lessonId={route.param} />;
+    case 'courses': return <MyCoursesPage />;
+    case 'catalog': return <CatalogPage />;
+    case 'newCourse': return <CourseEditorPage key="new" />;
+    case 'course': return <CourseDetailsPage key={route.param} courseId={route.param} />;
+    case 'editCourse': return <CourseEditorPage key={route.param} courseId={route.param} />;
+    default: return null;
+  }
+}
 
 function normalizePath(pathname) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 }
 
-// Development-only experiment pages, loaded on demand (never in production).
-const DEVELOPMENT_EXPERIMENTS = {
-  [ROUTES.webGazerExperiment]: {
-    load: () => import('./features/learning/WebGazerExperimentPage.jsx'),
-    name: 'ניסוי WebGazer',
-  },
-  [ROUTES.attentionEngineExperiment]: {
-    load: () => import('./features/attention-engine/AttentionEngineExperimentPage.jsx'),
-    name: 'מנוע זיהוי המבט',
-  },
-};
-
-function DevelopmentExperimentRoute({ experiment }) {
-  const [ExperimentPage, setExperimentPage] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let active = true;
-    experiment.load()
-      .then(({ default: page }) => {
-        if (active) setExperimentPage(() => page);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError?.message || `לא ניתן לטעון את ${experiment.name}.`);
-      });
-    return () => { active = false; };
-  }, [experiment]);
-
-  if (error) {
-    return <main className="route-loading" role="alert">טעינת {experiment.name} נכשלה: {error}</main>;
-  }
-  if (!ExperimentPage) {
-    return <main className="route-loading" role="status">טוענים את סביבת הניסוי…</main>;
-  }
-  return <ExperimentPage />;
-}
 
 function Redirecting({ children }) {
   return <main className="route-loading" dir="rtl" lang="he" role="status">{children}</main>;
@@ -65,7 +78,8 @@ function Redirecting({ children }) {
 
 function AuthRoutes({ path, navigate }) {
   const { status } = useAuth();
-  const isProtected = PROTECTED_PATHS.has(path);
+  const protectedRoute = matchProtectedRoute(path);
+  const isProtected = protectedRoute !== null;
   const isLogin = path === ROUTES.login;
   // "/", "/register" and any unknown path show the registration page.
   const isRegister = !isProtected && !isLogin;
@@ -96,7 +110,7 @@ function AuthRoutes({ path, navigate }) {
 
   if (isProtected) {
     if (status !== 'authenticated') return <Redirecting>מעבירים להתחברות...</Redirecting>;
-    return path === ROUTES.dashboard ? <DashboardPage /> : <SmartLearningPage />;
+    return <ProtectedPage route={protectedRoute} />;
   }
 
   return status === 'authenticated'
@@ -122,7 +136,7 @@ function useClientNavigation(navigate) {
       const url = new URL(anchor.href, window.location.href);
       if (url.origin !== window.location.origin || url.hash || url.search) return;
       const nextPath = normalizePath(url.pathname);
-      if (!CLIENT_PATHS.has(nextPath)) return;
+      if (!isClientPath(nextPath)) return;
 
       event.preventDefault();
       if (nextPath !== normalizePath(window.location.pathname)) navigate(nextPath);
@@ -150,10 +164,6 @@ export default function App() {
   }, []);
 
   useClientNavigation(navigate);
-
-  if (import.meta.env.DEV && DEVELOPMENT_EXPERIMENTS[path]) {
-    return <DevelopmentExperimentRoute experiment={DEVELOPMENT_EXPERIMENTS[path]} />;
-  }
 
   return (
     <AuthProvider>
