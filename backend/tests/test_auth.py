@@ -117,6 +117,7 @@ def test_login_sets_secure_session_cookie_and_returns_safe_user(
         "id": str(registered_user["_id"]),
         "displayName": "Test User",
         "email": "user@example.com",
+        "role": "learner",
     }
     assert "hashed_password" not in response.text
     assert "password123" not in response.text

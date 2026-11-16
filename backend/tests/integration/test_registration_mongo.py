@@ -63,7 +63,8 @@ def test_successful_registration_returns_safe_user(
     assert body["message"] == "Registration successful."
     assert body["user"]["displayName"] == "Ada Lovelace"
     assert body["user"]["email"] == "ada@example.com"
-    assert set(body["user"]) == {"id", "displayName", "email"}
+    assert set(body["user"]) == {"id", "displayName", "email", "role"}
+    assert body["user"]["role"] == "learner"
     assert "correct horse battery staple" not in response.text
     assert "hashed_password" not in response.text
 
