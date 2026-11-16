@@ -1,0 +1,101 @@
+/* AdaptiveStudy page. */
+
+.study-form select {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 11px;
+  color: var(--signature-ink);
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 9px 4px 9px 4px;
+  font: 10px/1.5 var(--signature-font-family);
+}
+
+.study-goal p {
+  margin: 0;
+  font: 9.5px/1.7 var(--signature-font-family);
+}
+
+.study-steps,
+.study-lessons {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 7px;
+  list-style: none;
+  counter-reset: step;
+}
+
+.study-steps li {
+  display: grid;
+  padding: 9px 12px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  background: #fbfaf7;
+  border: 1px solid var(--signature-line);
+  border-radius: 12px 5px 12px 5px;
+  font: 9px/1.5 var(--signature-font-family);
+}
+
+.study-steps li small {
+  grid-column: 2;
+  color: var(--signature-muted);
+}
+
+.study-steps li .course-link {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.study-step-type {
+  grid-row: 1 / span 2;
+  padding: 2px 8px;
+  color: var(--signature-primary);
+  background: var(--signature-soft);
+  border-radius: 999px;
+  font: 700 8px/1.4 var(--signature-font-family);
+  white-space: nowrap;
+}
+
+.study-step-type--replay,
+.study-step-type--bookmark {
+  color: #8a4a1f;
+  background: #fbe8da;
+}
+
+.study-lessons li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--signature-line);
+  font: 9px/1.5 var(--signature-font-family);
+}
+
+.study-lessons a {
+  color: var(--signature-primary);
+}
+
+.study-lessons small {
+  color: var(--signature-muted);
+}
+
+.study-subtitle {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 560px) {
+  .study-steps li {
+    grid-template-columns: 1fr;
+  }
+
+  .study-steps li small,
+  .study-steps li .course-link,
+  .study-step-type {
+    grid-column: 1;
+    grid-row: auto;
+    width: fit-content;
+  }
+}

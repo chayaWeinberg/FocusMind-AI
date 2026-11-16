@@ -1,0 +1,107 @@
+/* Smart Timer card (extends .signature-timer-card). */
+
+.smart-timer {
+  justify-items: stretch;
+  text-align: center;
+}
+
+.smart-timer-clocks {
+  display: grid;
+  margin: 4px 0 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.smart-timer-clocks div {
+  padding: 6px;
+  background: #fff;
+  border-radius: 9px 4px 9px 4px;
+}
+
+.smart-timer-clocks dt {
+  color: var(--signature-muted);
+  font: 7.5px/1.4 var(--signature-font-family);
+}
+
+.smart-timer-clocks dd {
+  margin: 0;
+  font: 650 11px/1.4 var(--signature-font-family);
+}
+
+.smart-timer-block {
+  display: grid;
+  gap: 4px;
+}
+
+.smart-timer-block-label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--signature-muted);
+  font: 8px/1.4 var(--signature-font-family);
+}
+
+.smart-timer-block [role="progressbar"] {
+  height: 6px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 999px;
+}
+
+.smart-timer-block [role="progressbar"] span {
+  display: block;
+  height: 100%;
+  background: #00909a;
+  border-radius: 999px;
+}
+
+.smart-timer-reminder,
+.smart-timer-break {
+  display: grid;
+  padding: 9px;
+  gap: 6px;
+  background: #fbe8da;
+  border-radius: 10px 4px 10px 4px;
+}
+
+.smart-timer-reminder p,
+.smart-timer-break p {
+  margin: 0;
+  font: 9px/1.5 var(--signature-font-family);
+}
+
+.smart-timer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.smart-timer-settings {
+  display: grid;
+  padding: 9px;
+  gap: 7px;
+  background: #fff;
+  border-radius: 10px 4px 10px 4px;
+  text-align: start;
+}
+
+.smart-timer-settings label {
+  display: grid;
+  gap: 3px;
+  font: 650 8.5px/1.4 var(--signature-font-family);
+}
+
+.smart-timer-settings input[type="number"] {
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--signature-line);
+  border-radius: 8px 4px 8px 4px;
+  font: 9.5px/1.4 var(--signature-font-family);
+}
+
+.smart-timer-check {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font: 9px/1.5 var(--signature-font-family);
+}

@@ -1,0 +1,65 @@
+/* FocusCoach tips (dashboard and study page). */
+
+.coach-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 8px;
+  list-style: none;
+}
+
+.coach-tip {
+  display: grid;
+  padding: 10px 12px;
+  gap: 3px;
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-inline-start: 4px solid var(--signature-primary);
+  border-radius: 12px 5px 12px 5px;
+}
+
+.coach-tip--take_break {
+  border-inline-start-color: var(--signature-peach);
+}
+
+.coach-tip strong {
+  font: 650 10px/1.4 var(--signature-font-family);
+}
+
+.coach-tip p {
+  margin: 0;
+  color: var(--signature-muted);
+  font: 9px/1.55 var(--signature-font-family);
+}
+
+.coach-why {
+  color: var(--signature-primary);
+  font-weight: 700;
+}
+
+.coach-empty {
+  margin: 0;
+  color: var(--signature-muted);
+  font: 9px/1.6 var(--signature-font-family);
+}
+
+.coach-list--compact .coach-tip {
+  padding: 7px 10px;
+}
+
+.dashboard-coach {
+  align-items: start;
+}
+
+.dashboard-coach-links {
+  display: grid;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .dashboard-coach-links {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+  }
+}

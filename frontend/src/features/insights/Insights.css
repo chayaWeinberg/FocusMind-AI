@@ -1,0 +1,149 @@
+/* FocusInsights, privacy and catalog administration pages. */
+
+.insight-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.insight-tile {
+  display: grid;
+  padding: 13px 15px;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 15px 6px 15px 6px;
+  box-shadow: var(--signature-shadow);
+}
+
+.insight-tile small {
+  color: var(--signature-primary);
+  font: 700 8px/1.4 var(--signature-font-family);
+}
+
+.insight-tile strong {
+  color: var(--signature-ink);
+  font: 400 24px/1.15 var(--signature-font-family);
+}
+
+.insight-tile span {
+  color: var(--signature-muted);
+  font: 8.5px/1.4 var(--signature-font-family);
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 12px;
+}
+
+.insight-note {
+  margin: 0;
+  color: var(--signature-muted);
+  font: 8.5px/1.6 var(--signature-font-family);
+}
+
+.insight-course-links {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 3px;
+  list-style: none;
+  font: 8.5px/1.5 var(--signature-font-family);
+}
+
+.insight-course-links a,
+.insight-table a {
+  color: var(--signature-primary);
+}
+
+.insight-table-wrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid var(--signature-line);
+  border-radius: 14px 6px 14px 6px;
+}
+
+.insight-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 9px/1.5 var(--signature-font-family);
+}
+
+.insight-table th,
+.insight-table td {
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--signature-line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.insight-table th {
+  color: var(--signature-muted);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.insight-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.insight-table td small {
+  display: block;
+  color: var(--signature-muted);
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.privacy-explain dl {
+  display: grid;
+  margin: 0;
+  gap: 8px;
+}
+
+.privacy-explain dl div {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) 1fr;
+  gap: 10px;
+  font: 9px/1.6 var(--signature-font-family);
+}
+
+.privacy-explain dt {
+  font-weight: 650;
+}
+
+.privacy-explain dd {
+  margin: 0;
+  color: var(--signature-muted);
+}
+
+.privacy-list,
+.privacy-counts {
+  display: grid;
+  margin: 0;
+  padding-inline-start: 16px;
+  gap: 4px;
+  font: 9px/1.6 var(--signature-font-family);
+}
+
+.privacy-counts {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  padding: 0;
+  list-style: none;
+}
+
+.course-panel h3 {
+  margin: 4px 0 0;
+  font: 650 11px/1.4 var(--signature-font-family);
+}
+
+@media (max-width: 560px) {
+  .privacy-explain dl div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

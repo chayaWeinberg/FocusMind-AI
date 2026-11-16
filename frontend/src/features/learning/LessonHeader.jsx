@@ -13,6 +13,8 @@ export default function LessonHeader({ context }) {
           <a href="/dashboard">לוח הבקרה</a>
           <a href="/courses">הקורסים שלי</a>
           <a href="/learning" className="is-active" aria-current="page">למידה חכמה</a>
+          <a href="/review">חזרה חכמה</a>
+          <a href="/insights">תובנות</a>
         </nav>
         {context && (
           <a className="signature-learning-back" href={courseUrl(context.course.id)}>

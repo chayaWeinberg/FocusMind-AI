@@ -56,6 +56,9 @@ function toSafeUser(value) {
     id: value.id,
     displayName: value.displayName,
     email: value.email,
+    // Only the server grants this role (from the command line); it only shows
+    // the catalog tools, the API enforces the permission itself.
+    role: value.role === 'content_manager' ? 'content_manager' : 'learner',
   };
 }
 

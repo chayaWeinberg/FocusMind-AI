@@ -7,6 +7,8 @@ import { listMyCourses } from '../courses/coursesApi.js';
 import { CATALOG_URL, COURSES_URL, NEW_COURSE_URL } from '../courses/courseRoutes.js';
 import { ContinueLink, CourseCard } from '../courses/CourseParts.jsx';
 import useLoader from '../courses/useLoader.js';
+import CoachTips from '../coach/CoachTips.jsx';
+import { formatMinutes, getCoachTips, getInsights } from '../learning/learningApi.js';
 import '../courses/Courses.css';
 
 function overallProgress(courses) {
@@ -39,6 +41,12 @@ export default function DashboardPage() {
   const myCourses = useLoader(listMyCourses, []);
   const courses = myCourses.status === 'ready' ? myCourses.data : [];
   const progress = overallProgress(courses);
+  const insights = useLoader(getInsights, []);
+  const coach = useLoader(getCoachTips, []);
+  // Only a well-formed payload is shown; anything else falls back to empty states.
+  const insightsData = insights.data?.streak && insights.data?.totals && insights.data?.replay ? insights.data : null;
+  const streak = insightsData?.streak;
+  const pendingReview = insightsData?.replay.pending ?? 0;
 
   return (
     <main className="signature-production" dir="rtl" lang="he">
@@ -108,8 +116,20 @@ export default function DashboardPage() {
               </article>
               <article className="signature-stat-card signature-stat-card--streak">
                 <small>ימי למידה ברצף</small>
-                <strong aria-label="אין עדיין נתונים">—</strong>
-                <span>יוצג לאחר שיצטברו מפגשי למידה.</span>
+                {streak && (streak.current > 0 || streak.longest > 0) ? (
+                  <>
+                    <strong aria-label={`${streak.current} ימי למידה ברצף`}>{streak.current}</strong>
+                    <span>
+                      {streak.activeToday ? 'למדתם היום. ' : ''}הרצף הארוך ביותר: {streak.longest} ימים.
+                      {' '}היום: {formatMinutes(insightsData.totals.activeMsToday)} למידה פעילה.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong aria-label="אין עדיין נתונים">—</strong>
+                    <span>{insights.status === 'error' ? 'לא הצלחנו לטעון את נתוני הרצף.' : 'יוצג אחרי יום ראשון עם דקה של למידה פעילה.'}</span>
+                  </>
+                )}
               </article>
               <article className="signature-smart-card">
                 <span aria-hidden="true">✦</span>
@@ -150,14 +170,20 @@ export default function DashboardPage() {
               )}
             </section>
 
-            <section className="signature-dashboard-ai" aria-label="תובנות למידה">
+            <section className="signature-dashboard-ai dashboard-coach" aria-labelledby="dashboard-coach-title">
               <span aria-hidden="true">✧</span>
               <div>
-                <small>תובנות אישיות</small>
-                <strong>התובנות שלך יופיעו כאן</strong>
-                <p>עדיין לא נאספו נתוני למידה להצגת המלצות.</p>
+                <small>FocusCoach · המלצות לפי הלמידה שלך</small>
+                <strong id="dashboard-coach-title">מה כדאי לעשות עכשיו</strong>
+                <CoachTips tips={coach.data} status={coach.status} error={coach.error} onRetry={coach.reload} limit={3} compact />
               </div>
-              <button type="button" disabled>אין עדיין תובנות</button>
+              <div className="dashboard-coach-links">
+                <a className="signature-secondary-button" href="/review">
+                  {pendingReview ? `${pendingReview} קטעים לחזרה` : 'חזרה חכמה'}
+                </a>
+                <a className="signature-secondary-button" href="/insights">לכל התובנות</a>
+                <a className="signature-secondary-button" href="/study">תוכנית לימוד</a>
+              </div>
             </section>
           </div>
         </div>

@@ -7,6 +7,13 @@ import { createAttentionSessionStats } from './attentionSessionStats.js';
 import { resumePosition } from './lessonPlayback.js';
 import useLessonPersistence from './useLessonPersistence.js';
 import LessonHeader, { LessonStatusBar } from './LessonHeader.jsx';
+import SmartTimerCard from './SmartTimerCard.jsx';
+import { DEFAULT_PREFERENCES, createBreakClock, shouldRemindBreak, studyBlock } from './smartTimer.js';
+import { getPreferences, savePreferences } from './learningApi.js';
+import ReplayPanel from '../replay/ReplayPanel.jsx';
+import useLessonReplay from '../replay/useLessonReplay.js';
+import { itemRange, replayStart, replayStep } from '../replay/replayLogic.js';
+import QuizPanel from '../quiz/QuizPanel.jsx';
 import useLoader from '../courses/useLoader.js';
 import { getLessonContext } from '../courses/coursesApi.js';
 import { courseUrl } from '../courses/courseRoutes.js';
@@ -52,7 +59,7 @@ function videoErrorMessage(lessonVideo, error) {
  * the Courses system: it loads the lesson's video, restores the saved
  * position, saves progress and records attention segments.
  */
-export default function SmartLearningPage({ lessonId = null }) {
+export default function SmartLearningPage({ lessonId = null, replayItemId = null }) {
   const [video, setVideo] = useState(null);
   const [, setVideoPlaybackState] = useState('paused');
   const [sessionState, setSessionState] = useState('ready');
@@ -101,11 +108,49 @@ export default function SmartLearningPage({ lessonId = null }) {
     const startedAt = activeStartedAtRef.current;
     return elapsedMillisecondsRef.current + (startedAt === null ? 0 : performance.now() - startedAt);
   }, []);
+
+  // --- Smart Timer: breaks and study blocks ----------------------------------
+  const breakClockRef = useRef(null);
+  if (!breakClockRef.current) breakClockRef.current = createBreakClock();
+  const [onBreak, setOnBreak] = useState(false);
+  const [, setBreakTick] = useState(0);
+  const [blockStartMs, setBlockStartMs] = useState(0);
+  const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const [videoPosition, setVideoPosition] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPreferences()
+      .then((stored) => { if (!cancelled && stored) setPreferences({ ...DEFAULT_PREFERENCES, ...stored }); })
+      .catch(() => {}); // defaults work without the server
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!onBreak) return undefined;
+    const id = window.setInterval(() => setBreakTick((value) => value + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [onBreak]);
+
+  // --- ReplayAI -------------------------------------------------------------
+  const trackableLesson = lessonMode && Boolean(lessonSource);
+  const replay = useLessonReplay(lessonId, trackableLesson);
+  const replayRef = useRef(null); // { item, phase: 'playing' | 'finished' }
+  const [replayState, setReplayState] = useState(null);
+  const [replayNotice, setReplayNotice] = useState('');
+  const [metadataReady, setMetadataReady] = useState(false);
+  const pendingReplayRef = useRef(replayItemId);
+  const replayReloadRef = useRef(replay.reload);
+  replayReloadRef.current = replay.reload;
+
   const persistence = useLessonPersistence({
     lessonId,
-    enabled: lessonMode && Boolean(lessonSource),
+    enabled: trackableLesson,
+    timed: lessonMode && Boolean(embedSource),
     initialProgress: lesson?.progress ?? null,
     getActiveMs: currentActiveMs,
+    getBreakMs: () => breakClockRef.current.totalMs(),
+    onSegmentsSaved: () => void replayReloadRef.current({ quiet: true }),
   });
   const persistenceRef = useRef(persistence);
   persistenceRef.current = persistence;
@@ -114,11 +159,99 @@ export default function SmartLearningPage({ lessonId = null }) {
     const element = videoRef.current;
     if (!lessonMode || !element || restoredRef.current) return;
     restoredRef.current = true;
+    setMetadataReady(true);
+    if (pendingReplayRef.current) return; // opened from ReplayAI: the replay sets the position
     const position = resumePosition(persistence.progress ?? lesson?.progress, element.duration);
     if (position > 0) {
       element.currentTime = position;
       setResumeNotice(position);
     }
+  }
+
+  function setReplay(next) {
+    replayRef.current = next;
+    setReplayState(next);
+  }
+
+  function startReplay(item) {
+    const element = videoRef.current;
+    if (!element) return;
+    if (onBreak) endBreak();
+    setResumeNotice(null);
+    setReplayNotice('');
+    setReplay(item.endSeconds == null ? null : { item, phase: 'playing' });
+    if (item.endSeconds == null) setReplayNotice(`מנגנים מהסימנייה (${itemRange(item)}).`);
+    element.currentTime = replayStart(item);
+    const playing = element.play?.();
+    if (playing && typeof playing.catch === 'function') {
+      playing.catch(() => setReplayNotice('הנגן מוכן בתחילת הקטע. לחצו על ▶ בנגן כדי לנגן.'));
+    }
+  }
+
+  function exitReplay() {
+    setReplay(null);
+    setReplayNotice('');
+  }
+
+  async function markReplayReviewed() {
+    const current = replayRef.current;
+    if (!current) return;
+    const updated = await replay.setStatus(current.item, 'reviewed');
+    if (updated) setReplay({ ...current, item: updated });
+  }
+
+  function handleTimeUpdate() {
+    const element = videoRef.current;
+    persistence.onTimeUpdate(element);
+    if (!element) return;
+    const second = Math.floor(element.currentTime || 0);
+    setVideoPosition((previous) => (previous === second ? previous : second));
+    const current = replayRef.current;
+    if (current?.phase !== 'playing') return;
+    const step = replayStep(current.item, element.currentTime);
+    if (step === 'finish') {
+      element.pause();
+      setReplay({ ...current, phase: 'finished' });
+    } else if (step === 'exit') {
+      setReplay(null);
+    }
+  }
+
+  // Opened from the review page: play the chosen interval once both the
+  // suggestions and the video are ready.
+  useEffect(() => {
+    const pending = pendingReplayRef.current;
+    if (!pending || !metadataReady || replay.status !== 'ready') return;
+    pendingReplayRef.current = null;
+    const item = replay.items.find((entry) => entry.id === pending);
+    if (item) startReplay(item);
+    else setReplayNotice('הקטע המבוקש כבר אינו קיים. אפשר לבחור קטע אחר מהרשימה.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metadataReady, replay.status, replay.items]);
+
+  function startBreak() {
+    const element = videoRef.current;
+    if (element && !element.paused) element.pause();
+    if (activeStartedAtRef.current !== null) stopPlayback('paused');
+    breakClockRef.current.start();
+    setOnBreak(true);
+  }
+
+  function endBreak() {
+    breakClockRef.current.stop();
+    setOnBreak(false);
+    setBlockStartMs(currentActiveMs());
+  }
+
+  function resetSmartTimer() {
+    breakClockRef.current.reset();
+    setOnBreak(false);
+    setBlockStartMs(0);
+  }
+
+  async function storePreferences(values) {
+    const saved = await savePreferences(values);
+    setPreferences({ ...DEFAULT_PREFERENCES, ...saved });
   }
 
   function restartFromBeginning() {
@@ -270,6 +403,7 @@ export default function SmartLearningPage({ lessonId = null }) {
     const url = URL.createObjectURL(file);
     elapsedMillisecondsRef.current = 0;
     resetAttentionStats();
+    resetSmartTimer();
     setElapsedSeconds(0);
     mediaEndedRef.current = false;
     seekingRef.current = false;
@@ -292,6 +426,7 @@ export default function SmartLearningPage({ lessonId = null }) {
     setVideoPlaybackState('paused');
     elapsedMillisecondsRef.current = 0;
     resetAttentionStats();
+    resetSmartTimer();
     setElapsedSeconds(0);
     updateSessionState('ready');
     const currentVideo = videoRef.current;
@@ -332,7 +467,7 @@ export default function SmartLearningPage({ lessonId = null }) {
       onPause={handleVideoPause}
       onLoadStart={handleVideoLoadStart}
       onLoadedMetadata={handleLoadedMetadata}
-      onTimeUpdate={() => persistence.onTimeUpdate(videoRef.current)}
+      onTimeUpdate={handleTimeUpdate}
       onWaiting={handleVideoWaiting}
       onStalled={handleVideoWaiting}
       onSeeking={handleVideoSeeking}
@@ -401,6 +536,8 @@ export default function SmartLearningPage({ lessonId = null }) {
                 <a href="/dashboard">לוח הבקרה</a>
                 <a href="/courses">הקורסים שלי</a>
                 <a href="/learning" className="is-active" aria-current="page">למידה חכמה</a>
+                <a href="/review">חזרה חכמה</a>
+                <a href="/insights">תובנות</a>
               </nav>
               <a className="signature-learning-back" href="/dashboard">חזרה ללוח הבקרה <span aria-hidden="true">←</span></a>
             </header>
@@ -440,6 +577,22 @@ export default function SmartLearningPage({ lessonId = null }) {
                     </span>
                   )}
                   {videoError && <span className="lesson-video-error" role="alert">{videoError}</span>}
+                  {replayState && (
+                    <div className="replay-banner" role="status">
+                      <span>
+                        <b>מצב חזרה</b> · <span dir="ltr">{itemRange(replayState.item)}</span>
+                        {' · '}{replayState.phase === 'finished' ? 'הקטע הסתיים.' : 'מנגנים את הקטע ועוצרים בסופו.'}
+                      </span>
+                      <span className="replay-banner-actions">
+                        <button type="button" className="signature-secondary-button" onClick={() => startReplay(replayState.item)}>ניגון חוזר</button>
+                        {replayState.item.status !== 'reviewed' && (
+                          <button type="button" className="signature-secondary-button" onClick={markReplayReviewed}>סימון כנבדק</button>
+                        )}
+                        <button type="button" className="lesson-inline-button" onClick={exitReplay}>יציאה ממצב חזרה</button>
+                      </span>
+                    </div>
+                  )}
+                  {!replayState && replayNotice && <span role="status">{replayNotice}</span>}
                 </div>
               ) : (
                 <div className="signature-video-toolbar">
@@ -472,7 +625,7 @@ export default function SmartLearningPage({ lessonId = null }) {
             <div className="signature-learning-actions">
               <span>{sessionHint}</span>
               {lessonMode && embedSource && (sessionState === 'ready' || sessionState === 'paused') && (
-                <button className="signature-primary-button" type="button" onClick={startPlayback}>
+                <button className="signature-primary-button" type="button" onClick={() => { persistence.startTimedSession(); startPlayback(); }} disabled={onBreak}>
                   הפעלת שעון המפגש
                 </button>
               )}
@@ -492,37 +645,54 @@ export default function SmartLearningPage({ lessonId = null }) {
                 </button>
               )}
             </div>
-            <section className="signature-learning-progress" aria-label="זמן הלמידה במפגש">
-              <div><small>מטרת המפגש</small><strong>לא הוגדרה עדיין</strong></div>
-              <div className="signature-progress-empty" aria-label="לא הוגדרה עדיין מטרת זמן" />
-              <b>{sessionState === 'running' ? 'פעיל' : sessionState === 'paused' ? 'מושהה' : '—'}</b>
-            </section>
             <div className="signature-learning-secondary">
               <section aria-labelledby="timeline-title">
                 <h2 id="timeline-title">ציר זמן של כיוון המבט</h2>
                 <AttentionTimeline timeline={attentionStats.timeline} />
               </section>
-              <section aria-labelledby="replay-title">
-                <h2 id="replay-title">ReplayAI</h2>
-                <p>בעתיד יוצגו כאן קטעי וידאו מומלצים לחזרה, לפי הרגעים שכדאי להתעמק בהם.</p>
-                {lessonMode && lessonSource && (
-                  <p>בשיעור הזה נשמרים מצבי הקשב לפי זמן בסרטון (בלי תמונות מהמצלמה), כהכנה להמלצות.</p>
-                )}
-                <span>המלצות יופיעו כאן בעתיד</span>
-              </section>
+              {!lessonMode && (
+                <section aria-labelledby="replay-local-title">
+                  <h2 id="replay-local-title">ReplayAI</h2>
+                  <p>
+                    בסרטון מקומי שום דבר לא נשמר בשרת, ולכן אין המלצות לחזרה.
+                    כדי לקבל קטעים מומלצים לחזרה, למדו שיעור מתוך קורס.
+                  </p>
+                  <a className="course-link" href="/courses">לקורסים שלי <span aria-hidden="true">←</span></a>
+                </section>
+              )}
             </div>
+            {lessonMode && context && canLearn && (
+              <ReplayPanel
+                replay={replay}
+                trackable={Boolean(lessonSource)}
+                hasVideo={Boolean(lessonSource || embedSource)}
+                getCurrentTime={() => videoRef.current?.currentTime ?? 0}
+                getDuration={() => videoRef.current?.duration}
+                onPlay={startReplay}
+                activeItemId={replayState?.item.id}
+              />
+            )}
+            {lessonMode && context && canLearn && lessonVideo?.sourceType !== 'none' && <QuizPanel lessonId={lessonId} />}
           </section>
 
           <aside className="signature-learning-side" aria-label="כלי למידה">
             <AttentionMonitor onStateChange={handleAttentionState} sessionRunning={sessionState === 'running'} />
-            <section className="signature-timer-card" aria-labelledby="session-title">
-              <small id="session-title">שעון מפגש</small>
-              <strong aria-label={`זמן למידה פעיל ${formatElapsed(elapsedSeconds)}`}>
-                <span>{formatElapsed(elapsedSeconds)}</span>
-              </strong>
-              <span>שעות : דקות : שניות</span>
-              <span role="status">{sessionStatus}</span>
-            </section>
+            <SmartTimerCard
+              elapsedSeconds={elapsedSeconds}
+              statusText={sessionStatus}
+              videoPosition={videoSource ? videoPosition : null}
+              preferences={preferences}
+              onSavePreferences={storePreferences}
+              block={studyBlock(elapsedSeconds * 1000, blockStartMs, preferences.studyMinutes)}
+              onBreak={onBreak}
+              breakSeconds={Math.floor(breakClockRef.current.currentMs() / 1000)}
+              breakTotalSeconds={Math.floor(breakClockRef.current.totalMs() / 1000)}
+              onStartBreak={startBreak}
+              onEndBreak={endBreak}
+              remindBreak={shouldRemindBreak({ preferences, activeMs: elapsedSeconds * 1000, blockStartMs, onBreak })}
+              onSnooze={() => setBlockStartMs(currentActiveMs())}
+              canBreak={Boolean(videoSource || embedSource)}
+            />
             <AttentionSessionSummary stats={attentionStats} />
           </aside>
         </div>

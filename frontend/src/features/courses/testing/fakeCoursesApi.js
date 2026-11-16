@@ -20,6 +20,13 @@ export function createFakeCoursesApi({ user = { id: 'u1', displayName: 'נועה
   const enrolled = new Set();
   const requests = [];
   const sessions = new Map();
+  const replayItems = new Map(); // id -> item (camelCase, like the server)
+  const questions = new Map();
+  const attempts = [];
+  let preferences = { studyMinutes: 25, breakMinutes: 5, breakReminders: true };
+  let goal = null;
+  let insights = null; // tests may set a full insights payload
+  let coachTips = [];
 
   const lessonsOf = (courseId) => [...lessons.values()]
     .filter((lesson) => lesson.courseId === courseId)
@@ -65,6 +72,60 @@ export function createFakeCoursesApi({ user = { id: 'u1', displayName: 'נועה
     return { sourceType: 'external', provider: 'direct', url, embedUrl: null, trackable: true };
   }
 
+  function emptyInsights() {
+    const days = Array.from({ length: 14 }, (_, index) => ({ date: `2026-11-${String(index + 1).padStart(2, '0')}`, activeMs: 0 }));
+    const weeks = Array.from({ length: 8 }, (_, index) => ({
+      weekStart: `2026-09-${String(index * 3 + 1).padStart(2, '0')}`, activeMs: 0, onScreenMs: 0, measuredMs: 0,
+    }));
+    return {
+      totals: {
+        activeMs: 0, breakMs: 0, videoSeconds: 0, sessionCount: 0, lessonsCompleted: 0,
+        lessonsCompletedThisWeek: 0, activeMsToday: 0, activeMsThisWeek: 0,
+      },
+      daily: days,
+      weekly: weeks,
+      byCourse: [],
+      attention: { ON_SCREEN: 0, OFF_SCREEN: 0, FACE_ABSENT: 0, UNCERTAIN: 0, NOT_MEASURED: 0 },
+      replay: { suggested: 0, pending: 0, reviewed: 0, dismissed: 0, bookmarks: 0, bookmarksPending: 0 },
+      quizzes: { attempts: 0, averagePercent: null },
+      streak: { current: 0, longest: 0, activeToday: false },
+      recentSessions: [],
+    };
+  }
+
+  function studyPlan() {
+    if (!goal) return { goal: null, progress: null, unfinishedLessons: [], pendingReplay: [], suggestedSession: null };
+    const items = lessonsOf(goal.courseId);
+    const unfinished = items.filter((lesson) => !progress.get(lesson.id)?.completed).map((lesson) => {
+      const position = progress.get(lesson.id)?.positionSeconds || 0;
+      return {
+        lessonId: lesson.id, title: lesson.title, order: lesson.order, hasVideo: lesson.video.sourceType !== 'none',
+        trackable: Boolean(lesson.video.trackable), durationSeconds: lesson.durationSeconds, positionSeconds: position,
+        remainingSeconds: lesson.durationSeconds ? lesson.durationSeconds - position : null, pendingReplay: 0,
+      };
+    });
+    const first = unfinished.find((lesson) => lesson.hasVideo);
+    const done = items.length - unfinished.length;
+    return {
+      goal,
+      progress: {
+        completedLessons: done, totalLessons: items.length, percent: items.length ? Math.round((100 * done) / items.length) : 0,
+        weeklyTargetMinutes: goal.weeklyMinutes ?? null, weeklyDoneMinutes: 0, targetDate: goal.targetDate ?? null,
+        daysLeft: null, lessonsPerWeekNeeded: null,
+      },
+      unfinishedLessons: unfinished,
+      pendingReplay: [],
+      suggestedSession: first ? {
+        budgetSeconds: goal.sessionMinutes * 60, plannedSeconds: first.remainingSeconds ?? 0,
+        hasUnknownDurations: first.remainingSeconds === null, exceedsBudget: false,
+        steps: [{
+          type: first.positionSeconds ? 'continue' : 'lesson', lessonId: first.lessonId, lessonTitle: first.title,
+          itemId: null, startSeconds: null, seconds: first.remainingSeconds,
+        }],
+      } : null,
+    };
+  }
+
   const api = {
     user,
     courses,
@@ -72,6 +133,32 @@ export function createFakeCoursesApi({ user = { id: 'u1', displayName: 'נועה
     progress,
     requests,
     sessions,
+    replayItems,
+    questions,
+    attempts,
+    setInsights(value) { insights = value; },
+    setCoachTips(value) { coachTips = value; },
+    get preferences() { return preferences; },
+    get goal() { return goal; },
+    addReplayItem(fields) {
+      const id = nextId('r');
+      const lesson = lessons.get(fields.lessonId);
+      const item = {
+        id, kind: 'auto', status: 'new', reasons: { sustained_off_screen: 1 }, eventCount: 1, sessionCount: 1,
+        offScreenSeconds: 6, faceAbsentSeconds: 0, note: '', reopened: false, endSeconds: null,
+        createdAt: '2026-11-14T10:00:00Z', updatedAt: '2026-11-14T10:00:00Z', reviewedAt: null,
+        courseId: lesson?.courseId, lessonTitle: lesson?.title, courseTitle: courses.get(lesson?.courseId)?.title,
+        ...fields,
+      };
+      replayItems.set(id, item);
+      return item;
+    },
+    addQuestion(lessonId, fields) {
+      const id = nextId('q');
+      const question = { id, lessonId, prompt: 'שאלה', options: ['א', 'ב'], correctIndex: 0, explanation: '', mine: true, shared: false, ...fields };
+      questions.set(id, question);
+      return question;
+    },
     addCourse(fields) {
       const id = nextId('c');
       const now = '2026-11-14T10:00:00Z';
@@ -217,6 +304,113 @@ export function createFakeCoursesApi({ user = { id: 'u1', displayName: 'נועה
           canLearn: canLearn(course),
         });
       }
+
+      // --- learning features ---------------------------------------------
+      if (path === '/api/me/preferences') {
+        if (method === 'PUT') preferences = { ...body };
+        return json(200, preferences);
+      }
+      if (path === '/api/insights') return json(200, insights ?? emptyInsights());
+      if (path === '/api/coach') return json(200, coachTips);
+      if (path === '/api/study/plan') return json(200, studyPlan());
+      if (path === '/api/study/goal') {
+        if (method === 'PUT') {
+          const course = courses.get(body.courseId);
+          goal = { ...body, courseTitle: course.title, updatedAt: '2026-11-14T10:00:00Z' };
+          return json(200, goal);
+        }
+        if (method === 'DELETE') {
+          goal = null;
+          return json(204, null);
+        }
+        return json(200, goal);
+      }
+      if (path === '/api/replay') {
+        const status = params.get('status');
+        const courseId = params.get('courseId');
+        return json(200, [...replayItems.values()]
+          .filter((item) => !status || status === 'all' || (status === 'pending' ? item.status === 'new' : item.status === status))
+          .filter((item) => !courseId || item.courseId === courseId));
+      }
+      if ((match = path.match(/^\/api\/replay\/([^/]+)$/))) {
+        const item = replayItems.get(match[1]);
+        if (!item) return json(404, { detail: 'Replay item not found.' });
+        if (method === 'DELETE') {
+          replayItems.delete(item.id);
+          return json(204, null);
+        }
+        Object.assign(item, { status: body.status, reopened: false, reviewedAt: body.status === 'reviewed' ? '2026-11-14T11:00:00Z' : item.reviewedAt });
+        return json(200, { ...item });
+      }
+      if ((match = path.match(/^\/api\/lessons\/([^/]+)\/replay$/))) {
+        const lesson = lessons.get(match[1]);
+        return json(200, {
+          lessonId: lesson.id,
+          trackable: Boolean(lesson.video.trackable),
+          durationSeconds: lesson.durationSeconds,
+          analyzedSegments: 0,
+          items: lesson.video.trackable
+            ? [...replayItems.values()].filter((item) => item.lessonId === lesson.id).sort((a, b) => a.startSeconds - b.startSeconds)
+            : [],
+          rules: {},
+        });
+      }
+      if ((match = path.match(/^\/api\/lessons\/([^/]+)\/bookmarks$/))) {
+        return json(201, api.addReplayItem({
+          lessonId: match[1], kind: 'bookmark', reasons: {}, eventCount: 0, sessionCount: 0, offScreenSeconds: 0, ...body,
+        }));
+      }
+      if ((match = path.match(/^\/api\/lessons\/([^/]+)\/quiz$/))) {
+        const lessonQuestions = [...questions.values()].filter((question) => question.lessonId === match[1]);
+        const mine = attempts.filter((attempt) => attempt.lessonId === match[1]);
+        return json(200, {
+          lessonId: match[1], canAuthor: true, canShare: false,
+          questions: lessonQuestions.map(({ lessonId: _lesson, ...question }) => question),
+          attemptCount: mine.length, lastAttempt: mine.at(-1) ?? null,
+        });
+      }
+      if ((match = path.match(/^\/api\/lessons\/([^/]+)\/quiz\/questions$/))) {
+        return json(201, api.addQuestion(match[1], body));
+      }
+      if ((match = path.match(/^\/api\/quiz\/questions\/([^/]+)$/))) {
+        questions.delete(match[1]);
+        return json(204, null);
+      }
+      if ((match = path.match(/^\/api\/lessons\/([^/]+)\/quiz\/attempts$/))) {
+        const results = body.answers.map((answer) => {
+          const question = questions.get(answer.questionId);
+          return {
+            questionId: question.id, prompt: question.prompt, options: question.options, choice: answer.choice,
+            correctIndex: question.correctIndex, correct: answer.choice === question.correctIndex, explanation: question.explanation,
+          };
+        });
+        const score = results.filter((result) => result.correct).length;
+        const attempt = {
+          id: nextId('a'), lessonId: match[1], createdAt: '2026-11-14T10:10:00Z',
+          score, total: results.length, percent: Math.round((100 * score) / results.length), results,
+        };
+        attempts.push(attempt);
+        return json(201, attempt);
+      }
+      if ((match = path.match(/^\/api\/courses\/([^/]+)\/learning-summary$/))) {
+        const all = [...replayItems.values()];
+        return json(200, {
+          courseId: match[1],
+          pendingReplay: all.filter((item) => item.courseId === match[1] && item.status === 'new').length,
+          lessons: lessonsOf(match[1]).map((lesson) => ({
+            lessonId: lesson.id,
+            pendingReplay: all.filter((item) => item.lessonId === lesson.id && item.kind === 'auto' && item.status === 'new').length,
+            reviewedReplay: 0,
+            bookmarks: all.filter((item) => item.lessonId === lesson.id && item.kind === 'bookmark').length,
+            questionCount: [...questions.values()].filter((question) => question.lessonId === lesson.id).length,
+            lastQuizPercent: null,
+          })),
+        });
+      }
+      if ((match = path.match(/^\/api\/learning-sessions\/([^/]+)\/heartbeat$/))) {
+        sessions.get(match[1]).heartbeat = body;
+        return json(200, { id: match[1], activeMs: body.activeMs, breakMs: body.breakMs });
+      }
       if (path === '/api/learning-sessions' && method === 'POST') {
         const id = nextId('s');
         sessions.set(id, { id, lessonId: body.lessonId, segments: [], ended: null });
@@ -228,6 +422,7 @@ export function createFakeCoursesApi({ user = { id: 'u1', displayName: 'נועה
       }
       if ((match = path.match(/^\/api\/learning-sessions\/([^/]+)\/end$/))) {
         sessions.get(match[1]).ended = body.activeMs;
+        sessions.get(match[1]).endBody = body;
         return json(200, { id: match[1] });
       }
       return json(404, { detail: 'Not found' });

@@ -59,7 +59,9 @@ describe('SmartLearningPage', () => {
     expect(screen.getByText('בחרו סרטון כדי להתחיל')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'ציר זמן של כיוון המבט' })).toBeInTheDocument();
     expect(screen.getByText(/הסטטיסטיקה תתחיל להיאסף/)).toBeInTheDocument();
-    expect(screen.getByText(/קטעי וידאו מומלצים לחזרה/)).toBeInTheDocument();
+    // A local file is never sent to the server, so ReplayAI explains where it works.
+    expect(screen.getByText(/בסרטון מקומי שום דבר לא נשמר בשרת/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'שעון למידה חכם' })).toBeInTheDocument();
     expect(screen.getByText(/אינה מדידה מדויקת של ריכוז/)).toBeInTheDocument();
     // The concentration estimate appears only once the camera is measuring.
     expect(screen.queryByRole('region', { name: 'הערכת ריכוז' })).not.toBeInTheDocument();

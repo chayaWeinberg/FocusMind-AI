@@ -27,6 +27,20 @@ const DETAIL_TEXTS = {
   'This lesson is completed automatically when the video is watched to the end.':
     'השיעור יסומן כהושלם אוטומטית כשתצפו בסרטון עד הסוף.',
   'The new order must list every lesson of the course exactly once.': 'הסדר החדש חייב לכלול כל שיעור פעם אחת.',
+  'A lesson without a video cannot be learned yet.': 'אי אפשר ללמוד שיעור שעדיין אין בו סרטון.',
+  'Bookmarks need a video whose playback position can be read.': 'בסרטון מסוג זה אי אפשר לקרוא את מיקום הצפייה, ולכן אי אפשר לסמן בו רגעים.',
+  'Bookmarks are deleted, not dismissed.': 'סימניות מוחקים, לא מסתירים.',
+  'Suggestions are dismissed, not deleted.': 'המלצות אפשר להסתיר, לא למחוק.',
+  'Replay item not found.': 'הקטע לחזרה לא נמצא.',
+  'Enroll in the course before setting a study goal for it.': 'כדי להגדיר מטרה לקורס צריך קודם להירשם אליו.',
+  'Every answer must refer to a different question of this lesson.': 'כל תשובה צריכה להתייחס לשאלה אחרת של השיעור.',
+  'The chosen option does not exist.': 'התשובה שנבחרה אינה קיימת.',
+  'Question not found.': 'השאלה לא נמצאה.',
+  'Only content managers can manage the catalog.': 'רק מנהלי תוכן יכולים לנהל את הקטלוג.',
+  'Only catalog courses can be published or unpublished.': 'אפשר לפרסם או להסתיר רק קורסים מהקטלוג.',
+  'Catalog courses with enrolled learners cannot be deleted. Unpublish the course instead.':
+    'אי אפשר למחוק קורס קטלוג שיש בו לומדים רשומים. אפשר להסתיר אותו מהקטלוג במקום זאת.',
+  'Catalog lessons with learner progress cannot be deleted.': 'אי אפשר למחוק שיעור קטלוג שיש בו התקדמות של לומדים.',
 };
 
 const STATUS_TEXTS = {
@@ -63,7 +77,7 @@ async function readJson(response) {
   }
 }
 
-async function apiRequest(path, { method = 'GET', body, keepalive = false } = {}) {
+export async function apiRequest(path, { method = 'GET', body, keepalive = false } = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), COURSE_REQUEST_TIMEOUT_MS);
   let response;
@@ -132,9 +146,9 @@ export const sendSessionSegments = (sessionId, segments, { keepalive = false } =
   `/api/learning-sessions/${encodeURIComponent(sessionId)}/segments`,
   { method: 'POST', body: { segments }, keepalive },
 );
-export const endLearningSession = (sessionId, activeMs, { keepalive = false } = {}) => apiRequest(
+export const endLearningSession = (sessionId, activeMs, { keepalive = false, breakMs = 0 } = {}) => apiRequest(
   `/api/learning-sessions/${encodeURIComponent(sessionId)}/end`,
-  { method: 'POST', body: { activeMs }, keepalive },
+  { method: 'POST', body: { activeMs, breakMs }, keepalive },
 );
 
 /**

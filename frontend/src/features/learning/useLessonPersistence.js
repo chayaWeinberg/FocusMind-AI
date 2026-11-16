@@ -1,11 +1,14 @@
-// Saves lesson progress and ReplayAI-ready attention segments for a course
-// lesson played on the Smart Learning page.
+// Saves lesson progress, the Smart Timer and ReplayAI attention segments for a
+// course lesson played on the Smart Learning page.
 //
-// - Progress: throttled while playing (every 10 s at most), and immediately on
-//   pause, seek end, end of video, hiding the tab and leaving the page.
-//   Nothing is saved before the video actually plays.
-// - A learning session is created on first playback; segments are sent every
-//   15 s and when playback stops; the session is ended when leaving the page.
+// - Progress (trackable videos only): throttled while playing (every 10 s at
+//   most), and immediately on pause, seek end, end of video, hiding the tab
+//   and leaving the page. Nothing is saved before the video actually plays.
+// - A learning session is created on first playback (or, for YouTube, when
+//   the learner starts the session timer). A heartbeat with the active and
+//   break time is sent every 15 s, so an interrupted visit keeps its time.
+// - Segments (trackable videos only) are sent every 15 s and when playback
+//   stops; the session is ended when leaving the page.
 // - Requests on page exit use `keepalive` so they survive navigation.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +18,7 @@ import {
   sendSessionSegments,
   startLearningSession,
 } from '../courses/coursesApi.js';
+import { sendHeartbeat } from './learningApi.js';
 import {
   SEGMENT_FLUSH_INTERVAL_MS,
   createSegmentRecorder,
@@ -22,8 +26,18 @@ import {
 } from './lessonPlayback.js';
 
 const SEGMENT_BATCH = 200;
+export const HEARTBEAT_INTERVAL_MS = 15_000;
 
-export default function useLessonPersistence({ lessonId, enabled, initialProgress, getActiveMs }) {
+export default function useLessonPersistence({
+  lessonId,
+  enabled,
+  timed = false,
+  initialProgress,
+  getActiveMs,
+  getBreakMs,
+  onSegmentsSaved,
+}) {
+  const sessionEnabled = enabled || timed;
   const [progress, setProgress] = useState(initialProgress ?? null);
   const [saveError, setSaveError] = useState('');
   const mountedRef = useRef(true);
@@ -32,14 +46,20 @@ export default function useLessonPersistence({ lessonId, enabled, initialProgres
   const lastSaveRef = useRef({ at: Number.NEGATIVE_INFINITY, position: -1 });
   const positionRef = useRef({ time: 0, duration: null });
   const sessionRef = useRef(null); // Promise<string|null>
+  const lastBeatRef = useRef({ active: -1, breaks: -1 });
   const recorderRef = useRef(null);
   if (!recorderRef.current) recorderRef.current = createSegmentRecorder({ sessionStartedAt: performance.now() });
-  const getActiveMsRef = useRef(getActiveMs);
-  getActiveMsRef.current = getActiveMs;
+  const clocksRef = useRef({ getActiveMs, getBreakMs, onSegmentsSaved });
+  clocksRef.current = { getActiveMs, getBreakMs, onSegmentsSaved };
 
   useEffect(() => {
     setProgress(initialProgress ?? null);
   }, [initialProgress]);
+
+  const clocks = () => ({
+    activeMs: Math.max(0, Math.round(clocksRef.current.getActiveMs?.() || 0)),
+    breakMs: Math.max(0, Math.round(clocksRef.current.getBreakMs?.() || 0)),
+  });
 
   const remember = useCallback((video) => {
     if (!video) return;
@@ -71,12 +91,27 @@ export default function useLessonPersistence({ lessonId, enabled, initialProgres
   }, [enabled, lessonId]);
 
   const ensureSession = useCallback(() => {
-    if (!enabled) return null;
+    if (!sessionEnabled) return null;
     if (!sessionRef.current) {
       sessionRef.current = startLearningSession(lessonId).then((session) => session.id).catch(() => null);
     }
     return sessionRef.current;
-  }, [enabled, lessonId]);
+  }, [sessionEnabled, lessonId]);
+
+  const heartbeat = useCallback(async ({ keepalive = false } = {}) => {
+    if (!sessionRef.current) return;
+    const { activeMs, breakMs } = clocks();
+    const last = lastBeatRef.current;
+    if (activeMs === last.active && breakMs === last.breaks) return;
+    const sessionId = await sessionRef.current;
+    if (!sessionId) return;
+    lastBeatRef.current = { active: activeMs, breaks: breakMs };
+    try {
+      await sendHeartbeat(sessionId, activeMs, breakMs, { keepalive });
+    } catch {
+      lastBeatRef.current = last; // retried with the next heartbeat
+    }
+  }, []);
 
   const flushSegments = useCallback(async ({ keepalive = false } = {}) => {
     const recorder = recorderRef.current;
@@ -96,23 +131,28 @@ export default function useLessonPersistence({ lessonId, enabled, initialProgres
         return;
       }
     }
+    if (!keepalive && mountedRef.current) clocksRef.current.onSegmentsSaved?.();
   }, []);
 
-  // Periodic segment upload.
+  // Periodic segment upload and heartbeat.
   useEffect(() => {
-    if (!enabled) return undefined;
-    const id = window.setInterval(() => void flushSegments(), SEGMENT_FLUSH_INTERVAL_MS);
+    if (!sessionEnabled) return undefined;
+    const id = window.setInterval(() => {
+      if (enabled) void flushSegments();
+      void heartbeat();
+    }, Math.min(SEGMENT_FLUSH_INTERVAL_MS, HEARTBEAT_INTERVAL_MS));
     return () => window.clearInterval(id);
-  }, [enabled, flushSegments]);
+  }, [enabled, sessionEnabled, flushSegments, heartbeat]);
 
   // Leaving: hidden tab / page unload / unmount.
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!sessionEnabled) return undefined;
     mountedRef.current = true;
     function persistNow() {
       recorderRef.current.interrupt();
       void save({ keepalive: true });
       void flushSegments({ keepalive: true });
+      void heartbeat({ keepalive: true });
     }
     function handleVisibility() {
       if (document.visibilityState === 'hidden') persistNow();
@@ -123,21 +163,27 @@ export default function useLessonPersistence({ lessonId, enabled, initialProgres
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('pagehide', persistNow);
       mountedRef.current = false;
-      persistNow();
+      recorderRef.current.interrupt();
+      void save({ keepalive: true });
+      void flushSegments({ keepalive: true });
       const session = sessionRef.current;
       if (session) {
-        const activeMs = Math.max(0, Math.round(getActiveMsRef.current?.() || 0));
+        const { activeMs, breakMs } = clocks();
         void session.then((sessionId) => (
-          sessionId ? endLearningSession(sessionId, activeMs, { keepalive: true }).catch(() => {}) : null
+          sessionId ? endLearningSession(sessionId, activeMs, { keepalive: true, breakMs }).catch(() => {}) : null
         ));
       }
     };
-  }, [enabled, flushSegments, save]);
+  }, [sessionEnabled, flushSegments, heartbeat, save]);
 
   return {
     progress,
     setProgress,
     saveError,
+    /** YouTube lessons: the learner started the session timer. */
+    startTimedSession() {
+      if (timed) ensureSession();
+    },
     onPlaying(video) {
       if (!enabled) return;
       hasPlayedRef.current = true;
@@ -165,6 +211,7 @@ export default function useLessonPersistence({ lessonId, enabled, initialProgres
       recorderRef.current.interrupt();
       void save({ ended });
       void flushSegments();
+      void heartbeat();
     },
     onSeeking() {
       if (!enabled) return;

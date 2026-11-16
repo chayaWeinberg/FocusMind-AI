@@ -7,13 +7,22 @@ export const NAV_ITEMS = Object.freeze([
   { key: 'courses', href: '/courses', icon: '▤', label: 'הקורסים שלי' },
   { key: 'catalog', href: '/courses/catalog', icon: '◫', label: 'קטלוג קורסים' },
   { key: 'learning', href: '/learning', icon: '✧', label: 'למידה חכמה' },
+  { key: 'review', href: '/review', icon: '↺', label: 'חזרה חכמה' },
+  { key: 'insights', href: '/insights', icon: '▥', label: 'תובנות' },
+  { key: 'study', href: '/study', icon: '◎', label: 'תוכנית לימוד' },
+  { key: 'privacy', href: '/privacy', icon: '◇', label: 'פרטיות ונתונים' },
 ]);
+
+// Shown only to content managers; the API enforces the permission itself.
+export const ADMIN_NAV_ITEM = Object.freeze({ key: 'admin', href: '/admin/catalog', icon: '⚙', label: 'ניהול הקטלוג' });
 
 /** Sidebar navigation shared by the dashboard and the course screens. */
 export function SidebarNav({ active }) {
+  const { user } = useAuth();
+  const items = user?.role === 'content_manager' ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
   return (
     <nav aria-label="ניווט ראשי">
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <a
           key={item.key}
           href={item.href}

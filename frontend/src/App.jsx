@@ -7,6 +7,11 @@ import MyCoursesPage from './features/courses/MyCoursesPage.jsx';
 import CatalogPage from './features/courses/CatalogPage.jsx';
 import CourseDetailsPage from './features/courses/CourseDetailsPage.jsx';
 import CourseEditorPage from './features/courses/CourseEditorPage.jsx';
+import ReviewPage from './features/replay/ReviewPage.jsx';
+import InsightsPage from './features/insights/InsightsPage.jsx';
+import StudyPage from './features/study/StudyPage.jsx';
+import PrivacyPage from './features/privacy/PrivacyPage.jsx';
+import CatalogAdminPage from './features/admin/CatalogAdminPage.jsx';
 import AuthProvider, { useAuth } from './features/auth/AuthContext.jsx';
 
 export const ROUTES = Object.freeze({
@@ -25,6 +30,12 @@ const PROTECTED_ROUTES = [
   { name: 'dashboard', pattern: /^\/dashboard$/ },
   { name: 'learning', pattern: /^\/learning$/ },
   { name: 'lesson', pattern: new RegExp(`^/learning/lessons/${ID}$`) },
+  { name: 'lessonReplay', pattern: new RegExp(`^/learning/lessons/${ID}/review/${ID}$`) },
+  { name: 'review', pattern: /^\/review$/ },
+  { name: 'insights', pattern: /^\/insights$/ },
+  { name: 'study', pattern: /^\/study$/ },
+  { name: 'privacy', pattern: /^\/privacy$/ },
+  { name: 'adminCatalog', pattern: /^\/admin\/catalog$/ },
   { name: 'courses', pattern: /^\/courses$/ },
   { name: 'catalog', pattern: /^\/courses\/catalog$/ },
   { name: 'newCourse', pattern: /^\/courses\/new$/ },
@@ -37,12 +48,14 @@ export function matchProtectedRoute(path) {
     const match = route.pattern.exec(path);
     if (match) {
       let param = null;
+      let second = null;
       try {
         param = match[1] ? decodeURIComponent(match[1]) : null;
+        second = match[2] ? decodeURIComponent(match[2]) : null;
       } catch {
         return null;
       }
-      return { name: route.name, param };
+      return second === null ? { name: route.name, param } : { name: route.name, param, second };
     }
   }
   return null;
@@ -58,6 +71,13 @@ function ProtectedPage({ route }) {
     case 'learning': return <SmartLearningPage />;
     // A new key per lesson resets the player, timer and statistics.
     case 'lesson': return <SmartLearningPage key={route.param} lessonId={route.param} />;
+    // Opened from ReplayAI: the same player, seeking to the chosen interval.
+    case 'lessonReplay': return <SmartLearningPage key={`${route.param}/${route.second}`} lessonId={route.param} replayItemId={route.second} />;
+    case 'review': return <ReviewPage />;
+    case 'insights': return <InsightsPage />;
+    case 'study': return <StudyPage />;
+    case 'privacy': return <PrivacyPage />;
+    case 'adminCatalog': return <CatalogAdminPage />;
     case 'courses': return <MyCoursesPage />;
     case 'catalog': return <CatalogPage />;
     case 'newCourse': return <CourseEditorPage key="new" />;

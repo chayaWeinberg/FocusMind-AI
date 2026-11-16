@@ -4,13 +4,61 @@ import { enrollInCourse, formatDuration, getCourse } from './coursesApi.js';
 import { COURSES_URL, courseEditUrl, lessonUrl } from './courseRoutes.js';
 import { ContinueLink, LoadState, ProgressBar, TypeBadge, completedText } from './CourseParts.jsx';
 import useLoader from './useLoader.js';
+import { getCourseLearningSummary, listReplayItems } from '../learning/learningApi.js';
+import { replayItemUrl } from '../replay/ReviewPage.jsx';
+import { itemRange, reasonLines } from '../replay/replayLogic.js';
 import './Courses.css';
+import '../replay/Replay.css';
+
+function CourseReplay({ courseId }) {
+  const items = useLoader(() => listReplayItems({ courseId, status: 'pending' }), [courseId]);
+  if (items.status !== 'ready') return null;
+  return (
+    <section className="courses-section" aria-labelledby="course-replay-title">
+      <div className="signature-section-heading">
+        <div>
+          <small>ReplayAI</small>
+          <h2 id="course-replay-title">קטעים לחזרה בקורס</h2>
+        </div>
+        <a className="course-link" href="/review">לכל הקטעים <span aria-hidden="true">←</span></a>
+      </div>
+      {items.data.length === 0 ? (
+        <p className="replay-empty">אין כרגע קטעים שממתינים לחזרה בקורס הזה.</p>
+      ) : (
+        <ul className="course-replay-list">
+          {items.data.map((item) => (
+            <li key={item.id}>
+              <a href={replayItemUrl(item)}>
+                <strong>{item.lessonTitle}</strong> · <span dir="ltr">{itemRange(item)}</span>
+              </a>
+              <small>{item.kind === 'bookmark' ? (item.note || 'סימנייה שלכם') : reasonLines(item)[0]}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export function lessonStatus(lesson) {
   if (lesson.video.sourceType === 'none') return { key: 'no-video', text: 'אין עדיין סרטון' };
   if (lesson.progress?.completed) return { key: 'completed', text: 'הושלם' };
   if (lesson.progress && lesson.progress.positionSeconds > 0) return { key: 'in-progress', text: 'בתהליך' };
   return { key: 'not-started', text: 'טרם התחיל' };
+}
+
+function LessonBadges({ summary }) {
+  if (!summary) return null;
+  const badges = [];
+  if (summary.pendingReplay) badges.push(`${summary.pendingReplay} קטעים לחזרה`);
+  if (summary.bookmarks) badges.push(`${summary.bookmarks} סימניות`);
+  if (summary.questionCount) {
+    badges.push(summary.lastQuizPercent === null
+      ? `${summary.questionCount} שאלות חזרה`
+      : `שאלות חזרה: ${summary.lastQuizPercent}% בניסיון האחרון`);
+  }
+  if (!badges.length) return null;
+  return <span className="lesson-badges">{badges.map((badge) => <span key={badge}>{badge}</span>)}</span>;
 }
 
 const STATUS_ICONS = { completed: '✓', 'in-progress': '◔', 'not-started': '○', 'no-video': '–' };
@@ -24,6 +72,8 @@ function videoLabel(video) {
 export default function CourseDetailsPage({ courseId }) {
   const { status, data: course, error, reload, setData } = useLoader(() => getCourse(courseId), [courseId]);
   const [enrollState, setEnrollState] = useState({ busy: false, error: '' });
+  const summary = useLoader(() => getCourseLearningSummary(courseId).catch(() => null), [courseId]);
+  const lessonSummary = new Map((summary.data?.lessons || []).map((entry) => [entry.lessonId, entry]));
 
   async function enroll() {
     setEnrollState({ busy: true, error: '' });
@@ -99,6 +149,7 @@ export default function CourseDetailsPage({ courseId }) {
                           {duration && <> · {duration}</>}
                           {videoLabel(lesson.video) && <> · {videoLabel(lesson.video)}</>}
                         </small>
+                        <LessonBadges summary={lessonSummary.get(lesson.id)} />
                       </div>
                       {playable && (
                         <a className="course-link" href={lessonUrl(lesson.id)} aria-label={`פתיחת השיעור ${lesson.title} בלמידה חכמה`}>
@@ -114,6 +165,7 @@ export default function CourseDetailsPage({ courseId }) {
               <p className="course-note">חלק מהשיעורים בקורס הזה עדיין ללא סרטון. הם יהיו זמינים לצפייה כשהסרטון יתווסף.</p>
             )}
           </section>
+          {course.canLearn && <CourseReplay courseId={course.id} />}
         </>
       )}
     </AppShell>
