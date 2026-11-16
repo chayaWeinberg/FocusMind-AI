@@ -154,6 +154,16 @@ docker compose exec backend python -m app.catalog_videos apply      # --mode dir
 docker compose exec backend python -m app.catalog_videos status
 ```
 
+Every catalog lesson also has an original **demonstration video** ("סרטון הדגמה").
+It is generated offline and played from the local backend, so the whole
+Smart Learning and ReplayAI workflow can be tested without internet access:
+
+```powershell
+cd frontend; npm run demo-videos; cd ..                  # generate (local Edge, cached)
+docker compose cp demo-videos backend:/tmp/demo-videos
+docker compose exec backend python -m app.demo_videos install /tmp/demo-videos
+```
+
 Behind NetFree every external `.mp4` and YouTube is blocked. See
 [docs/catalog-videos.md](docs/catalog-videos.md) for the verification and
 how to replace links.

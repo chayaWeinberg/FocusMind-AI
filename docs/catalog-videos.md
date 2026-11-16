@@ -1,5 +1,49 @@
 # Catalog videos and NetFree
 
+## Demonstration videos (play inside FocusMind, also behind NetFree)
+
+Every catalog lesson (16 of 16) has an **original demonstration video**
+(labeled "סרטון הדגמה"), about 90 seconds of slides about the lesson's topic:
+- explanations, code examples, tables and diagrams;
+- an on-screen clock and progress bar, so seeking and replay are visible.
+
+They are uploaded videos like any other:
+- stored in the video volume and streamed by `/api/videos/{id}/stream`;
+- position, progress, attention segments and ReplayAI all work.
+
+They are not full lectures. Where a CS50 lecture matches, it stays as the
+lesson's **reference** ("ההרצאה המלאה באתר המקור"), and that link may be
+blocked by NetFree.
+
+| Step | Command |
+|---|---|
+| Generate (offline, local Microsoft Edge; about 7 minutes the first time, then cached) | `cd frontend; npm run demo-videos` |
+| Copy into the backend container | `docker compose cp demo-videos backend:/tmp/demo-videos` |
+| Install (idempotent) | `docker compose exec backend python -m app.demo_videos install /tmp/demo-videos` |
+| Remove the temporary copy | `docker compose exec -u root backend rm -rf /tmp/demo-videos` |
+
+In Git Bash, prefix the commands with `MSYS_NO_PATHCONV=1`; otherwise `/tmp/...` is rewritten to a Windows path. PowerShell needs no prefix.
+
+- **Output:** `demo-videos/*.mp4` plus `manifest.json` (duration, size,
+  sha256, version). Git ignores this folder. Only the generator
+  (`frontend/scripts/demo-videos/`) and the installer are committed.
+- **No ffmpeg needed:** Edge renders the slides on a canvas and records
+  H.264 MP4 with MediaRecorder. Every file is checked for its full duration;
+  a short recording is retried.
+- **The installer:**
+  - stores files through the normal video storage, owned by a non-user demo
+    owner (no quota);
+  - is idempotent by demo key and sha256, so restarting Docker adds nothing;
+  - releases files of an older demo version;
+  - never replaces uploads or links chosen by people, or videos a manager
+    removed.
+
+  The external link tool (below) never replaces a demo video either.
+- **Changing the content:** edit `frontend/scripts/demo-videos/lessons.mjs`,
+  raise `DEMO_VERSION`, then generate and install again.
+
+## External lecture links
+
 The example catalog lessons are linked to lectures from Harvard University's
 **CS50** open courses (CS50P, CS50 SQL, CS50 AI). The license is
 **CC BY-NC-SA 4.0**, and attribution is shown in the player.
