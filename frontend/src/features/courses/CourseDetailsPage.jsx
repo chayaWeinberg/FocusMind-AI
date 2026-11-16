@@ -49,6 +49,27 @@ export function lessonStatus(lesson) {
   return { key: 'not-started', text: 'טרם התחיל' };
 }
 
+/** External links of a lesson, visible to everyone (also before enrolling). */
+function LessonLinks({ lesson }) {
+  const page = lesson.video.sourceType === 'external' && lesson.video.provider === 'page' ? lesson.video : null;
+  const reference = lesson.reference;
+  if (!page && !reference) return null;
+  return (
+    <span className="lesson-links">
+      {page && (
+        <a href={page.url} target="_blank" rel="noopener noreferrer">
+          פתיחת הסרטון באתר החיצוני{page.sourceName ? ` (${page.sourceName})` : ''} <span aria-hidden="true">↗</span>
+        </a>
+      )}
+      {reference && (
+        <a href={reference.url} target="_blank" rel="noopener noreferrer">
+          ההרצאה המלאה באתר המקור{reference.name ? `: ${reference.name}` : ''} <span aria-hidden="true">↗</span>
+        </a>
+      )}
+    </span>
+  );
+}
+
 function LessonBadges({ summary }) {
   if (!summary) return null;
   const badges = [];
@@ -66,7 +87,7 @@ function LessonBadges({ summary }) {
 const STATUS_ICONS = { completed: '✓', 'in-progress': '◔', 'not-started': '○', 'no-video': '–' };
 
 function videoLabel(video) {
-  if (video.sourceType === 'upload') return 'סרטון שהועלה';
+  if (video.sourceType === 'upload') return video.demo ? 'סרטון הדגמה (מתנגן כאן)' : 'סרטון שהועלה';
   if (video.sourceType === 'external') {
     if (video.provider === 'youtube') return 'YouTube';
     if (video.provider === 'page') return 'סרטון באתר חיצוני';
@@ -173,6 +194,7 @@ export default function CourseDetailsPage({ courseId }) {
                           {videoLabel(lesson.video) && <> · {videoLabel(lesson.video)}</>}
                         </small>
                         <LessonBadges summary={lessonSummary.get(lesson.id)} />
+                        <LessonLinks lesson={lesson} />
                       </div>
                       {playable && (
                         <a className="course-link" href={lessonUrl(lesson.id)} aria-label={`פתיחת השיעור ${lesson.title} בלמידה חכמה`}>

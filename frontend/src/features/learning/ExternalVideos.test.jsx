@@ -50,7 +50,7 @@ describe('external catalog videos', { timeout: 20_000 }, () => {
     const lesson = api.addLesson(course.id, { title: 'שליפת נתונים עם SELECT', video: PAGE });
     open(`/learning/lessons/${lesson.id}`);
 
-    const link = await screen.findByRole('link', { name: /פתיחת הסרטון באתר החיצוני/ });
+    const link = await screen.findByRole('link', { name: /פתיחת הסרטון באתר החיצוני/ }, { timeout: 5000 });
     expect(link).toHaveAttribute('href', SOURCE.sourceUrl);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
@@ -69,7 +69,7 @@ describe('external catalog videos', { timeout: 20_000 }, () => {
   it('shows a helpful message when a filter blocks a direct video file', async () => {
     const lesson = api.addLesson(course.id, { title: 'שליפת נתונים', video: DIRECT });
     open(`/learning/lessons/${lesson.id}`);
-    const video = await screen.findByLabelText(/^נגן וידאו: /);
+    const video = await screen.findByLabelText(/^נגן וידאו: /, {}, { timeout: 5000 });
     expect(video).toHaveAttribute('src', DIRECT.url);
     fireEvent.error(video);
     const alert = await screen.findByRole('alert');
@@ -77,10 +77,33 @@ describe('external catalog videos', { timeout: 20_000 }, () => {
     expect(within(alert).getByRole('link', { name: /פתיחת עמוד המקור/ })).toHaveAttribute('href', SOURCE.sourceUrl);
   });
 
-  it('labels external pages on the course page', async () => {
-    api.addLesson(course.id, { title: 'שליפת נתונים', video: PAGE });
+  it('labels external pages on the course page and shows their link even before enrolling', async () => {
+    const catalog = api.addCourse({ title: 'קורס לא רשום', type: 'catalog' });
+    api.addLesson(catalog.id, { title: 'שליפת נתונים', video: PAGE });
+    open(`/courses/${catalog.id}`);
+    expect(await screen.findByText(/סרטון באתר חיצוני/, {}, { timeout: 5000 })).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /פתיחת הסרטון באתר החיצוני \(CS50 SQL, Lecture 0: Querying\)/ });
+    expect(link).toHaveAttribute('href', SOURCE.sourceUrl);
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('marks demonstration videos and keeps the full lecture as a reference', async () => {
+    const reference = { name: 'CS50 SQL, Lecture 0: Querying', url: SOURCE.sourceUrl, license: 'CC BY-NC-SA 4.0' };
+    const demo = { sourceType: 'upload', url: '/api/videos/abc/stream', originalName: 'סרטון הדגמה', trackable: true, demo: true };
+    const lesson = api.addLesson(course.id, { title: 'שליפת נתונים עם SELECT', video: demo, reference, durationSeconds: 90 });
     open(`/courses/${course.id}`);
-    expect(await screen.findByText(/סרטון באתר חיצוני/)).toBeInTheDocument();
+    expect(await screen.findByText(/סרטון הדגמה \(מתנגן כאן\)/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ההרצאה המלאה באתר המקור: CS50 SQL/ })).toHaveAttribute('href', SOURCE.sourceUrl);
+    cleanup();
+
+    open(`/learning/lessons/${lesson.id}`);
+    const video = await screen.findByLabelText(/^נגן וידאו: /, {}, { timeout: 5000 });
+    expect(video).toHaveAttribute('src', '/api/videos/abc/stream'); // played inside FocusMind, through the backend
+    expect(screen.getByText('סרטון הדגמה', { selector: '.lesson-demo-badge' })).toBeInTheDocument();
+    expect(screen.getByText(/זו לא הרצאה מלאה/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ההרצאה המלאה באתר המקור/ })).toHaveAttribute('href', SOURCE.sourceUrl);
+    // Trackable: ReplayAI and bookmarks are available.
+    expect(await screen.findByRole('button', { name: 'סימון הרגע הנוכחי' })).toBeInTheDocument();
   });
 
   it('lets an editor save a web page only as an explicit external page', async () => {

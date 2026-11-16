@@ -194,7 +194,7 @@ function LessonEditor({ lesson, index, total, onMove, onLessonChange, onLessonSa
         <div>
           <strong>{lesson.title}</strong>
           <small>
-            {lesson.video.sourceType === 'none' ? 'אין סרטון' : lesson.video.sourceType === 'upload' ? 'סרטון שהועלה' : lesson.video.provider === 'page' ? 'עמוד וידאו חיצוני' : 'קישור חיצוני'}
+            {lesson.video.sourceType === 'none' ? 'אין סרטון' : lesson.video.sourceType === 'upload' ? (lesson.video.demo ? 'סרטון הדגמה' : 'סרטון שהועלה') : lesson.video.provider === 'page' ? 'עמוד וידאו חיצוני' : 'קישור חיצוני'}
             {duration && ` · ${duration}`}
           </small>
         </div>
