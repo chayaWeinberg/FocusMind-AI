@@ -148,6 +148,15 @@ class LessonVideoOut(ApiModel):
     source_name: str | None = None  # attribution of curated catalog videos
     source_url: str | None = None
     license: str | None = None
+    demo: bool = False  # an original demonstration video generated for FocusMind
+
+
+class LessonReference(ApiModel):
+    """An optional external resource for the lesson (e.g. the full lecture)."""
+
+    name: str | None = None
+    url: str
+    license: str | None = None
 
 
 class LessonProgressOut(ApiModel):
@@ -166,6 +175,7 @@ class LessonOut(ApiModel):
     order: int
     duration_seconds: float | None
     video: LessonVideoOut
+    reference: LessonReference | None = None
     progress: LessonProgressOut | None = None
 
 

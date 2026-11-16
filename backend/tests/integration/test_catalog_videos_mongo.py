@@ -125,7 +125,7 @@ def test_apply_attaches_videos_safely_and_idempotently(client: TestClient, env: 
         "url": "https://cdn.cs50.net/python/2022/x/lectures/0/lecture0-720p.mp4",
         "embedUrl": None, "originalName": None, "sizeBytes": None, "trackable": True,
         "sourceName": "CS50P, Lecture 0: Functions, Variables",
-        "sourceUrl": "https://cs50.harvard.edu/python/2022/weeks/0/", "license": "CC BY-NC-SA 4.0",
+        "sourceUrl": "https://cs50.harvard.edu/python/2022/weeks/0/", "license": "CC BY-NC-SA 4.0", "demo": False,
     }
     # The tool does not mark the course as edited by a manager.
     course = db_call(env, lambda db: db.courses.find_one({"slug": "intro-to-ai"}))

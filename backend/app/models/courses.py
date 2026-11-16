@@ -40,6 +40,9 @@ class LessonVideo(TypedDict):
     catalog_video_key: NotRequired[str]
     # A content manager removed the video on purpose: the tool leaves it empty.
     cleared_by_manager: NotRequired[bool]
+    # Installed by `python -m app.demo_videos` (original demonstration video).
+    demo_key: NotRequired[str]
+    sha256: NotRequired[str]
 
 
 class LessonDocument(TypedDict):
@@ -50,6 +53,8 @@ class LessonDocument(TypedDict):
     order: int
     video: LessonVideo
     duration_seconds: float | None
+    # Optional external resource kept next to a demo video: {"name", "url", "license"}.
+    reference: NotRequired[dict]
     seed_key: NotRequired[str]
     created_at: datetime
     updated_at: datetime

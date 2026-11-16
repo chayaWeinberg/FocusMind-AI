@@ -184,6 +184,7 @@ class CourseService:
                 original_name=asset["original_name"] if asset else None,
                 size_bytes=asset["size_bytes"] if asset else None,
                 trackable=True,
+                demo=bool(video.get("demo_key")),
             )
         if source == "external":
             provider = video.get("provider", "direct")
@@ -221,6 +222,7 @@ class CourseService:
             order=lesson["order"],
             duration_seconds=lesson.get("duration_seconds"),
             video=await self._video_out(lesson.get("video", {"source_type": "none"})),
+            reference=lesson.get("reference") if (lesson.get("reference") or {}).get("url") else None,
             progress=self._progress_out(progress),
         )
 

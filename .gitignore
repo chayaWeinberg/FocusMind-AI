@@ -90,3 +90,6 @@ backend/storage/
 *.tmp
 *.bak
 *~
+
+# Locally generated demonstration videos (frontend/scripts/demo-videos); never committed
+/demo-videos/
