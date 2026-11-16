@@ -71,12 +71,15 @@ test.describe.serial('FocusMind courses end to end', () => {
     await login(page, owner);
     await page.getByRole('link', { name: 'הקורסים שלי' }).click();
     await expect(page.getByText('עדיין לא יצרתם קורס אישי')).toBeVisible();
-    await page.getByRole('link', { name: /יצירת קורס אישי/ }).first().click();
+    await page.getByRole('button', { name: /יצירת קורס אישי/ }).first().click();
 
-    await page.getByLabel('שם הקורס').fill('פיזיקה E2E');
-    await page.getByLabel('קטגוריה').fill('מדעים');
-    await page.getByLabel('תיאור').fill('קורס בדיקה מקצה לקצה');
-    await page.getByRole('button', { name: 'יצירת הקורס' }).click();
+    const dialog = page.getByRole('dialog', { name: 'יצירת קורס אישי' });
+    await dialog.getByLabel('שם הקורס').fill('פיזיקה E2E');
+    await dialog.getByLabel('קטגוריה').fill('מדעים');
+    await dialog.getByLabel('תיאור').fill('קורס בדיקה מקצה לקצה');
+    await dialog.getByRole('button', { name: 'יצירת הקורס' }).click();
+    await expect(dialog).toBeHidden();
+    await page.getByRole('link', { name: /להוספת שיעורים/ }).click();
     await expect(page.getByRole('heading', { name: 'פיזיקה E2E', level: 1 })).toBeVisible();
     state.courseId = page.url().match(/\/courses\/([^/]+)\/edit$/)[1];
 
@@ -88,16 +91,16 @@ test.describe.serial('FocusMind courses end to end', () => {
     }
 
     // Upload a real MP4 (recorded by the browser in global-setup) to lesson 1.
-    await page.getByRole('button', { name: 'עריכת השיעור תנועה' }).click();
+    await page.getByRole('button', { name: 'פתיחת הסרטון והכלים של השיעור תנועה' }).click();
     const upload = page.waitForResponse((response) => response.url().includes('/video') && response.request().method() === 'PUT');
     await page.getByLabel('בחירת קובץ וידאו לשיעור תנועה').setInputFiles(TEST_VIDEO);
     expect((await upload).status()).toBe(200);
     await expect(page.getByText('הסרטון הועלה בהצלחה.')).toBeVisible();
     await expect(page.getByText(/סרטון נוכחי: lesson\.mp4/)).toBeVisible();
-    await page.getByRole('button', { name: 'סגירת השיעור תנועה' }).click();
+    await page.getByRole('button', { name: 'סגירת הסרטון והכלים של השיעור תנועה' }).click();
 
     // A supported external link (YouTube) on lesson 2; an unsupported page is rejected.
-    await page.getByRole('button', { name: 'עריכת השיעור כוחות' }).click();
+    await page.getByRole('button', { name: 'פתיחת הסרטון והכלים של השיעור כוחות' }).click();
     await page.getByRole('radio', { name: 'קישור חיצוני' }).check();
     await page.getByLabel('קישור לסרטון', { exact: true }).fill('https://example.com/an-article');
     await page.getByRole('button', { name: 'שמירת הקישור' }).click();
@@ -106,10 +109,10 @@ test.describe.serial('FocusMind courses end to end', () => {
     await page.getByRole('button', { name: 'שמירת הקישור' }).click();
     await expect(page.getByText('הקישור נשמר.')).toBeVisible();
     await expect(page.getByText(/אי אפשר לשמור את מיקום הצפייה/)).toBeVisible();
-    await page.getByRole('button', { name: 'סגירת השיעור כוחות' }).click();
+    await page.getByRole('button', { name: 'סגירת הסרטון והכלים של השיעור כוחות' }).click();
 
     // A direct https video link on lesson 3 (stored and classified; the host is not contacted by the server).
-    await page.getByRole('button', { name: 'עריכת השיעור אנרגיה' }).click();
+    await page.getByRole('button', { name: 'פתיחת הסרטון והכלים של השיעור אנרגיה' }).click();
     await page.getByRole('radio', { name: 'קישור חיצוני' }).check();
     await page.getByLabel('קישור לסרטון', { exact: true }).fill('https://cdn.example.com/media/energy.webm');
     await page.getByRole('button', { name: 'שמירת הקישור' }).click();
