@@ -1,10 +1,21 @@
 # FocusMind AI
 
-A smart learning platform with a Hebrew RTL interface: registration and login,
-a personal dashboard, **courses and lessons** (a published catalog and personal
-courses with uploaded videos or external links), and a Smart Learning player
-with a study timer, saved playback progress, and browser-only, calibration-free
-webcam attention detection built on MediaPipe.
+A smart learning platform with a Hebrew RTL interface:
+
+- **Courses and lessons**: a published catalog, managed by content managers,
+  and personal courses with uploaded videos or external links.
+- **Smart Learning player**: saved progress and browser-only, calibration-free
+  webcam attention detection (MediaPipe).
+- **Smart Timer**: active learning time, breaks and session history.
+- **ReplayAI**: review suggestions from recorded attention, played back in the
+  same player, plus manual bookmarks.
+- **FocusInsights**: analytics from real data.
+- **FocusCoach**: deterministic, explained study tips.
+- **AdaptiveStudy**: a study goal and a plan for the next session.
+- **QuizFlow**: manual review questions.
+- **Privacy controls**: see what is stored and delete it.
+
+No feature needs an external AI provider.
 
 | Layer    | Stack |
 |----------|-------|
@@ -64,6 +75,12 @@ npm run build
   courses, lessons, uploads, byte ranges, restart persistence, progress,
   enrollment, sessions and cross-user authorization (real MongoDB, temporary
   video folder).
+- **ReplayAI rules** (`backend/tests/test_replay_engine.py`): thresholds,
+  merging, pauses, seeks, playback speed and multiple sessions. No database.
+- **Learning features** (`backend/tests/integration/test_learning_mongo.py`):
+  ReplayAI persistence and status, Smart Timer heartbeat and history,
+  insights, coach, study plan, quizzes, catalog administration, privacy
+  deletion and authorization.
 - **Integration tests** (`backend/tests/integration/`) use the real MongoDB
   from `.env`. Each run creates a random database and drops it afterwards.
   If MongoDB is not reachable they are **skipped**. With
@@ -79,7 +96,19 @@ npm run test:e2e               # Playwright with the installed Microsoft Edge
 
 The run starts its own backend (port 8010, database `focusmind_e2e`, temporary
 video folder) and Vite (port 3010), records a small MP4 test video in the
-browser, and drops the test database afterwards: real data is never touched.
+browser, and drops the test database afterwards. Real data is never touched.
+
+The suites are:
+- `courses.e2e.js`: authentication, courses, upload, streaming, playback,
+  progress, catalog and access control;
+- `learning.e2e.js`: ReplayAI replay of the exact interval in the real video,
+  bookmarks, the review page, the Smart Timer, insights, the study goal,
+  quizzes and authorization;
+- `catalog-admin.e2e.js`: the role granted with the real CLI, then create,
+  fill and publish a course.
+
+ReplayAI e2e data is a controlled session sent through the API, because the
+synthetic camera has no face.
 The camera is Chromium's synthetic fake device, so these tests prove the
 attention monitor runs with lesson playback, not real-webcam accuracy. Use
 `E2E_BROWSER_CHANNEL=chrome` for Google Chrome.
@@ -118,6 +147,12 @@ have no video: no links are invented.
 
 | Path | Screen | Access |
 |------|--------|--------|
+| `/review` | ReplayAI: all suggestions and bookmarks | signed in (own data) |
+| `/learning/lessons/:id/review/:itemId` | the lesson, replaying one interval | owner / enrolled |
+| `/insights` | FocusInsights analytics and session history | signed in (own data) |
+| `/study` | AdaptiveStudy goal and plan, plus FocusCoach | signed in (own data) |
+| `/privacy` | what is measured and stored; data deletion | signed in (own data) |
+| `/admin/catalog` | catalog management | content managers only |
 | `/`, `/register` | Registration | public; signed-in users go to the dashboard |
 | `/login` | Login | public; signed-in users go to the dashboard |
 | `/dashboard` | Dashboard with real course progress | signed in |
@@ -129,8 +164,23 @@ have no video: no links are invented.
 | `/learning/lessons/:id` | Smart Learning playing a course lesson | owner / enrolled |
 | `/learning` | Smart Learning with a local file (nothing uploaded) | signed in |
 
-Details on the data model, API, storage, progress rules and ReplayAI data:
-[docs/courses.md](docs/courses.md).
+Details: [docs/architecture.md](docs/architecture.md),
+[docs/courses.md](docs/courses.md) (courses, storage, progress),
+[docs/replayai.md](docs/replayai.md),
+[docs/learning-features.md](docs/learning-features.md) (timer, insights, coach,
+study plan, quizzes, catalog management, privacy, data model and API).
+
+## Content managers (catalog)
+
+Nobody is a content manager by default, and the API cannot grant the role.
+Grant it from the command line:
+
+```powershell
+docker compose exec backend python -m app.admin grant editor@example.com   # Docker
+cd backend; .venv\Scripts\python -m app.admin grant editor@example.com    # local
+python -m app.admin revoke editor@example.com
+python -m app.admin list
+```
 
 ## Project layout
 
@@ -138,13 +188,18 @@ Details on the data model, API, storage, progress rules and ReplayAI data:
 backend/app/
   api/routes/auth.py      register, login, me, logout (HttpOnly JWT cookie)
   api/routes/courses.py   courses, lessons, enrollment, progress, uploads, video streaming
-  api/routes/learning_sessions.py  ReplayAI-ready attention segments
+  api/routes/learning_sessions.py  sessions (Smart Timer heartbeat, history) and attention segments
+  api/routes/learning.py  ReplayAI, preferences, insights, coach, study plan, quizzes, catalog admin, privacy
   api/dependencies.py     database + current user (from the session cookie)
   core/config.py          settings from env / .env
   db/database.py          MongoDB client, get_db dependency, indexes, health ping
   services/courses.py     access rules, completion policy, video lifecycle
   services/video_storage.py  streamed uploads, type sniffing, byte ranges
   services/external_video.py link validation (direct files, YouTube allowlist)
+  services/replay_engine.py  ReplayAI rules (pure, unit-tested); services/replay.py storage + status
+  services/insights.py    FocusInsights, FocusCoach, AdaptiveStudy, preferences
+  services/quiz.py        QuizFlow;  services/privacy.py  data summary, deletion, retention
+  admin/                  python -m app.admin grant|revoke|list (content-manager role)
   repositories/ schemas/ models/
   seed/                   idempotent example catalog (python -m app.seed)
 backend/tests/            unit tests + integration/ (real MongoDB)
@@ -155,7 +210,10 @@ frontend/src/
   features/courses/       My Courses, catalog, details, editor, coursesApi
   features/dashboard/
   features/learning/      Smart Learning (local file or course lesson), attention
-                          monitor, session statistics, progress + segment saving
+                          monitor, Smart Timer, progress + segment saving
+  features/replay/        ReplayAI panel, review page, replay mode
+  features/insights/ coach/ study/ quiz/ privacy/ admin/
+  components/charts/      dependency-free, RTL-aware charts
   features/vision/        shared camera + MediaPipe helpers
   features/attention-engine/  attention engine (signals, adaptive baseline, fusion, smoothing)
   styles/SignatureTheme.css   FocusMind Signature (Design 15)
@@ -164,14 +222,23 @@ frontend/src/
 ## Privacy
 
 Camera video and face landmarks are processed **in the browser only** and are
-never stored or uploaded. For course lessons only derived attention states per
-stretch of video time are saved (owner-only), never frames or landmarks.
+never stored or uploaded. For course lessons, only derived attention states
+per stretch of video time are saved (owner only), never frames or landmarks.
+Learners see what is stored, and can delete it, on `/privacy`.
+`ATTENTION_RETENTION_DAYS` adds optional server-wide retention.
 Uploaded lesson videos are private to their owner and served only through an
 authenticated endpoint.
+
+"Looking toward the screen" is **not** a concentration or comprehension score.
+ReplayAI suggestions are review hints based on gaze direction and pauses.
 
 ## Further documentation
 
 - [frontend/src/features/attention-engine/README.md](frontend/src/features/attention-engine/README.md): how the attention engine works
-- [docs/courses.md](docs/courses.md): courses, lessons, video storage, progress and ReplayAI data
+- [docs/architecture.md](docs/architecture.md): final architecture and main user journey
+- [docs/courses.md](docs/courses.md): courses, lessons, video storage, progress and session data
+- [docs/replayai.md](docs/replayai.md): ReplayAI rules, thresholds, storage and replay mode
+- [docs/learning-features.md](docs/learning-features.md): Smart Timer, insights, coach, study plan, quizzes, catalog management, privacy
+- [docs/user-guide.md](docs/user-guide.md): user guide (Hebrew)
 - [docs/attention-engine-testing.md](docs/attention-engine-testing.md): real-camera test protocol (Hebrew)
 - [docs/deferred-work.md](docs/deferred-work.md): known issues and postponed improvements

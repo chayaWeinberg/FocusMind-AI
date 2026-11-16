@@ -20,11 +20,13 @@ Two course types share the same screens and the same Smart Learning player:
 |---|---|---|
 | Created by | the application (seed) | a signed-in user |
 | Visible to | every signed-in user (when published) | the owner only |
-| Editable by | nobody through the API | the owner |
+| Editable by | content managers (role granted from the CLI) | the owner |
 | Learning | after enrolling | the owner |
 
 Other users get **404** for a private course, its lessons, its progress and
-its videos, so its existence is not revealed. Catalog edits return **403**.
+its videos, so its existence is not revealed. Catalog edits by learners return
+**403**. Content managers also see draft catalog courses. See
+[learning-features.md](learning-features.md#catalog-management-content-managers).
 
 ## Data model (MongoDB)
 
@@ -120,7 +122,10 @@ Messages are safe to show; the frontend maps them to Hebrew.
 - Only users who may learn a lesson can save its progress: the owner of a
   personal course, or a user enrolled in the catalog course.
 
-## ReplayAI-ready session data
+## ReplayAI session data
+
+How suggestions are computed from this data: [replayai.md](replayai.md).
+
 
 While a trackable lesson plays, every 500 ms stats tick records the attention
 state and the video position. Ticks are merged into **segments**: stretches
@@ -154,6 +159,9 @@ cd frontend; npm test; npm run build            # frontend
 | `backend/tests/integration/test_courses_mongo.py` | API rules against real MongoDB: uploads, byte ranges, restart persistence, progress, completion, enrollment, sessions, cross-user access |
 | `frontend/src/features/courses/Courses.test.jsx` | course screens with a fake backend |
 | `frontend/src/features/learning/SmartLearningLesson.test.jsx` | lesson player + attention monitor with a simulated face (mocked MediaPipe) |
+| `backend/tests/test_replay_engine.py`, `backend/tests/integration/test_learning_mongo.py` | ReplayAI rules; learning features against real MongoDB |
+| `frontend/src/features/replay/*.test.*` | ReplayAI UI and replay mode, Smart Timer, quizzes, insights, study plan, coach, privacy, admin |
+| `frontend/e2e/learning.e2e.js`, `catalog-admin.e2e.js` | the same features in real Edge |
 | `frontend/e2e/courses.e2e.js` (`npm run test:e2e`) | real Edge against an isolated backend/database: sign-up and login, course + 3 lessons, real MP4 upload, external links, real MediaPipe on the fake camera feeding segments, save/resume, completion, course progress, catalog enrollment, access control |
 
 Camera honesty: the Vitest suites use a *simulated face*; the Playwright suite

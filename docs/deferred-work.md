@@ -28,12 +28,16 @@ None of them blocks local development or the new attention engine.
 
 ## Code health
 
-- `features/learning/useFaceLandmarker.js` (~700 lines) runs every experiment
-  in one detection loop. The new engine will replace it (see
-  `features/attention-engine/README.md`). It is kept unchanged until then.
-- The fixed-threshold estimators (`screenAttentionEstimator.js`,
-  `screenAttentionTracker.js`) are superseded by the personalized classifier.
-  Keep them as a baseline, then retire them.
+- The old experiments (WebGazer, diagnostics, manual calibration) were removed
+  from the code. Their downloaded assets may still exist locally in
+  `frontend/public/mediapipe/webgazer-face-mesh/` (about 17 MB, ignored by
+  Git, referenced by nothing). They are safe to delete, but they were not
+  deleted automatically.
+- ReplayAI recomputation uses an in-process lock per user and lesson. With
+  several backend workers, use a database lock or a unique key.
+- No rate limiting on the learning endpoints (heartbeats, segments, quizzes).
+- No optional LLM integration (FocusCoach and quizzes are deterministic and
+  manual). Add one only together with real lesson text or transcripts.
 - CSS: `SmartLearningPage.css` (~1900 lines) overlaps with
   `SignatureTheme.css`. Consolidate only together with a design review, so
   Design 15 does not change.
