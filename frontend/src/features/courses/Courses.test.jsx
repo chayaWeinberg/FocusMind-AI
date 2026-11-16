@@ -28,7 +28,7 @@ describe('Courses screens (fake backend)', { timeout: 20_000 }, () => {
     expect(await screen.findByRole('heading', { name: 'הקורסים שלי', level: 1 })).toBeInTheDocument();
     expect(await screen.findByText('עדיין לא יצרתם קורס אישי')).toBeInTheDocument();
     expect(screen.getByText('עדיין לא נרשמתם לקורסים מהקטלוג')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /יצירת קורס אישי/ })).toHaveAttribute('href', '/courses/new');
+    expect(screen.getByRole('button', { name: /יצירת קורס אישי/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'הקורסים שלי' })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -82,10 +82,14 @@ describe('Courses screens (fake backend)', { timeout: 20_000 }, () => {
     await user.type(screen.getByLabelText('שם הקורס'), 'פיזיקה');
     await user.type(screen.getByLabelText('קטגוריה'), 'מדעים');
     await user.click(screen.getByRole('button', { name: 'יצירת הקורס' }));
-    expect(await screen.findByRole('heading', { name: 'פיזיקה', level: 1 })).toBeInTheDocument();
+    // The dialog closes after the server confirmed, the list shows the course.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.location.pathname).toBe('/courses');
     const course = [...api.courses.values()][0];
-    expect(window.location.pathname).toBe(`/courses/${course.id}/edit`);
     expect(course).toMatchObject({ title: 'פיזיקה', category: 'מדעים', type: 'personal' });
+    await user.click(await screen.findByRole('link', { name: /להוספת שיעורים/ }));
+    expect(await screen.findByRole('heading', { name: 'פיזיקה', level: 1 })).toBeInTheDocument();
+    expect(window.location.pathname).toBe(`/courses/${course.id}/edit`);
 
     const addForm = within(screen.getByRole('form', { name: 'הוספת שיעור' }));
     await user.type(addForm.getByLabelText('שם השיעור'), 'תנועה');
@@ -121,7 +125,7 @@ describe('Courses screens (fake backend)', { timeout: 20_000 }, () => {
     api.addLesson(course.id, { title: 'אטומים' });
     openApp(`/courses/${course.id}/edit`);
 
-    await user.click(await screen.findByRole('button', { name: 'עריכת השיעור אטומים' }));
+    await user.click(await screen.findByRole('button', { name: 'פתיחת הסרטון והכלים של השיעור אטומים' }));
     await user.click(screen.getByRole('radio', { name: 'קישור חיצוני' }));
     await user.type(screen.getByLabelText('קישור לסרטון'), 'https://youtu.be/dQw4w9WgXcQ');
     await user.click(screen.getByRole('button', { name: 'שמירת הקישור' }));

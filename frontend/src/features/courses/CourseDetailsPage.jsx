@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import AppShell from '../../components/AppShell.jsx';
+import Notice, { useNotice } from '../../components/Notice.jsx';
+import { CourseDialog } from './CourseDialogs.jsx';
 import { enrollInCourse, formatDuration, getCourse } from './coursesApi.js';
 import { COURSES_URL, courseEditUrl, lessonUrl } from './courseRoutes.js';
 import { ContinueLink, LoadState, ProgressBar, TypeBadge, completedText } from './CourseParts.jsx';
@@ -65,13 +67,19 @@ const STATUS_ICONS = { completed: '✓', 'in-progress': '◔', 'not-started': '�
 
 function videoLabel(video) {
   if (video.sourceType === 'upload') return 'סרטון שהועלה';
-  if (video.sourceType === 'external') return video.provider === 'youtube' ? 'YouTube' : 'קישור לסרטון';
+  if (video.sourceType === 'external') {
+    if (video.provider === 'youtube') return 'YouTube';
+    if (video.provider === 'page') return 'סרטון באתר חיצוני';
+    return 'קישור לסרטון';
+  }
   return null;
 }
 
 export default function CourseDetailsPage({ courseId }) {
   const { status, data: course, error, reload, setData } = useLoader(() => getCourse(courseId), [courseId]);
   const [enrollState, setEnrollState] = useState({ busy: false, error: '' });
+  const [editing, setEditing] = useState(false);
+  const [notice, showNotice, clearNotice] = useNotice();
   const summary = useLoader(() => getCourseLearningSummary(courseId).catch(() => null), [courseId]);
   const lessonSummary = new Map((summary.data?.lessons || []).map((entry) => [entry.lessonId, entry]));
 
@@ -88,6 +96,18 @@ export default function CourseDetailsPage({ courseId }) {
   return (
     <AppShell active={course?.type === 'catalog' && !course?.enrolled ? 'catalog' : 'courses'} labelledBy="course-title">
       <a className="course-back" href={COURSES_URL}><span aria-hidden="true">→</span> חזרה לקורסים שלי</a>
+      <Notice notice={notice} onClose={clearNotice} />
+      {editing && course && (
+        <CourseDialog
+          course={course}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => {
+            setEditing(false);
+            setData(updated);
+            showNotice('פרטי הקורס נשמרו.');
+          }}
+        />
+      )}
       <LoadState status={status} error={error} onRetry={reload} loadingText="טוענים את הקורס…" />
       {course && status !== 'loading' && (
         <>
@@ -112,7 +132,10 @@ export default function CourseDetailsPage({ courseId }) {
                 <span className="course-enrolled" role="status">✓ רשומים לקורס</span>
               )}
               {course.canEdit && (
-                <a className="signature-secondary-button" href={courseEditUrl(course.id)}>עריכת הקורס והשיעורים</a>
+                <>
+                  <button type="button" className="signature-secondary-button" onClick={() => setEditing(true)}>עריכת פרטי הקורס</button>
+                  <a className="signature-secondary-button" href={courseEditUrl(course.id)}>עריכת הקורס והשיעורים</a>
+                </>
               )}
               {enrollState.error && <p className="course-inline-error" role="alert">{enrollState.error}</p>}
             </div>

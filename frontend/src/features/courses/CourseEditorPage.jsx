@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '../../components/AppShell.jsx';
+import Notice, { useNotice } from '../../components/Notice.jsx';
+import { CourseDialog, LessonDialog } from './CourseDialogs.jsx';
+import useAction from './useAction.js';
 import {
   addLesson,
-  createCourse,
   deleteCourse,
   deleteLesson,
   formatDuration,
@@ -11,11 +13,10 @@ import {
   removeLessonVideo,
   reorderLessons,
   setLessonVideoUrl,
-  updateCourse,
   updateLesson,
   uploadLessonVideo,
 } from './coursesApi.js';
-import { COURSES_URL, courseEditUrl, courseUrl, lessonUrl, navigateTo } from './courseRoutes.js';
+import { COURSES_URL, courseUrl, lessonUrl, navigateTo } from './courseRoutes.js';
 import { LoadState } from './CourseParts.jsx';
 import useLoader from './useLoader.js';
 import './Courses.css';
@@ -29,83 +30,10 @@ function formatBytes(bytes) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-function useAction() {
-  const [state, setState] = useState({ busy: false, error: '', message: '' });
-  async function run(action, success = '') {
-    setState({ busy: true, error: '', message: '' });
-    try {
-      const result = await action();
-      setState({ busy: false, error: '', message: success });
-      return result;
-    } catch (error) {
-      setState({ busy: false, error: error.message || 'משהו השתבש.', message: '' });
-      return undefined;
-    }
-  }
-  return [state, run];
-}
-
 function Feedback({ state }) {
   if (state.error) return <p className="course-inline-error" role="alert">{state.error}</p>;
   if (state.message) return <p className="course-inline-success" role="status">{state.message}</p>;
   return null;
-}
-
-// --- course details form ----------------------------------------------------
-
-function CourseForm({ initial, submitLabel, onSubmit, state }) {
-  const [values, setValues] = useState({
-    title: initial?.title || '',
-    description: initial?.description || '',
-    category: initial?.category || '',
-  });
-  const [touched, setTouched] = useState(false);
-  const titleError = values.title.trim().length < 2 ? 'שם הקורס חייב לכלול לפחות 2 תווים.' : '';
-
-  function submit(event) {
-    event.preventDefault();
-    setTouched(true);
-    if (titleError) return;
-    onSubmit({
-      title: values.title.trim(),
-      description: values.description.trim(),
-      category: values.category.trim(),
-    });
-  }
-
-  const change = (field) => (event) => setValues((previous) => ({ ...previous, [field]: event.target.value }));
-  return (
-    <form className="course-form" onSubmit={submit} noValidate aria-label="פרטי הקורס">
-      <div className="course-form-field">
-        <label>
-          <span>שם הקורס</span>
-          <input
-            value={values.title}
-            onChange={change('title')}
-            maxLength={120}
-            required
-            aria-invalid={touched && Boolean(titleError)}
-            aria-describedby={touched && titleError ? 'course-title-error' : undefined}
-          />
-        </label>
-        {touched && titleError && <small id="course-title-error" className="course-field-error">{titleError}</small>}
-      </div>
-      <label>
-        <span>קטגוריה</span>
-        <input value={values.category} onChange={change('category')} maxLength={60} placeholder="למשל: מתמטיקה" />
-      </label>
-      <label className="course-form-wide">
-        <span>תיאור</span>
-        <textarea value={values.description} onChange={change('description')} maxLength={2000} rows={3} />
-      </label>
-      <div className="course-form-actions">
-        <button type="submit" className="signature-primary-button" disabled={state.busy}>
-          {state.busy ? 'שומרים…' : submitLabel}
-        </button>
-        <Feedback state={state} />
-      </div>
-    </form>
-  );
 }
 
 // --- video of one lesson ----------------------------------------------------
@@ -113,6 +41,7 @@ function CourseForm({ initial, submitLabel, onSubmit, state }) {
 function VideoEditor({ lesson, onLessonChange }) {
   const [mode, setMode] = useState(lesson.video.sourceType === 'external' ? 'url' : 'file');
   const [url, setUrl] = useState(lesson.video.sourceType === 'external' ? lesson.video.url : '');
+  const [linkKind, setLinkKind] = useState(lesson.video.provider === 'page' ? 'page' : 'video');
   const [upload, setUpload] = useState(null); // { progress, abort }
   const [state, run] = useAction();
   const uploadRef = useRef(null);
@@ -146,7 +75,7 @@ function VideoEditor({ lesson, onLessonChange }) {
     const trimmed = url.trim();
     if (!trimmed) return;
     await run(async () => {
-      let updated = await setLessonVideoUrl(lesson.id, trimmed);
+      let updated = await setLessonVideoUrl(lesson.id, trimmed, undefined, linkKind);
       if (updated.video.trackable && !updated.durationSeconds) {
         const durationSeconds = await readVideoDuration(trimmed);
         if (durationSeconds) updated = await updateLesson(lesson.id, { durationSeconds });
@@ -168,7 +97,7 @@ function VideoEditor({ lesson, onLessonChange }) {
         {video.sourceType === 'upload' && `${video.originalName || 'קובץ שהועלה'} (${formatBytes(video.sizeBytes)})`}
         {video.sourceType === 'external' && (
           <>
-            {video.provider === 'youtube' ? 'סרטון YouTube' : 'קישור ישיר'}: <bdi dir="ltr">{video.url}</bdi>
+            {video.provider === 'youtube' ? 'סרטון YouTube' : video.provider === 'page' ? 'עמוד וידאו חיצוני' : 'קישור ישיר'}: <bdi dir="ltr">{video.url}</bdi>
           </>
         )}
       </p>
@@ -209,6 +138,17 @@ function VideoEditor({ lesson, onLessonChange }) {
         </div>
       ) : (
         <form className="lesson-video-url" onSubmit={saveUrl}>
+          <fieldset className="lesson-video-mode">
+            <legend>סוג הקישור</legend>
+            <label>
+              <input type="radio" name={`kind-${lesson.id}`} checked={linkKind === 'video'} onChange={() => setLinkKind('video')} />
+              {' '}קובץ וידאו ישיר או YouTube
+            </label>
+            <label>
+              <input type="radio" name={`kind-${lesson.id}`} checked={linkKind === 'page'} onChange={() => setLinkKind('page')} />
+              {' '}עמוד אינטרנט שמציג את הסרטון (ייפתח באתר החיצוני)
+            </label>
+          </fieldset>
           <label>
             <span>קישור לסרטון</span>
             <input
@@ -223,7 +163,9 @@ function VideoEditor({ lesson, onLessonChange }) {
           </label>
           <button type="submit" className="signature-secondary-button" disabled={state.busy || !url.trim()}>שמירת הקישור</button>
           <small id={`url-help-${lesson.id}`}>
-            נתמכים: קישור ישיר לקובץ ‎.mp4/‎.webm (https), או קישור לסרטון YouTube. דפי אינטרנט רגילים אינם נתמכים.
+            {linkKind === 'page'
+              ? 'עמוד אינטרנט (https) שבו מוצג הסרטון. הלומדים יפתחו אותו באתר החיצוני. מיקום הצפייה לא נמדד, ו-ReplayAI אינו זמין.'
+              : 'נתמכים: קישור ישיר לקובץ ‎.mp4/‎.webm (https), או קישור לסרטון YouTube. לעמוד אינטרנט בחרו "עמוד אינטרנט".'}
           </small>
         </form>
       )}
@@ -239,21 +181,11 @@ function VideoEditor({ lesson, onLessonChange }) {
 
 // --- one lesson -------------------------------------------------------------
 
-function LessonEditor({ lesson, index, total, onMove, onLessonChange, onDelete, busy }) {
+function LessonEditor({ lesson, index, total, onMove, onLessonChange, onLessonSaved, onDelete, busy }) {
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState({ title: lesson.title, description: lesson.description });
-  const [state, run] = useAction();
+  const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const duration = formatDuration(lesson.durationSeconds);
-
-  async function save(event) {
-    event.preventDefault();
-    if (values.title.trim().length < 2) return;
-    await run(async () => onLessonChange(await updateLesson(lesson.id, {
-      title: values.title.trim(),
-      description: values.description.trim(),
-    })), 'השיעור נשמר.');
-  }
 
   return (
     <li className="lesson-editor">
@@ -262,34 +194,31 @@ function LessonEditor({ lesson, index, total, onMove, onLessonChange, onDelete, 
         <div>
           <strong>{lesson.title}</strong>
           <small>
-            {lesson.video.sourceType === 'none' ? 'אין סרטון' : lesson.video.sourceType === 'upload' ? 'סרטון שהועלה' : 'קישור חיצוני'}
+            {lesson.video.sourceType === 'none' ? 'אין סרטון' : lesson.video.sourceType === 'upload' ? 'סרטון שהועלה' : lesson.video.provider === 'page' ? 'עמוד וידאו חיצוני' : 'קישור חיצוני'}
             {duration && ` · ${duration}`}
           </small>
         </div>
         <div className="lesson-editor-tools">
           <button type="button" onClick={() => onMove(index, -1)} disabled={busy || index === 0} aria-label={`הזזת השיעור ${lesson.title} למעלה`}>▲</button>
           <button type="button" onClick={() => onMove(index, 1)} disabled={busy || index === total - 1} aria-label={`הזזת השיעור ${lesson.title} למטה`}>▼</button>
-          <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`${open ? 'סגירת' : 'עריכת'} השיעור ${lesson.title}`}>
-            {open ? 'סגירה' : 'עריכה'}
+          <button type="button" onClick={() => setEditing(true)} aria-label={`עריכת פרטי השיעור ${lesson.title}`}>פרטים</button>
+          <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`${open ? 'סגירת' : 'פתיחת'} הסרטון והכלים של השיעור ${lesson.title}`}>
+            {open ? 'סגירה' : 'סרטון'}
           </button>
         </div>
       </div>
+      {editing && (
+        <LessonDialog
+          lesson={lesson}
+          onClose={() => setEditing(false)}
+          onSaved={(saved) => {
+            setEditing(false);
+            onLessonSaved(saved);
+          }}
+        />
+      )}
       {open && (
         <div className="lesson-editor-body">
-          <form className="course-form" onSubmit={save} aria-label={`פרטי השיעור ${lesson.title}`}>
-            <label>
-              <span>שם השיעור</span>
-              <input value={values.title} onChange={(event) => setValues({ ...values, title: event.target.value })} maxLength={120} required minLength={2} />
-            </label>
-            <label className="course-form-wide">
-              <span>תיאור השיעור</span>
-              <textarea value={values.description} onChange={(event) => setValues({ ...values, description: event.target.value })} maxLength={2000} rows={2} />
-            </label>
-            <div className="course-form-actions">
-              <button type="submit" className="signature-secondary-button" disabled={state.busy}>שמירת השיעור</button>
-              <Feedback state={state} />
-            </div>
-          </form>
           <VideoEditor lesson={lesson} onLessonChange={onLessonChange} />
           <div className="lesson-editor-footer">
             {lesson.video.sourceType !== 'none' && <a className="course-link" href={lessonUrl(lesson.id)}>פתיחה בלמידה חכמה</a>}
@@ -354,34 +283,12 @@ function AddLessonForm({ courseId, onAdded }) {
 
 // --- page -------------------------------------------------------------------
 
-function CreateCourse() {
-  const [state, run] = useAction();
-  async function create(values) {
-    const course = await run(() => createCourse(values));
-    if (course) navigateTo(courseEditUrl(course.id), { replace: true });
-  }
-  return (
-    <AppShell active="courses" labelledBy="editor-title">
-      <a className="course-back" href={COURSES_URL}><span aria-hidden="true">→</span> חזרה לקורסים שלי</a>
-      <header className="courses-hero">
-        <div>
-          <small>קורס אישי חדש</small>
-          <h1 id="editor-title">יצירת קורס אישי</h1>
-          <p>אחרי השמירה תוכלו להוסיף שיעורים, להעלות סרטונים או להוסיף קישורים.</p>
-        </div>
-      </header>
-      <section className="course-panel">
-        <CourseForm submitLabel="יצירת הקורס" onSubmit={create} state={state} />
-      </section>
-    </AppShell>
-  );
-}
-
 function EditCourse({ courseId }) {
   const { status, data: course, error, reload, setData } = useLoader(() => getCourse(courseId), [courseId]);
-  const [formState, runForm] = useAction();
   const [listState, runList] = useAction();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(false);
+  const [notice, showNotice, clearNotice] = useNotice();
 
   if (course && !course.canEdit) {
     return (
@@ -399,9 +306,15 @@ function EditCourse({ courseId }) {
     lessons: lessons.map((lesson) => (lesson.id === updated.id ? { ...lesson, ...updated } : lesson)),
   });
 
-  async function saveCourse(values) {
-    const updated = await runForm(() => updateCourse(courseId, values), 'פרטי הקורס נשמרו.');
-    if (updated) setData(updated);
+  function courseSaved(updated) {
+    setEditingCourse(false);
+    setData(updated);
+    showNotice('פרטי הקורס נשמרו.');
+  }
+
+  function lessonSaved(updated) {
+    replaceLesson(updated);
+    showNotice(`השיעור ״${updated.title}״ נשמר.`);
   }
 
   async function move(index, direction) {
@@ -436,7 +349,7 @@ function EditCourse({ courseId }) {
         <>
           <header className="courses-hero">
             <div>
-              <small>עריכת קורס אישי</small>
+              <small>{course.type === 'catalog' ? 'עריכת קורס בקטלוג' : 'עריכת קורס אישי'}</small>
               <h1 id="editor-title">{course.title}</h1>
               <p>{lessons.length} שיעורים</p>
             </div>
@@ -445,10 +358,19 @@ function EditCourse({ courseId }) {
             </div>
           </header>
 
+          <Notice notice={notice} onClose={clearNotice} />
           <section className="course-panel" aria-labelledby="course-details-title">
             <h2 id="course-details-title">פרטי הקורס</h2>
-            <CourseForm key={course.updatedAt} initial={course} submitLabel="שמירת השינויים" onSubmit={saveCourse} state={formState} />
+            <dl className="course-details-summary">
+              <div><dt>שם</dt><dd>{course.title}</dd></div>
+              <div><dt>קטגוריה</dt><dd>{course.category || 'ללא קטגוריה'}</dd></div>
+              <div><dt>תיאור</dt><dd>{course.description || 'אין תיאור'}</dd></div>
+            </dl>
+            <div className="course-form-actions">
+              <button type="button" className="signature-secondary-button" onClick={() => setEditingCourse(true)}>עריכת פרטי הקורס</button>
+            </div>
           </section>
+          {editingCourse && <CourseDialog course={course} onClose={() => setEditingCourse(false)} onSaved={courseSaved} />}
 
           <section className="course-panel" aria-labelledby="lessons-manage-title">
             <h2 id="lessons-manage-title">ניהול שיעורים</h2>
@@ -466,6 +388,7 @@ function EditCourse({ courseId }) {
                     busy={listState.busy}
                     onMove={move}
                     onLessonChange={replaceLesson}
+                    onLessonSaved={lessonSaved}
                     onDelete={removeLesson}
                   />
                 ))}
@@ -493,5 +416,5 @@ function EditCourse({ courseId }) {
 }
 
 export default function CourseEditorPage({ courseId }) {
-  return courseId ? <EditCourse courseId={courseId} /> : <CreateCourse />;
+  return <EditCourse courseId={courseId} />;
 }

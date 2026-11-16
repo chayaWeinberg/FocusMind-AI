@@ -4,30 +4,29 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { LoadState } from '../courses/CourseParts.jsx';
 import { courseEditUrl, courseUrl, navigateTo } from '../courses/courseRoutes.js';
 import useLoader from '../courses/useLoader.js';
+import useAction from '../courses/useAction.js';
 import { createCatalogCourse, listAdminCatalog, setCourseStatus } from '../learning/learningApi.js';
 import '../courses/Courses.css';
 import '../insights/Insights.css';
 
 function NewCatalogCourse() {
   const [values, setValues] = useState({ title: '', category: '', description: '' });
-  const [state, setState] = useState({ busy: false, error: '' });
+  const [state, run] = useAction();
+  const [validation, setValidation] = useState('');
   const change = (field) => (event) => setValues((previous) => ({ ...previous, [field]: event.target.value }));
 
   async function submit(event) {
     event.preventDefault();
     if (values.title.trim().length < 2) {
-      setState({ busy: false, error: 'שם הקורס חייב לכלול לפחות 2 תווים.' });
+      setValidation('שם הקורס חייב לכלול לפחות 2 תווים.');
       return;
     }
-    setState({ busy: true, error: '' });
-    try {
-      const course = await createCatalogCourse({
-        title: values.title.trim(), category: values.category.trim(), description: values.description.trim(), status: 'draft',
-      });
-      navigateTo(courseEditUrl(course.id));
-    } catch (error) {
-      setState({ busy: false, error: error.message });
-    }
+    setValidation('');
+    // One request even on a double click; the form stays filled if it fails.
+    const course = await run(() => createCatalogCourse({
+      title: values.title.trim(), category: values.category.trim(), description: values.description.trim(), status: 'draft',
+    }));
+    if (course) navigateTo(courseEditUrl(course.id));
   }
 
   return (
@@ -38,7 +37,7 @@ function NewCatalogCourse() {
       <div className="course-form-actions">
         <button type="submit" className="signature-primary-button" disabled={state.busy}>{state.busy ? 'יוצרים…' : 'יצירת טיוטה והוספת שיעורים'}</button>
         <small>הקורס נוצר כטיוטה, ולומדים לא יראו אותו עד שתפרסמו אותו.</small>
-        {state.error && <p className="course-inline-error" role="alert">{state.error}</p>}
+        {(validation || state.error) && <p className="course-inline-error" role="alert">{validation || state.error}</p>}
       </div>
     </form>
   );

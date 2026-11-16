@@ -688,3 +688,25 @@
   display: grid;
   gap: 4px;
 }
+
+.course-details-summary {
+  display: grid;
+  margin: 0;
+  gap: 6px;
+}
+
+.course-details-summary div {
+  display: grid;
+  grid-template-columns: minmax(70px, 110px) 1fr;
+  gap: 10px;
+  font: 9.5px/1.6 var(--signature-font-family);
+}
+
+.course-details-summary dt {
+  color: var(--signature-muted);
+}
+
+.course-details-summary dd {
+  margin: 0;
+  white-space: pre-line;
+}

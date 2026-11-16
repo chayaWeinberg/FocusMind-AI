@@ -78,9 +78,10 @@ function ProtectedPage({ route }) {
     case 'study': return <StudyPage />;
     case 'privacy': return <PrivacyPage />;
     case 'adminCatalog': return <CatalogAdminPage />;
-    case 'courses': return <MyCoursesPage />;
+    // Same element for both paths: /courses/new only opens the creation dialog.
+    case 'courses': return <MyCoursesPage key="my-courses" />;
+    case 'newCourse': return <MyCoursesPage key="my-courses" startCreating />;
     case 'catalog': return <CatalogPage />;
-    case 'newCourse': return <CourseEditorPage key="new" />;
     case 'course': return <CourseDetailsPage key={route.param} courseId={route.param} />;
     case 'editCourse': return <CourseEditorPage key={route.param} courseId={route.param} />;
     default: return null;
