@@ -10,3 +10,4 @@ class UserDocument(TypedDict):
     email: str
     hashed_password: str
     created_at: datetime
+    role: NotRequired[str]  # "content_manager" (granted from the CLI only)

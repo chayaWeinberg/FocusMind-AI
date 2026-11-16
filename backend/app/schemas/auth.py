@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
@@ -44,6 +46,9 @@ class RegisteredUser(BaseModel):
     id: str
     display_name: str = Field(alias="displayName")
     email: EmailStr
+    # "content_manager" may manage the course catalog. It is granted only from
+    # the command line (python -m app.admin), never through the API.
+    role: Literal["learner", "content_manager"] = "learner"
 
 
 class RegistrationResponse(BaseModel):

@@ -32,6 +32,23 @@ class Settings(BaseSettings):
     # Seed the example catalog on startup (idempotent). Off unless configured.
     seed_catalog: bool = False
 
+    # ReplayAI rules (see docs/replayai.md). Seconds unless noted. They decide
+    # which recorded attention events are worth suggesting for review.
+    replay_sustained_off_screen_seconds: float = Field(default=4.0, ge=1, le=120)
+    replay_glance_seconds: float = Field(default=1.0, ge=0.25, le=30)
+    replay_repeated_count: int = Field(default=3, ge=2, le=20)
+    replay_repeated_window_seconds: float = Field(default=30.0, ge=5, le=600)
+    replay_face_absent_seconds: float = Field(default=5.0, ge=1, le=600)
+    replay_interruption_count: int = Field(default=3, ge=2, le=20)
+    replay_interruption_window_seconds: float = Field(default=60.0, ge=10, le=900)
+    replay_context_before_seconds: float = Field(default=5.0, ge=0, le=60)
+    replay_context_after_seconds: float = Field(default=3.0, ge=0, le=60)
+    replay_merge_gap_seconds: float = Field(default=5.0, ge=0, le=120)
+    # Delete learning sessions and attention segments older than this many
+    # days on startup. 0 = keep them (default). Progress, quizzes and
+    # bookmarks are never removed by retention.
+    attention_retention_days: int = Field(default=0, ge=0, le=3650)
+
     @field_validator("video_storage_dir")
     @classmethod
     def resolve_storage_dir(cls, value: Path) -> Path:

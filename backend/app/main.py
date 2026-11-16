@@ -10,12 +10,14 @@ from pymongo.errors import PyMongoError
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
+from app.api.routes.learning import router as learning_router
 from app.api.routes.learning_sessions import router as learning_sessions_router
 from app.core.config import settings
 from app.db.database import close_db, get_database, initialize_db, ping_db
 from app.seed.catalog import seed_catalog
 from app.services import video_storage
 from app.services.courses import CourseError
+from app.services.privacy import apply_retention
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.info("Removed %d interrupted video uploads.", removed)
     if settings.seed_catalog:
         await seed_catalog(get_database())
+    if settings.attention_retention_days:
+        expired = await apply_retention(get_database(), settings.attention_retention_days)
+        if expired:
+            logger.info("Retention removed %d old learning sessions.", expired)
     try:
         yield
     finally:
@@ -95,3 +101,4 @@ async def health() -> JSONResponse:
 app.include_router(auth_router)
 app.include_router(courses_router)
 app.include_router(learning_sessions_router)
+app.include_router(learning_router)

@@ -40,6 +40,9 @@ services:
       MAX_VIDEO_UPLOAD_BYTES: ${MAX_VIDEO_UPLOAD_BYTES:-1073741824}
       USER_VIDEO_QUOTA_BYTES: ${USER_VIDEO_QUOTA_BYTES:-5368709120}
       SEED_CATALOG: ${SEED_CATALOG:-false}
+      # Optional: delete learning sessions/attention segments older than N days
+      # on startup (0 = keep). Progress, quizzes and bookmarks are never removed.
+      ATTENTION_RETENTION_DAYS: ${ATTENTION_RETENTION_DAYS:-0}
     volumes:
       - video_data:/data/videos
     ports:
@@ -47,6 +50,13 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+    healthcheck:
+      # /api/health also checks the MongoDB connection.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build: ./frontend
@@ -59,7 +69,14 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 20s
 
 volumes:
   mongo_data:

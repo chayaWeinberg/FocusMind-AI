@@ -1,7 +1,8 @@
 """Idempotent seed of the example catalog.
 
 Courses are matched by ``slug`` and lessons by (course, ``seed_key``), so
-running the seed again updates texts without duplicating anything. Lessons
+running the seed again updates texts without duplicating anything. Courses a
+content manager edited (``edited_by_manager``) are left exactly as they are. Lessons
 are created without a video (no fabricated links); existing lesson videos,
 user progress and enrollments are never touched.
 
@@ -74,6 +75,9 @@ async def seed_catalog(database: AsyncDatabase) -> int:
     lessons = LessonRepository(database)
     now = datetime.now(timezone.utc)
     for course in CATALOG:
+        existing = await database.courses.find_one({"slug": course["slug"]}, {"edited_by_manager": 1})
+        if existing and existing.get("edited_by_manager"):
+            continue  # a content manager owns this course now: never overwrite their edits
         course_id = await courses.upsert_seeded(
             course["slug"],
             {

@@ -1,12 +1,22 @@
-"""Learning sessions and attention segments (owner-only, ReplayAI-ready)."""
+"""Learning sessions (Smart Timer) and attention segments (owner-only, ReplayAI input)."""
 
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Query, status
 
 from app.api.dependencies import CurrentUser, Database
 from app.schemas.courses import SegmentBatch, SessionCreate, SessionDetail, SessionEnd, SessionOut
+from app.schemas.learning import SessionHeartbeat, SessionHistoryItem
 from app.services.learning_sessions import LearningSessionService
 
 router = APIRouter(prefix="/api/learning-sessions", tags=["learning sessions"])
+
+
+@router.get("", response_model=list[SessionHistoryItem])
+async def session_history(
+    database: Database, user: CurrentUser, limit: Annotated[int, Query(ge=1, le=100)] = 20
+) -> list[SessionHistoryItem]:
+    return await LearningSessionService(database, user).history(limit)
 
 
 @router.post("", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
@@ -22,9 +32,14 @@ async def add_segments(
     return {"accepted": accepted}
 
 
+@router.post("/{session_id}/heartbeat", response_model=SessionOut)
+async def heartbeat(session_id: str, data: SessionHeartbeat, database: Database, user: CurrentUser) -> SessionOut:
+    return await LearningSessionService(database, user).heartbeat(session_id, data.active_ms, data.break_ms)
+
+
 @router.post("/{session_id}/end", response_model=SessionOut)
 async def end_session(session_id: str, data: SessionEnd, database: Database, user: CurrentUser) -> SessionOut:
-    return await LearningSessionService(database, user).end(session_id, data.active_ms)
+    return await LearningSessionService(database, user).end(session_id, data.active_ms, data.break_ms)
 
 
 @router.get("/{session_id}", response_model=SessionDetail)

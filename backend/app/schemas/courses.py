@@ -40,6 +40,8 @@ class CourseUpdate(RequestModel):
     title: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     category: str | None = Field(default=None, max_length=60)
+    # Catalog courses only (content managers): publish / unpublish.
+    status: Literal["published", "draft"] | None = None
 
     @field_validator("title", "description", "category", mode="before")
     @classmethod
@@ -120,6 +122,7 @@ class SegmentBatch(RequestModel):
 
 class SessionEnd(RequestModel):
     active_ms: int = Field(ge=0, le=24 * 3600 * 1000)
+    break_ms: int = Field(default=0, ge=0, le=24 * 3600 * 1000)
 
 
 # --- responses ------------------------------------------------------------
@@ -206,7 +209,9 @@ class SessionOut(ApiModel):
     started_at: datetime
     ended_at: datetime | None
     active_ms: int
+    break_ms: int = 0
     segment_count: int
+    trackable: bool = True
 
 
 class SegmentOut(ApiModel):

@@ -1,8 +1,12 @@
 """Course, lesson, enrollment, progress and video business logic.
 
 Access rules (enforced here, for every endpoint):
-- Catalog courses: visible to every signed-in user when published; read-only.
-  Learning (progress, sessions, video streams) requires enrollment.
+- Catalog courses: visible to every signed-in user when published; read-only
+  for learners. Learning (progress, sessions, video streams) requires
+  enrollment. Content managers (role granted only from the CLI) may create,
+  edit, publish/unpublish catalog courses and see drafts. A catalog course
+  with enrolled learners cannot be deleted (unpublish it instead), and a
+  catalog lesson with learner progress cannot be deleted.
 - Personal courses: visible and editable only by the owner. Other users get
   404 (the course's existence is not revealed).
 - The acting user always comes from the session cookie, never from the body.
@@ -51,6 +55,7 @@ from app.schemas.courses import (
     LessonVideoOut,
     ProgressUpdate,
 )
+from app.repositories.learning import GoalRepository, delete_lesson_learning_data
 from app.services import video_storage
 from app.services.external_video import parse_external_video, youtube_embed_url
 
@@ -104,7 +109,9 @@ def stream_url(asset_id: ObjectId) -> str:
 
 class CourseService:
     def __init__(self, database: AsyncDatabase, user: RegisteredUser) -> None:
+        self.database = database
         self.user_id = ObjectId(user.id)
+        self.is_manager = getattr(user, "role", "learner") == "content_manager"
         self.courses = CourseRepository(database)
         self.lessons = LessonRepository(database)
         self.enrollments = EnrollmentRepository(database)
@@ -117,6 +124,9 @@ class CourseService:
     def is_owner(self, course: CourseDocument) -> bool:
         return course["type"] == "personal" and course.get("owner_id") == self.user_id
 
+    def can_manage(self, course: CourseDocument) -> bool:
+        return self.is_owner(course) or (course["type"] == "catalog" and self.is_manager)
+
     async def can_learn(self, course: CourseDocument) -> bool:
         if course["type"] == "personal":
             return self.is_owner(course)
@@ -127,7 +137,7 @@ class CourseService:
             return False
         if course["type"] == "personal":
             return self.is_owner(course)
-        return course.get("status") == "published"
+        return course.get("status") == "published" or self.is_manager
 
     async def course_for_view(self, course_id: str) -> CourseDocument:
         object_id = to_object_id(course_id)
@@ -138,7 +148,7 @@ class CourseService:
 
     async def course_for_edit(self, course_id: str) -> CourseDocument:
         course = await self.course_for_view(course_id)
-        if not self.is_owner(course):
+        if not self.can_manage(course):
             raise ForbiddenError("Catalog courses cannot be modified.")
         return course
 
@@ -152,7 +162,7 @@ class CourseService:
 
     async def lesson_for_edit(self, lesson_id: str) -> tuple[LessonDocument, CourseDocument]:
         lesson, course = await self.lesson_for_view(lesson_id)
-        if not self.is_owner(course):
+        if not self.can_manage(course):
             raise ForbiddenError("Catalog lessons cannot be modified.")
         return lesson, course
 
@@ -304,20 +314,37 @@ class CourseService:
         return CourseDetail(
             **summary.model_dump(),
             lessons=[await self._lesson_out(lesson, progress.get(lesson["_id"])) for lesson in lessons],
-            can_edit=self.is_owner(course),
+            can_edit=self.can_manage(course),
             can_learn=self.is_owner(course) or enrolled,
         )
 
     async def update_course(self, course_id: str, data: CourseUpdate) -> CourseDetail:
         course = await self.course_for_edit(course_id)
         changes = data.model_dump(exclude_unset=True, exclude_none=True)
+        if "status" in changes and course["type"] != "catalog":
+            raise InvalidInputError("Only catalog courses can be published or unpublished.")
         if changes:
-            await self.courses.update(course["_id"], {**changes, "updated_at": utcnow()})
+            await self.courses.update(course["_id"], {**changes, **self._edit_marker(course), "updated_at": utcnow()})
         return await self.course_detail(course_id)
+
+    @staticmethod
+    def _edit_marker(course: CourseDocument) -> dict:
+        # The seed never overwrites a catalog course a content manager edited.
+        return {"edited_by_manager": True} if course["type"] == "catalog" else {}
+
+    async def _touch(self, course: CourseDocument, now: datetime) -> None:
+        if course["type"] == "catalog":
+            await self.courses.update(course["_id"], {"updated_at": now, "edited_by_manager": True})
+        else:
+            await self.courses.touch(course["_id"], now)
 
     async def delete_course(self, course_id: str) -> None:
         course = await self.course_for_edit(course_id)
+        if course["type"] == "catalog" and await self.database.enrollments.count_documents({"course_id": course["_id"]}):
+            raise ConflictError("Catalog courses with enrolled learners cannot be deleted. Unpublish the course instead.")
         lessons = await self.lessons.list_for_course(course["_id"])
+        await delete_lesson_learning_data(self.database, [lesson["_id"] for lesson in lessons])
+        await GoalRepository(self.database).delete_for_course(course["_id"])
         asset_ids = [
             lesson["video"]["asset_id"] for lesson in lessons if lesson.get("video", {}).get("source_type") == "upload"
         ]
@@ -362,7 +389,7 @@ class CourseService:
             "updated_at": now,
         }
         lesson_id = await self.lessons.insert(lesson)
-        await self.courses.touch(course["_id"], now)
+        await self._touch(course, now)
         return await self._lesson_out({**lesson, "_id": lesson_id}, None)
 
     @staticmethod
@@ -380,7 +407,7 @@ class CourseService:
         now = utcnow()
         if changes:
             lesson = await self.lessons.update(lesson["_id"], {**changes, "updated_at": now})
-            await self.courses.touch(course["_id"], now)
+            await self._touch(course, now)
         return await self._lesson_out(lesson, await self.progress.find(self.user_id, lesson["_id"]))
 
     async def reorder_lessons(self, course_id: str, lesson_ids: list[str]) -> CourseDetail:
@@ -391,18 +418,23 @@ class CourseService:
             raise InvalidInputError("The new order must list every lesson of the course exactly once.")
         now = utcnow()
         await self.lessons.set_orders(course["_id"], ordered, now)
-        await self.courses.touch(course["_id"], now)
+        await self._touch(course, now)
         return await self.course_detail(course_id)
 
     async def delete_lesson(self, lesson_id: str) -> None:
         lesson, course = await self.lesson_for_edit(lesson_id)
+        if course["type"] == "catalog" and await self.database.lesson_progress.count_documents(
+            {"lesson_id": lesson["_id"], "user_id": {"$ne": self.user_id}}
+        ):
+            raise ConflictError("Catalog lessons with learner progress cannot be deleted.")
+        await delete_lesson_learning_data(self.database, [lesson["_id"]])
         await self.sessions.delete_for_lesson(lesson["_id"])
         await self.progress.delete_for_lesson(lesson["_id"])
         await self.lessons.delete(lesson["_id"])
         remaining = await self.lessons.list_for_course(course["_id"])
         now = utcnow()
         await self.lessons.set_orders(course["_id"], [item["_id"] for item in remaining], now)
-        await self.courses.touch(course["_id"], now)
+        await self._touch(course, now)
         if lesson.get("video", {}).get("source_type") == "upload":
             await self.release_asset(lesson["video"]["asset_id"])
 
@@ -413,7 +445,7 @@ class CourseService:
         return LessonContext(
             lesson=await self._lesson_out(lesson, await self.progress.find(self.user_id, lesson["_id"])),
             course=CourseSummary(
-                id=str(course["_id"]), title=course["title"], type=course["type"], can_edit=self.is_owner(course)
+                id=str(course["_id"]), title=course["title"], type=course["type"], can_edit=self.can_manage(course)
             ),
             previous_lesson_id=str(lessons[index - 1]["_id"]) if index > 0 else None,
             next_lesson_id=str(lessons[index + 1]["_id"]) if index + 1 < len(lessons) else None,
@@ -492,7 +524,7 @@ class CourseService:
         if duration is not None or clear_duration:
             changes["duration_seconds"] = duration
         updated = await self.lessons.update(lesson["_id"], changes)
-        await self.courses.touch(course["_id"], now)
+        await self._touch(course, now)
         if previous.get("source_type") == "upload" and previous.get("asset_id") != video.get("asset_id"):
             await self.release_asset(previous["asset_id"])
         return await self._lesson_out(updated, await self.progress.find(self.user_id, lesson["_id"]))
@@ -516,7 +548,7 @@ class CourseService:
             return asset
         for lesson in await self.lessons.find_by_asset(asset["_id"]):
             course = await self.courses.find(lesson["course_id"])
-            if self._visible(course) and await self.can_learn(course):
+            if self._visible(course) and (self.can_manage(course) or await self.can_learn(course)):
                 return asset
         raise NotFoundError("Video not found.")
 
@@ -543,7 +575,7 @@ class CourseService:
         if duration:
             changes["duration_seconds"] = round(duration, 2)
         progress = await self.progress.save(self.user_id, lesson["_id"], course["_id"], changes, now, complete)
-        if data.duration_seconds and not lesson.get("duration_seconds") and self.is_owner(course):
+        if data.duration_seconds and not lesson.get("duration_seconds") and self.can_manage(course):
             await self.lessons.update(lesson["_id"], {"duration_seconds": round(data.duration_seconds, 2)})
         return self._progress_out(progress)
 
@@ -558,3 +590,51 @@ class CourseService:
         changes = {"position_seconds": existing["position_seconds"] if existing else 0.0}
         progress = await self.progress.save(self.user_id, lesson["_id"], course["_id"], changes, utcnow(), True)
         return self._progress_out(progress)
+
+    # --- catalog administration (content managers) -------------------------
+
+    def require_manager(self) -> None:
+        if not self.is_manager:
+            raise ForbiddenError("Only content managers can manage the catalog.")
+
+    async def admin_catalog(self) -> list[dict]:
+        self.require_manager()
+        courses = await self.database.courses.find({"type": "catalog"}).sort("title", 1).to_list(500)
+        ids = [course["_id"] for course in courses]
+        counts = await self.lessons.count_by_course(ids)
+        cursor = await self.database.lessons.aggregate([
+            {"$match": {"course_id": {"$in": ids}, "video.source_type": "none"}},
+            {"$group": {"_id": "$course_id", "count": {"$sum": 1}}},
+        ])
+        missing = {row["_id"]: row["count"] async for row in cursor}
+        cursor = await self.database.enrollments.aggregate([
+            {"$match": {"course_id": {"$in": ids}}},
+            {"$group": {"_id": "$course_id", "count": {"$sum": 1}}},
+        ])
+        enrollments = {row["_id"]: row["count"] async for row in cursor}
+        mine = set(await self.enrollments.course_ids_for_user(self.user_id))
+        return [
+            {
+                **self._course_out(course, counts.get(course["_id"], 0), course["_id"] in mine, None).model_dump(),
+                "enrollment_count": enrollments.get(course["_id"], 0),
+                "lessons_without_video": missing.get(course["_id"], 0),
+            }
+            for course in courses
+        ]
+
+    async def create_catalog_course(self, title: str, description: str, category: str, status: str) -> CourseDetail:
+        self.require_manager()
+        now = utcnow()
+        course: CourseDocument = {
+            "title": title,
+            "description": description,
+            "category": category,
+            "type": "catalog",
+            "owner_id": None,
+            "status": status,
+            "created_at": now,
+            "updated_at": now,
+        }
+        course["created_by"] = self.user_id  # type: ignore[typeddict-unknown-key]
+        course_id = await self.courses.insert(course)
+        return await self.course_detail(str(course_id))

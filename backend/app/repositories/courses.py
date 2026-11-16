@@ -285,12 +285,40 @@ class LearningSessionRepository:
             await self._sessions.update_one({"_id": session_id}, {"$inc": {"segment_count": inserted}})
         return inserted
 
-    async def end(self, session_id: ObjectId, active_ms: int, now: datetime) -> LearningSessionDocument | None:
+    async def end(
+        self, session_id: ObjectId, active_ms: int, break_ms: int, now: datetime
+    ) -> LearningSessionDocument | None:
         return await self._sessions.find_one_and_update(
             {"_id": session_id},
-            {"$set": {"ended_at": now}, "$max": {"active_ms": active_ms}},
+            {"$set": {"ended_at": now, "last_seen_at": now}, "$max": {"active_ms": active_ms, "break_ms": break_ms}},
             return_document=ReturnDocument.AFTER,
         )
+
+    async def heartbeat(
+        self, session_id: ObjectId, active_ms: int, break_ms: int, now: datetime
+    ) -> LearningSessionDocument | None:
+        # $max: a late or repeated heartbeat can never lower the stored time.
+        return await self._sessions.find_one_and_update(
+            {"_id": session_id},
+            {"$set": {"last_seen_at": now}, "$max": {"active_ms": active_ms, "break_ms": break_ms}},
+            return_document=ReturnDocument.AFTER,
+        )
+
+    async def recent(self, user_id: ObjectId, limit: int, before: datetime | None = None) -> list[LearningSessionDocument]:
+        criteria: dict = {"user_id": user_id}
+        if before is not None:
+            criteria["started_at"] = {"$lt": before}
+        return await self._sessions.find(criteria).sort("started_at", DESCENDING).limit(limit).to_list(None)
+
+    async def video_seconds(self, session_ids: list[ObjectId]) -> dict[ObjectId, float]:
+        """Seconds of media played per session (sum of segment video ranges)."""
+        if not session_ids:
+            return {}
+        cursor = await self._segments.aggregate([
+            {"$match": {"session_id": {"$in": session_ids}}},
+            {"$group": {"_id": "$session_id", "seconds": {"$sum": {"$subtract": ["$video_end", "$video_start"]}}}},
+        ])
+        return {row["_id"]: float(row["seconds"]) async for row in cursor}
 
     async def segments(self, session_id: ObjectId) -> list[AttentionSegmentDocument]:
         return await self._segments.find({"session_id": session_id}).sort("seq", ASCENDING).to_list(None)

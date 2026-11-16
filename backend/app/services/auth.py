@@ -23,6 +23,10 @@ class EmailAlreadyRegisteredError(Exception):
     pass
 
 
+def user_role(user: dict) -> str:
+    return "content_manager" if user.get("role") == "content_manager" else "learner"
+
+
 def _password_digest(password: str) -> bytes:
     return base64.b64encode(hashlib.sha256(password.encode("utf-8")).digest())
 
@@ -111,6 +115,7 @@ async def authenticate_user(
         id=str(user["_id"]),
         displayName=user["display_name"],
         email=user["email"],
+        role=user_role(user),
     )
     return authenticated_user, create_access_token(authenticated_user.id)
 
@@ -130,4 +135,5 @@ async def get_user_from_access_token(
         id=str(user["_id"]),
         displayName=user["display_name"],
         email=user["email"],
+        role=user_role(user),
     )

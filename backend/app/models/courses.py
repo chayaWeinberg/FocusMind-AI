@@ -84,8 +84,11 @@ class LearningSessionDocument(TypedDict):
     lesson_id: ObjectId
     started_at: datetime
     ended_at: datetime | None
-    active_ms: int
+    active_ms: int  # time the video actually played (Smart Timer), never paused/buffering time
+    break_ms: NotRequired[int]  # breaks taken from the Smart Timer
     segment_count: int
+    trackable: NotRequired[bool]  # False for YouTube: time only, no attention segments
+    last_seen_at: NotRequired[datetime]  # last heartbeat; no end + old heartbeat = interrupted
 
 
 class AttentionSegmentDocument(TypedDict):
