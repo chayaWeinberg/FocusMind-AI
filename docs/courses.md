@@ -101,7 +101,12 @@ Messages are safe to show; the frontend maps them to Hebrew.
   provider's script the page cannot read the position, so position saving and
   attention-to-video segments are **not** available. The session timer is
   started manually, and the lesson is marked completed manually.
-- Everything else (web pages, other providers, `http://`, IP addresses,
+- **External pages** (`kind: "page"`, chosen explicitly in the editor): a web
+  page that shows the video. Learners get an "open the video on the external
+  website" link. There is no position, no progress tracking and no ReplayAI,
+  completion is manual, and the player explains this. See
+  [catalog-videos.md](catalog-videos.md).
+- Everything else (web pages not marked as pages, other providers, `http://`, IP addresses,
   localhost, credentials in the URL) is rejected. The server never fetches or
   proxies external URLs.
 

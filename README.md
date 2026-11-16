@@ -140,8 +140,23 @@ docker compose exec backend python -m app.seed      # Docker
 cd backend; .venv\Scripts\python -m app.seed         # local backend
 ```
 
-Or set `SEED_CATALOG=true` to seed on startup (off by default). Example lessons
-have no video: no links are invented.
+Or set `SEED_CATALOG=true` to seed on startup (off by default). The seed
+creates lessons without videos.
+
+Curated lecture videos (Harvard CS50, CC BY-NC-SA 4.0) are attached
+separately. The tool checks what the server's network can reach (direct
+MP4, YouTube or the external lecture page) and never overwrites a video
+chosen by a person:
+
+```powershell
+docker compose exec backend python -m app.catalog_videos check
+docker compose exec backend python -m app.catalog_videos apply      # --mode direct|youtube|page, --dry-run
+docker compose exec backend python -m app.catalog_videos status
+```
+
+Behind NetFree every external `.mp4` and YouTube is blocked. See
+[docs/catalog-videos.md](docs/catalog-videos.md) for the verification and
+how to replace links.
 
 ## Routes
 
@@ -240,5 +255,6 @@ ReplayAI suggestions are review hints based on gaze direction and pauses.
 - [docs/replayai.md](docs/replayai.md): ReplayAI rules, thresholds, storage and replay mode
 - [docs/learning-features.md](docs/learning-features.md): Smart Timer, insights, coach, study plan, quizzes, catalog management, privacy
 - [docs/user-guide.md](docs/user-guide.md): user guide (Hebrew)
+- [docs/catalog-videos.md](docs/catalog-videos.md): catalog lecture videos, playback types, NetFree verification
 - [docs/attention-engine-testing.md](docs/attention-engine-testing.md): real-camera test protocol (Hebrew)
 - [docs/deferred-work.md](docs/deferred-work.md): known issues and postponed improvements
