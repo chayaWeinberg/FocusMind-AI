@@ -10,7 +10,7 @@ from bson import ObjectId
 CourseType = Literal["catalog", "personal"]
 CourseStatus = Literal["published", "draft"]
 VideoSourceType = Literal["none", "upload", "external"]
-ExternalProvider = Literal["direct", "youtube"]
+ExternalProvider = Literal["direct", "youtube", "page"]
 AttentionState = Literal["ON_SCREEN", "OFF_SCREEN", "FACE_ABSENT", "UNCERTAIN", "NOT_MEASURED"]
 
 
@@ -33,6 +33,13 @@ class LessonVideo(TypedDict):
     url: NotRequired[str]  # source_type == "external"
     provider: NotRequired[ExternalProvider]
     embed_id: NotRequired[str]  # provider == "youtube"
+    # Attribution of curated catalog videos: {"name", "page_url", "license"}.
+    source: NotRequired[dict]
+    # Set only by `python -m app.catalog_videos apply`; a video without it was
+    # chosen by a person and is never replaced by the tool.
+    catalog_video_key: NotRequired[str]
+    # A content manager removed the video on purpose: the tool leaves it empty.
+    cleared_by_manager: NotRequired[bool]
 
 
 class LessonDocument(TypedDict):

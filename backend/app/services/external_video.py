@@ -11,7 +11,13 @@ classifies them. Supported:
   youtube-nocookie.com. The position cannot be tracked without loading the
   provider's script, so these lessons are completed manually.
 
-Everything else (web pages, other providers) is rejected with a clear error.
+- ``page``: only when the editor explicitly says the link is a *web page*
+  that shows a video (``kind="page"``). It is never played inside FocusMind:
+  learners get a clearly labelled "open on the external website" link, the
+  position is not tracked, and ReplayAI is unavailable.
+
+Anything else (an ordinary web page given as a video link, other providers)
+is rejected with a clear error.
 """
 
 import ipaddress
@@ -42,8 +48,12 @@ def _youtube_id(host: str, path: str, query: str) -> str | None:
     return candidate if _YOUTUBE_ID.fullmatch(candidate) else None
 
 
-def parse_external_video(url: str) -> dict[str, Any]:
-    """Returns the lesson ``video`` sub-document for a supported link."""
+def parse_external_video(url: str, kind: str = "video") -> dict[str, Any]:
+    """Returns the lesson ``video`` sub-document for a supported link.
+
+    ``kind="page"`` accepts any public https page as an external video page
+    (direct files and YouTube links are still recognised as such).
+    """
     if any(char.isspace() for char in url) or len(url) > 2048:
         raise InvalidVideoUrlError("The link is not a valid address.")
     try:
@@ -79,6 +89,9 @@ def parse_external_video(url: str) -> dict[str, Any]:
 
     if parts.path.lower().endswith(DIRECT_EXTENSIONS):
         return {"source_type": "external", "provider": "direct", "url": url}
+
+    if kind == "page":
+        return {"source_type": "external", "provider": "page", "url": url}
 
     raise InvalidVideoUrlError(
         "Unsupported link. Use a direct link to a video file (.mp4 or .webm) or a YouTube video link."

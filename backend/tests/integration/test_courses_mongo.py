@@ -107,6 +107,7 @@ def test_personal_course_full_workflow(client: TestClient, env: dict) -> None:
     assert third["video"] == {
         "sourceType": "external", "provider": "direct", "url": "https://cdn.example.com/media/intro.webm",
         "embedUrl": None, "originalName": None, "sizeBytes": None, "trackable": True,
+        "sourceName": None, "sourceUrl": None, "license": None,  # attribution of curated catalog videos only
     }
 
     # Upload a supported video; the client's filename is display-only.

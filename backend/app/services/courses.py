@@ -187,12 +187,16 @@ class CourseService:
             )
         if source == "external":
             provider = video.get("provider", "direct")
+            attribution = video.get("source") or {}
             return LessonVideoOut(
                 source_type="external",
                 provider=provider,
                 url=video.get("url"),
                 embed_url=youtube_embed_url(video["embed_id"]) if provider == "youtube" else None,
                 trackable=provider == "direct",
+                source_name=attribution.get("name"),
+                source_url=attribution.get("page_url"),
+                license=attribution.get("license"),
             )
         return LessonVideoOut(source_type="none", trackable=False)
 
@@ -393,11 +397,11 @@ class CourseService:
         return await self._lesson_out({**lesson, "_id": lesson_id}, None)
 
     @staticmethod
-    def _external_video(url: str) -> dict:
+    def _external_video(url: str, kind: str = "video") -> dict:
         from app.services.external_video import InvalidVideoUrlError
 
         try:
-            return parse_external_video(url)
+            return parse_external_video(url, kind)
         except InvalidVideoUrlError as error:
             raise InvalidInputError(str(error)) from None
 
@@ -456,13 +460,18 @@ class CourseService:
 
     # --- videos ---------------------------------------------------------
 
-    async def set_external_video(self, lesson_id: str, url: str, duration: float | None) -> LessonOut:
+    async def set_external_video(
+        self, lesson_id: str, url: str, duration: float | None, kind: str = "video"
+    ) -> LessonOut:
         lesson, course = await self.lesson_for_edit(lesson_id)
-        return await self._replace_video(lesson, course, self._external_video(url), duration)
+        return await self._replace_video(lesson, course, self._external_video(url, kind), duration)
 
     async def remove_video(self, lesson_id: str) -> LessonOut:
         lesson, course = await self.lesson_for_edit(lesson_id)
-        return await self._replace_video(lesson, course, {"source_type": "none"}, None, clear_duration=True)
+        empty: dict = {"source_type": "none"}
+        if course["type"] == "catalog":
+            empty["cleared_by_manager"] = True  # the catalog video tool will not refill it
+        return await self._replace_video(lesson, course, empty, None, clear_duration=True)
 
     async def upload_video(
         self,

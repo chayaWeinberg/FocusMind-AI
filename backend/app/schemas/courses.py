@@ -75,6 +75,8 @@ class LessonUpdate(RequestModel):
 class LessonVideoUrl(RequestModel):
     url: str = Field(min_length=8, max_length=2048)
     duration_seconds: float | None = Field(default=None, gt=0, le=24 * 3600)
+    # "page": the link is a web page that shows the video (opened externally).
+    kind: Literal["video", "page"] = "video"
 
     @field_validator("url", mode="before")
     @classmethod
@@ -137,12 +139,15 @@ class CourseProgress(ApiModel):
 
 class LessonVideoOut(ApiModel):
     source_type: Literal["none", "upload", "external"]
-    provider: Literal["direct", "youtube"] | None = None
+    provider: Literal["direct", "youtube", "page"] | None = None
     url: str | None = None  # external URL, or the authorized stream URL for uploads
     embed_url: str | None = None
     original_name: str | None = None
     size_bytes: int | None = None
     trackable: bool  # playback position can be read and restored
+    source_name: str | None = None  # attribution of curated catalog videos
+    source_url: str | None = None
+    license: str | None = None
 
 
 class LessonProgressOut(ApiModel):

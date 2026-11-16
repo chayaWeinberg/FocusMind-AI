@@ -159,7 +159,7 @@ async def upload_video(
 async def set_video_url(
     lesson_id: str, data: LessonVideoUrl, database: Database, user: CurrentUser
 ) -> LessonOut:
-    return await service(database, user).set_external_video(lesson_id, data.url, data.duration_seconds)
+    return await service(database, user).set_external_video(lesson_id, data.url, data.duration_seconds, data.kind)
 
 
 @router.delete("/lessons/{lesson_id}/video", response_model=LessonOut)
