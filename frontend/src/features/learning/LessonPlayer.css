@@ -135,3 +135,25 @@
   outline: 2px solid var(--signature-peach);
   outline-offset: 2px;
 }
+
+.lesson-external-page {
+  gap: 10px;
+}
+
+.lesson-external-page span,
+.lesson-external-page small {
+  max-width: 460px;
+  color: var(--signature-muted);
+  font: 9px/1.6 var(--signature-font-family);
+  text-align: center;
+}
+
+.lesson-attribution {
+  color: var(--signature-muted);
+  font: 8.5px/1.5 var(--signature-font-family);
+}
+
+.lesson-attribution a,
+.lesson-video-error a {
+  color: var(--signature-primary);
+}

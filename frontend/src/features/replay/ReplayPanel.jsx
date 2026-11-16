@@ -9,7 +9,7 @@ import './Replay.css';
  * segments (video time only); bookmarks are created by the learner. Playing
  * an item uses the lesson's existing video player (`onPlay`).
  */
-export default function ReplayPanel({ replay, trackable, hasVideo, getCurrentTime, getDuration, onPlay, activeItemId }) {
+export default function ReplayPanel({ replay, trackable, hasVideo, provider, getCurrentTime, getDuration, onPlay, activeItemId }) {
   const [showHidden, setShowHidden] = useState(false);
   const [markStart, setMarkStart] = useState(null);
   const [note, setNote] = useState('');
@@ -22,8 +22,11 @@ export default function ReplayPanel({ replay, trackable, hasVideo, getCurrentTim
       <section className="replay-panel" aria-labelledby="replay-title">
         <h2 id="replay-title">ReplayAI – קטעים לחזרה</h2>
         <p className="replay-limit" role="note">
-          בסרטון YouTube הדף אינו יכול לקרוא את מיקום הצפייה, ולכן ReplayAI לא מציע כאן קטעים ואי אפשר לסמן רגעים.
-          לא נמציא זמנים שלא נמדדו. קטעים לחזרה זמינים בסרטונים שהועלו ובקישורים ישירים לקובצי וידאו.
+          {provider === 'page'
+            ? 'הסרטון של השיעור נפתח באתר חיצוני, ולכן FocusMind אינו יודע איזה רגע בסרטון צפיתם בו.'
+            : 'בסרטון YouTube הדף אינו יכול לקרוא את מיקום הצפייה.'}
+          {' '}ReplayAI לא מציע כאן קטעים ואי אפשר לסמן רגעים, כי לא נמציא זמנים שלא נמדדו.
+          קטעים לחזרה זמינים בסרטונים שהועלו ובקישורים ישירים לקובצי וידאו.
         </p>
       </section>
     );

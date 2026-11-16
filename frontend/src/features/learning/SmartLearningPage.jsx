@@ -43,7 +43,7 @@ function playableSourceOf(lessonVideo) {
 
 function videoErrorMessage(lessonVideo, error) {
   if (lessonVideo?.sourceType === 'external') {
-    return 'לא ניתן לנגן את הסרטון מהקישור. ייתכן שהאתר המארח חוסם ניגון מאתרים אחרים, שהקישור אינו זמין, או שהפורמט אינו נתמך בדפדפן.';
+    return 'לא ניתן לנגן את הסרטון מהקישור. ייתכן שסינון אינטרנט (למשל NetFree) חוסם קבצי וידאו מהאתר, שהאתר המארח חוסם ניגון מאתרים אחרים, שהקישור אינו זמין, או שהפורמט אינו נתמך בדפדפן.';
   }
   if (lessonVideo?.sourceType === 'upload') {
     return error?.code === 4
@@ -99,6 +99,9 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   const canLearn = Boolean(context?.canLearn);
   const lessonSource = canLearn ? playableSourceOf(lessonVideo) : null;
   const embedSource = canLearn && lessonVideo?.provider === 'youtube' ? lessonVideo.embedUrl : null;
+  // A web page that shows the video: opened on the external site, never played here.
+  const externalPage = canLearn && lessonVideo?.provider === 'page' ? lessonVideo.url : null;
+  const manualTimer = Boolean(embedSource || externalPage);
   const videoSource = lessonMode ? lessonSource : video?.url ?? null;
   const [videoError, setVideoError] = useState('');
   const [resumeNotice, setResumeNotice] = useState(null);
@@ -146,7 +149,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   const persistence = useLessonPersistence({
     lessonId,
     enabled: trackableLesson,
-    timed: lessonMode && Boolean(embedSource),
+    timed: lessonMode && manualTimer,
     initialProgress: lesson?.progress ?? null,
     getActiveMs: currentActiveMs,
     getBreakMs: () => breakClockRef.current.totalMs(),
@@ -443,8 +446,10 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
     ended: 'המפגש הסתיים',
   }[sessionState];
 
-  const sessionHint = lessonMode && embedSource
-    ? 'בסרטון YouTube מפעילים את שעון המפגש ידנית. מיקום הצפייה אינו נשמר, ולכן מסמנים את השיעור כהושלם בסיום.'
+  const sessionHint = lessonMode && manualTimer
+    ? (externalPage
+      ? 'הסרטון נפתח באתר החיצוני. אפשר להפעיל את שעון המפגש ידנית בזמן הצפייה, ולסמן את השיעור כהושלם בסיום.'
+      : 'בסרטון YouTube מפעילים את שעון המפגש ידנית. מיקום הצפייה אינו נשמר, ולכן מסמנים את השיעור כהושלם בסיום.')
     : {
       ready: (video || lessonSource) ? 'הפעילו את הסרטון כדי להתחיל את המפגש.' : (lessonMode ? '' : 'בחרו סרטון כדי להתחיל מפגש למידה.'),
       running: 'הזמן נספר בזמן שהסרטון מופעל.',
@@ -513,6 +518,25 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
         />
       );
     }
+    if (externalPage) {
+      return (
+        <div className="lesson-scene-message lesson-external-page">
+          <strong>הסרטון של השיעור נמצא באתר חיצוני</strong>
+          <span>{lessonVideo.sourceName || 'עמוד וידאו חיצוני'}</span>
+          <a
+            className="signature-primary-button"
+            href={externalPage}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            פתיחת הסרטון באתר החיצוני <span aria-hidden="true">↗</span>
+          </a>
+          <small>
+            הסרטון אינו מתנגן בתוך FocusMind, ולכן מיקום הצפייה לא נשמר, ו-ReplayAI המסונכרן למעקב הקשב אינו זמין בשיעור הזה.
+          </small>
+        </div>
+      );
+    }
     return (
       <div className="lesson-scene-message">
         <strong>לשיעור הזה עדיין אין סרטון.</strong>
@@ -576,7 +600,21 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                       <button type="button" className="lesson-inline-button" onClick={restartFromBeginning}>להתחיל מההתחלה</button>
                     </span>
                   )}
-                  {videoError && <span className="lesson-video-error" role="alert">{videoError}</span>}
+                  {videoError && (
+                    <span className="lesson-video-error" role="alert">
+                      {videoError}
+                      {lessonVideo?.sourceUrl && (
+                        <> <a href={lessonVideo.sourceUrl} target="_blank" rel="noopener noreferrer">פתיחת עמוד המקור של הסרטון ↗</a></>
+                      )}
+                    </span>
+                  )}
+                  {lessonVideo?.sourceName && (
+                    <small className="lesson-attribution">
+                      מקור: {lessonVideo.sourceName}
+                      {lessonVideo.license && <> · רישיון {lessonVideo.license}</>}
+                      {lessonVideo.sourceUrl && <> · <a href={lessonVideo.sourceUrl} target="_blank" rel="noopener noreferrer">עמוד המקור ↗</a></>}
+                    </small>
+                  )}
                   {replayState && (
                     <div className="replay-banner" role="status">
                       <span>
@@ -624,12 +662,12 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
 
             <div className="signature-learning-actions">
               <span>{sessionHint}</span>
-              {lessonMode && embedSource && (sessionState === 'ready' || sessionState === 'paused') && (
+              {lessonMode && manualTimer && (sessionState === 'ready' || sessionState === 'paused') && (
                 <button className="signature-primary-button" type="button" onClick={() => { persistence.startTimedSession(); startPlayback(); }} disabled={onBreak}>
                   הפעלת שעון המפגש
                 </button>
               )}
-              {lessonMode && embedSource && sessionState === 'running' && (
+              {lessonMode && manualTimer && sessionState === 'running' && (
                 <button className="signature-secondary-button" type="button" onClick={() => stopPlayback('paused')}>
                   השהיית השעון
                 </button>
@@ -665,7 +703,8 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
               <ReplayPanel
                 replay={replay}
                 trackable={Boolean(lessonSource)}
-                hasVideo={Boolean(lessonSource || embedSource)}
+                hasVideo={Boolean(lessonSource || embedSource || externalPage)}
+                provider={lessonVideo?.provider}
                 getCurrentTime={() => videoRef.current?.currentTime ?? 0}
                 getDuration={() => videoRef.current?.duration}
                 onPlay={startReplay}
@@ -691,7 +730,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
               onEndBreak={endBreak}
               remindBreak={shouldRemindBreak({ preferences, activeMs: elapsedSeconds * 1000, blockStartMs, onBreak })}
               onSnooze={() => setBlockStartMs(currentActiveMs())}
-              canBreak={Boolean(videoSource || embedSource)}
+              canBreak={Boolean(videoSource || manualTimer)}
             />
             <AttentionSessionSummary stats={attentionStats} />
           </aside>

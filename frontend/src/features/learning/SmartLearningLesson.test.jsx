@@ -232,6 +232,7 @@ describe('Smart Learning lesson player', () => {
     openLesson(second.id);
     await advance(50);
     fireEvent.error(screen.getByLabelText('נגן וידאו: כוחות'));
-    expect(screen.getByRole('alert')).toHaveTextContent('ייתכן שהאתר המארח חוסם ניגון');
+    expect(screen.getByRole('alert')).toHaveTextContent('שהאתר המארח חוסם ניגון');
+    expect(screen.getByRole('alert')).toHaveTextContent('סינון אינטרנט (למשל NetFree)');
   });
 });

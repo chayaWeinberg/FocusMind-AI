@@ -129,9 +129,9 @@ export const reorderLessons = (courseId, lessonIds) => apiRequest(
 export const getLessonContext = (lessonId) => apiRequest(`/api/lessons/${encodeURIComponent(lessonId)}`);
 export const updateLesson = (lessonId, data) => apiRequest(`/api/lessons/${encodeURIComponent(lessonId)}`, { method: 'PATCH', body: data });
 export const deleteLesson = (lessonId) => apiRequest(`/api/lessons/${encodeURIComponent(lessonId)}`, { method: 'DELETE' });
-export const setLessonVideoUrl = (lessonId, url, durationSeconds) => apiRequest(
+export const setLessonVideoUrl = (lessonId, url, durationSeconds, kind = 'video') => apiRequest(
   `/api/lessons/${encodeURIComponent(lessonId)}/video-url`,
-  { method: 'PUT', body: durationSeconds ? { url, durationSeconds } : { url } },
+  { method: 'PUT', body: { url, ...(durationSeconds ? { durationSeconds } : {}), ...(kind === 'page' ? { kind } : {}) } },
 );
 export const removeLessonVideo = (lessonId) => apiRequest(`/api/lessons/${encodeURIComponent(lessonId)}/video`, { method: 'DELETE' });
 

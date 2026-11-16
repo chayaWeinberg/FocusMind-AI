@@ -251,7 +251,9 @@ export function createFakeCoursesApi({ user = { id: 'u1', displayName: 'נועה
       }
       if ((match = path.match(/^\/api\/lessons\/([^/]+)\/video-url$/))) {
         const lesson = lessons.get(match[1]);
-        const video = videoFromUrl(body.url);
+        const video = body.kind === 'page' && /^https:\/\//.test(body.url) && !/\.(mp4|webm)$|youtu/.test(body.url)
+          ? { sourceType: 'external', provider: 'page', url: body.url, embedUrl: null, trackable: false }
+          : videoFromUrl(body.url);
         if (!video) return json(422, { detail: 'Only secure https links are supported.' });
         lesson.video = video;
         return json(200, lessonOut(lesson));
