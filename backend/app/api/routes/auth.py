@@ -21,6 +21,7 @@ from app.services.auth import (
     authenticate_user,
     get_user_from_access_token,
     register_user,
+    revoke_access_token,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -149,7 +150,14 @@ async def get_current_user(
 
 
 @router.post("/logout")
-async def logout(response: Response) -> dict[str, str]:
+async def logout(request: Request, response: Response, database: Database) -> dict[str, str]:
+    # Revoke the token on the server, so a copied cookie stops working too.
+    token = request.cookies.get(ACCESS_TOKEN_COOKIE)
+    if token:
+        try:
+            await revoke_access_token(database, token)
+        except PyMongoError:
+            logger.error("Logout could not revoke the session token (database error).")
     for path in (COOKIE_PATH, *LEGACY_COOKIE_PATHS):
         response.delete_cookie(
             key=ACCESS_TOKEN_COOKIE,

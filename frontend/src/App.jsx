@@ -98,7 +98,7 @@ function Redirecting({ children }) {
 }
 
 function AuthRoutes({ path, navigate }) {
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   const protectedRoute = matchProtectedRoute(path);
   const isProtected = protectedRoute !== null;
   const isLogin = path === ROUTES.login;
@@ -131,7 +131,8 @@ function AuthRoutes({ path, navigate }) {
 
   if (isProtected) {
     if (status !== 'authenticated') return <Redirecting>מעבירים להתחברות...</Redirecting>;
-    return <ProtectedPage route={protectedRoute} />;
+    // Keyed by account: switching users never reuses the previous user's page state.
+    return <ProtectedPage key={user?.id} route={protectedRoute} />;
   }
 
   return status === 'authenticated'

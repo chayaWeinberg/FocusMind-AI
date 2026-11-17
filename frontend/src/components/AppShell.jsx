@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../features/auth/AuthContext.jsx';
+import { useAuth, useOptionalAuth } from '../features/auth/AuthContext.jsx';
 import SignatureBrand from './SignatureBrand.jsx';
 
 export const NAV_ITEMS = Object.freeze([
@@ -15,6 +15,28 @@ export const NAV_ITEMS = Object.freeze([
 
 // Shown only to content managers; the API enforces the permission itself.
 export const ADMIN_NAV_ITEM = Object.freeze({ key: 'admin', href: '/admin/catalog', icon: '⚙', label: 'ניהול הקטלוג' });
+
+/** Logout for pages without the sidebar (the Smart Learning player). */
+export function HeaderLogoutButton() {
+  const auth = useOptionalAuth();
+  const [busy, setBusy] = useState(false);
+  if (!auth) return null;
+  const { logout } = auth;
+  async function handleLogout() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await logout();
+    } catch {
+      setBusy(false);
+    }
+  }
+  return (
+    <button type="button" className="signature-learning-back signature-header-logout" onClick={handleLogout} disabled={busy}>
+      {busy ? 'מתנתקים...' : 'התנתקות'}
+    </button>
+  );
+}
 
 /** Sidebar navigation shared by the dashboard and the course screens. */
 export function SidebarNav({ active }) {

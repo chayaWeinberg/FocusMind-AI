@@ -63,13 +63,25 @@ class FakeUsersCollection:
         )
 
 
+class FakeRevokedTokensCollection:
+    def __init__(self) -> None:
+        self.ids: set[str] = set()
+
+    async def find_one(self, query: dict, projection: dict | None = None) -> dict | None:
+        return {"_id": query["_id"]} if query["_id"] in self.ids else None
+
+    async def update_one(self, query: dict, update: dict, upsert: bool = False) -> None:
+        self.ids.add(query["_id"])
+
+
 class FakeDatabase:
     def __init__(self) -> None:
         self.users = FakeUsersCollection()
+        self.revoked_tokens = FakeRevokedTokensCollection()
 
-    def __getitem__(self, collection_name: str) -> FakeUsersCollection:
-        assert collection_name == "users"
-        return self.users
+    def __getitem__(self, collection_name: str):
+        assert collection_name in {"users", "revoked_tokens"}
+        return getattr(self, collection_name)
 
 
 @pytest.fixture
@@ -423,3 +435,70 @@ def test_health_reports_database_state(monkeypatch: pytest.MonkeyPatch) -> None:
     response = client.get("/api/health")
     assert response.status_code == 503
     assert response.json() == {"status": "degraded", "database": False}
+
+
+def test_logout_revokes_the_token_on_the_server(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    login = client.post("/api/auth/login", json={"email": "user@example.com", "password": "password123"})
+    stolen = session_cookie(login).value  # e.g. copied before logout
+    assert client.get("/api/auth/me").status_code == 200
+
+    assert client.post("/api/auth/logout").status_code == 200
+    client.cookies.clear()
+    client.cookies.set(ACCESS_TOKEN_COOKIE, stolen, path="/api")
+    assert client.get("/api/auth/me").status_code == 401
+    assert client.get("/api/courses/mine").status_code == 401
+
+    # A new login gets a new, working token.
+    client.cookies.clear()
+    client.post("/api/auth/login", json={"email": "user@example.com", "password": "password123"})
+    assert client.get("/api/auth/me").status_code == 200
+
+
+def test_tokens_without_an_id_are_rejected(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {"sub": str(registered_user["_id"]), "iat": now, "exp": now + timedelta(minutes=5)},
+        settings.secret_key.get_secret_value(),
+        algorithm=JWT_ALGORITHM,
+    )
+    client.cookies.set(ACCESS_TOKEN_COOKIE, token, path="/api")
+    assert client.get("/api/auth/me").status_code == 401
+
+
+def test_private_api_responses_are_never_cached(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    client.post("/api/auth/login", json={"email": "user@example.com", "password": "password123"})
+    for path in ("/api/auth/me", "/api/does-not-exist"):
+        response = client.get(path)
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "DENY"
+
+
+def test_cross_site_write_requests_are_blocked(
+    auth_client: tuple[TestClient, FakeDatabase],
+    registered_user: dict,
+) -> None:
+    client, _ = auth_client
+    client.post("/api/auth/login", json={"email": "user@example.com", "password": "password123"})
+    # A page on another site cannot use the visitor's session to write.
+    for origin in ("https://evil.example", "null"):
+        response = client.post("/api/courses", json={"title": "x"}, headers={"Origin": origin})
+        assert response.status_code == 403
+        assert response.json() == {"detail": "Cross-site request blocked."}
+        assert client.post("/api/auth/logout", headers={"Origin": origin}).status_code == 403
+    assert client.get("/api/auth/me").status_code == 200  # still signed in
+    # The site itself (same host) is allowed.
+    assert client.post("/api/auth/logout", headers={"Origin": "http://testserver"}).status_code == 200

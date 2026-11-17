@@ -1,7 +1,7 @@
 // API client for courses, lessons, progress, uploads and learning sessions.
 // Same-origin `/api/...` with the session cookie, like authApi.js.
 
-import { API_BASE_URL } from '../auth/authApi.js';
+import { API_BASE_URL, SESSION_ENDED_EVENT } from '../auth/authApi.js';
 
 export const COURSE_REQUEST_TIMEOUT_MS = 20000;
 
@@ -95,6 +95,7 @@ export async function apiRequest(path, { method = 'GET', body, keepalive = false
   } finally {
     clearTimeout(timeoutId);
   }
+  if (response.status === 401) window.dispatchEvent(new Event(SESSION_ENDED_EVENT));
   if (response.status === 204) return null;
   const data = await readJson(response);
   if (!response.ok) throw new CourseApiError(response.status, describeError(response.status, data));

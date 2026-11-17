@@ -15,6 +15,7 @@ from app.api.routes.learning_sessions import router as learning_sessions_router
 from app.core.config import settings
 from app.db.database import close_db, get_database, initialize_db, ping_db
 from app.seed.catalog import seed_catalog
+from app.security import SecurityMiddleware
 from app.services import video_storage
 from app.services.courses import CourseError
 from app.services.privacy import apply_retention
@@ -65,6 +66,8 @@ app.add_middleware(
     allow_headers=["Content-Type", "Range", "X-File-Name"],
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
+# Outermost: no-store on private API responses, cross-site write check, headers.
+app.add_middleware(SecurityMiddleware)
 
 
 @app.exception_handler(RequestValidationError)

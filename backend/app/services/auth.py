@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import hashlib
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -16,7 +17,9 @@ from app.schemas.auth import LoginRequest, RegisteredUser, RegistrationRequest
 ACCESS_TOKEN_COOKIE = "focusmind_access_token"
 ACCESS_TOKEN_TTL = timedelta(minutes=settings.access_token_ttl_minutes)
 JWT_ALGORITHM = "HS256"
-JWT_REQUIRED_CLAIMS = ["sub", "exp", "iat"]
+JWT_REQUIRED_CLAIMS = ["sub", "exp", "iat", "jti"]
+# Logged-out tokens (by jti) until they would have expired anyway (TTL index).
+REVOKED_TOKENS = "revoked_tokens"
 
 
 class EmailAlreadyRegisteredError(Exception):
@@ -52,13 +55,14 @@ _DUMMY_PASSWORD_HASH = hash_password("focusmind-timing-equalizer")
 def create_access_token(user_id: str) -> str:
     now = datetime.now(timezone.utc)
     return jwt.encode(
-        {"sub": user_id, "iat": now, "exp": now + ACCESS_TOKEN_TTL},
+        {"sub": user_id, "iat": now, "exp": now + ACCESS_TOKEN_TTL, "jti": uuid.uuid4().hex},
         settings.secret_key.get_secret_value(),
         algorithm=JWT_ALGORITHM,
     )
 
 
-def decode_access_token(token: str) -> str | None:
+def decode_access_token_claims(token: str) -> dict | None:
+    """Verified claims (signature, algorithm, expiry, required claims) or None."""
     try:
         payload = jwt.decode(
             token,
@@ -68,9 +72,26 @@ def decode_access_token(token: str) -> str | None:
         )
     except jwt.InvalidTokenError:
         return None
+    if not isinstance(payload.get("sub"), str) or not isinstance(payload.get("jti"), str):
+        return None
+    return payload
 
-    subject = payload.get("sub")
-    return subject if isinstance(subject, str) else None
+
+def decode_access_token(token: str) -> str | None:
+    payload = decode_access_token_claims(token)
+    return payload["sub"] if payload else None
+
+
+async def revoke_access_token(database: AsyncDatabase, token: str) -> bool:
+    """Logout: the token stops working on the server too, not only in this browser."""
+    payload = decode_access_token_claims(token)
+    if payload is None:
+        return False
+    expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    await database[REVOKED_TOKENS].update_one(
+        {"_id": payload["jti"]}, {"$setOnInsert": {"expires_at": expires_at}}, upsert=True
+    )
+    return True
 
 
 async def register_user(
@@ -123,9 +144,12 @@ async def authenticate_user(
 async def get_user_from_access_token(
     database: AsyncDatabase, token: str
 ) -> RegisteredUser | None:
-    user_id = decode_access_token(token)
-    if user_id is None:
+    payload = decode_access_token_claims(token)
+    if payload is None:
         return None
+    if await database[REVOKED_TOKENS].find_one({"_id": payload["jti"]}, {"_id": 1}):
+        return None
+    user_id = payload["sub"]
 
     user = await UserRepository(database).find_by_id(user_id)
     if user is None or "_id" not in user:

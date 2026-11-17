@@ -219,4 +219,69 @@ describe('App routes and authentication', () => {
     expect(await screen.findByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'בחירת כיוון עיצובי' })).not.toBeInTheDocument();
   });
+
+  it('hides private pages immediately when the server reports the session ended (401)', async () => {
+    let sessionValid = true;
+    const fetchMock = vi.fn(async (url) => {
+      if (url === '/api/courses/mine') return sessionValid ? jsonResponse(200, []) : jsonResponse(401, {});
+      return sessionValid ? jsonResponse(200, userInfo) : jsonResponse(401, {});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/dashboard');
+    render(<App />);
+    await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ });
+
+    // Logged out in another tab / token revoked: the next API answer is 401.
+    sessionValid = false;
+    window.history.pushState({}, '', '/courses');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+    expect(screen.queryByText(/נועה ישראלי/)).not.toBeInTheDocument();
+  });
+
+  it('clears the signed-in screen even when the logout request fails', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (url === '/api/courses/mine') return jsonResponse(200, []);
+      if (url === '/api/auth/logout') throw new TypeError('offline');
+      return jsonResponse(200, userInfo);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/dashboard');
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ });
+    await user.click(screen.getByRole('button', { name: 'התנתקות' }));
+
+    expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
+    expect(screen.queryByText(/נועה ישראלי/)).not.toBeInTheDocument();
+  });
+
+  it('after Back from the login page following logout, the protected page is not shown', async () => {
+    let loggedOut = false;
+    const fetchMock = vi.fn(async (url) => {
+      if (url === '/api/courses/mine') return loggedOut ? jsonResponse(401, {}) : jsonResponse(200, []);
+      if (url === '/api/auth/logout') {
+        loggedOut = true;
+        return jsonResponse(200, { message: 'Logged out successfully.' });
+      }
+      return loggedOut ? jsonResponse(401, {}) : jsonResponse(200, userInfo);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState({}, '', '/dashboard');
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: /ברוך שובך, נועה ישראלי/ });
+    await user.click(screen.getByRole('button', { name: 'התנתקות' }));
+    await screen.findByRole('heading', { name: 'חוזרים לפוקוס' });
+
+    // The browser goes back to /dashboard (history entry still exists).
+    window.history.pushState({}, '', '/dashboard');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    expect(screen.queryByRole('heading', { name: /ברוך שובך/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe('/login'));
+    expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /ברוך שובך/ })).not.toBeInTheDocument();
+  });
 });

@@ -1124,6 +1124,24 @@ input {
   justify-self: end;
 }
 
+.signature-learning-header-actions {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 14px;
+}
+
+.signature-header-logout {
+  padding: 4px 10px;
+  border: 1px solid var(--signature-line);
+  border-radius: 8px;
+}
+
+.signature-header-logout:hover {
+  color: var(--signature-primary);
+  border-color: var(--signature-primary);
+}
+
 .signature-learning-layout {
   display: grid;
   width: min(1300px, calc(100% - 46px));

@@ -68,6 +68,8 @@ async def create_indexes() -> None:
 
     db = get_database()
     await db.users.create_index("email", unique=True)
+    # Logged-out tokens are forgotten once they would have expired anyway.
+    await db.revoked_tokens.create_index("expires_at", expireAfterSeconds=0)
     await create_course_indexes(db)
     await create_learning_indexes(db)
 

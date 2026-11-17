@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HeaderLogoutButton } from '../../components/AppShell.jsx';
 import SignatureBrand from '../../components/SignatureBrand.jsx';
 import { completeLesson, formatDuration } from '../courses/coursesApi.js';
 import { courseUrl, lessonUrl } from '../courses/courseRoutes.js';
@@ -16,11 +17,14 @@ export default function LessonHeader({ context }) {
           <a href="/review">חזרה חכמה</a>
           <a href="/insights">תובנות</a>
         </nav>
-        {context && (
-          <a className="signature-learning-back" href={courseUrl(context.course.id)}>
-            חזרה לקורס <span aria-hidden="true">←</span>
-          </a>
-        )}
+        <div className="signature-learning-header-actions">
+          {context && (
+            <a className="signature-learning-back" href={courseUrl(context.course.id)}>
+              חזרה לקורס <span aria-hidden="true">←</span>
+            </a>
+          )}
+          <HeaderLogoutButton />
+        </div>
       </header>
 
       <div className="smart-learning-heading lesson-heading">

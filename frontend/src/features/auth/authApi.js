@@ -5,6 +5,9 @@
 // first-party. VITE_API_URL can still point at a separate API origin.
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 export const REQUEST_TIMEOUT_MS = 15000;
+// Dispatched on window when any API call answers 401: the server no longer
+// accepts this session (logged out elsewhere, expired or revoked).
+export const SESSION_ENDED_EVENT = 'focusmind:session-ended';
 
 export class ApiNetworkError extends Error {
   constructor(message = 'The server could not be reached.') {
