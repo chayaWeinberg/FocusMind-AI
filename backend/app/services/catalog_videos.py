@@ -100,7 +100,7 @@ async def apply_choices(database: AsyncDatabase, choices: dict[tuple[str, str], 
     entries = all_entries()
     courses = {
         row["slug"]: row
-        async for row in database.courses.find({"type": "catalog", "slug": {"$in": list({e.course_slug for e in entries})}})
+        async for row in database.courses.find({"type": "catalog", "retired": {"$ne": True}, "slug": {"$in": list({e.course_slug for e in entries})}})
     }
     for entry in entries:
         key = (entry.course_slug, entry.seed_key)

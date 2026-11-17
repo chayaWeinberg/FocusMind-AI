@@ -151,7 +151,9 @@ async def history_items(database: AsyncDatabase, repository: LearningSessionRepo
     lesson_ids = list({row["lesson_id"] for row in sessions})
     course_ids = list({row["course_id"] for row in sessions})
     lessons = {row["_id"]: row["title"] async for row in database.lessons.find({"_id": {"$in": lesson_ids}}, {"title": 1})}
-    courses = {row["_id"]: row["title"] async for row in database.courses.find({"_id": {"$in": course_ids}}, {"title": 1})}
+    # Retired demonstration courses are hidden from the history as well.
+    courses = {row["_id"]: row["title"] async for row in database.courses.find({"_id": {"$in": course_ids}, "retired": {"$ne": True}}, {"title": 1})}
+    sessions = [row for row in sessions if row["course_id"] in courses]
     video = await repository.video_seconds([row["_id"] for row in sessions])
     now = utcnow()
     return [

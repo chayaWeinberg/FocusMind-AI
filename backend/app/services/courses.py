@@ -133,8 +133,8 @@ class CourseService:
         return await self.enrollments.is_enrolled(self.user_id, course["_id"])
 
     def _visible(self, course: CourseDocument | None) -> bool:
-        if course is None:
-            return False
+        if course is None or course.get("retired"):
+            return False  # retired demonstration courses are hidden from everyone
         if course["type"] == "personal":
             return self.is_owner(course)
         return course.get("status") == "published" or self.is_manager
@@ -254,7 +254,6 @@ class CourseService:
             type=course["type"],
             status=course.get("status", "published"),
             difficulty=course.get("difficulty"),
-            demo_lab=bool(course.get("demo_lab")),
             is_owner=self.is_owner(course),
             enrolled=enrolled,
             lesson_count=lesson_count,
@@ -286,7 +285,7 @@ class CourseService:
         enrolled_courses = {
             course["_id"]: course
             for course in await self.courses.find_many(enrolled_ids)
-            if course["type"] == "catalog" and course.get("status") == "published"
+            if course["type"] == "catalog" and course.get("status") == "published" and not course.get("retired")
         }
         courses = personal + [enrolled_courses[cid] for cid in enrolled_ids if cid in enrolled_courses]
         ids = [course["_id"] for course in courses]
@@ -376,6 +375,19 @@ class CourseService:
             {"user_id": self.user_id, "course_id": course["_id"], "enrolled_at": utcnow()}
         )
         return await self.course_detail(course_id), created
+
+    async def unenroll(self, course_id: str) -> None:
+        """Leave a catalog course. Only the user's own enrollment is removed; the
+        course, its lessons and other learners are untouched. The learner's
+        progress, sessions, ReplayAI items and quiz answers are kept (private
+        history, restored on re-enrolling, deletable on /privacy); a study goal
+        for this course is removed because it can no longer be followed."""
+        course = await self.course_for_view(course_id)
+        if course["type"] != "catalog":
+            raise ConflictError("Only catalog courses can be left. Delete a personal course instead.")
+        if not await self.enrollments.unenroll(self.user_id, course["_id"]):
+            raise NotFoundError("You are not enrolled in this course.")
+        await self.database.study_goals.delete_many({"user_id": self.user_id, "course_id": course["_id"]})
 
     async def course_progress(self, course_id: str) -> CourseProgress:
         course = await self.course_for_view(course_id)
@@ -616,7 +628,7 @@ class CourseService:
 
     async def admin_catalog(self) -> list[dict]:
         self.require_manager()
-        courses = await self.database.courses.find({"type": "catalog"}).sort("title", 1).to_list(500)
+        courses = await self.database.courses.find({"type": "catalog", "retired": {"$ne": True}}).sort("title", 1).to_list(500)
         ids = [course["_id"] for course in courses]
         counts = await self.lessons.count_by_course(ids)
         cursor = await self.database.lessons.aggregate([

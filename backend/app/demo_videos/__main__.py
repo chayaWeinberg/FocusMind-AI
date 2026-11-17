@@ -1,12 +1,12 @@
-"""Install the generated demonstration videos into the catalog lessons.
+"""Install the bundled lesson videos (FocusMind Academy) into the catalog lessons.
 
     python -m app.demo_videos install <directory with manifest.json>
     python -m app.demo_videos install <directory> --dry-run
     python -m app.demo_videos install <directory> --kind academy   # or --kind demo
 
-Docker (the files are generated on the host, see docs/catalog-videos.md):
-    docker compose cp demo-videos backend:/tmp/demo-videos
-    docker compose exec backend python -m app.demo_videos install /tmp/demo-videos
+Docker (development stack; the production image installs them on startup):
+    docker compose cp backend/demo_assets backend:/tmp/lesson-videos
+    docker compose exec backend python -m app.demo_videos install /tmp/lesson-videos --kind academy
 
 Safe to run again: identical videos are reported as "unchanged".
 """

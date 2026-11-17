@@ -7,7 +7,7 @@ are created without a video (no fabricated links); existing lesson videos,
 user progress and enrollments are never touched.
 
 Run manually:   python -m app.seed
-Or on startup:  SEED_CATALOG=true (off by default, never implicit in production)
+Or on startup:  SEED_CATALOG=true (off by default in development, on in the production image)
 """
 
 from datetime import datetime, timezone
@@ -16,57 +16,12 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from app.repositories.courses import CourseRepository, LessonRepository
 
-CATALOG = [
-    {
-        "slug": "python-for-beginners",
-        "title": "Python למתחילים",
-        "category": "תכנות",
-        "description": (
-            "צעדים ראשונים בתכנות עם Python: משתנים, תנאים, לולאות, פונקציות ועבודה עם רשימות "
-            "ומילונים. מתאים למי שלא תכנת מעולם."
-        ),
-        "lessons": [
-            ("intro", "היכרות עם Python וסביבת העבודה", "התקנה, הרצת קוד ראשון והכרת המפרש האינטראקטיבי."),
-            ("variables", "משתנים וטיפוסי נתונים", "מספרים, מחרוזות, ערכים בוליאניים והמרות בין טיפוסים."),
-            ("conditions", "תנאים וקבלת החלטות", "if, elif ו-else, אופרטורים לוגיים והשוואות."),
-            ("loops", "לולאות", "לולאות for ו-while, range, break ו-continue."),
-            ("functions", "פונקציות", "הגדרת פונקציות, פרמטרים, ערכי החזרה ותחום משתנים."),
-            ("collections", "רשימות ומילונים", "יצירה, גישה ועדכון של רשימות ומילונים, ומעבר עליהם בלולאה."),
-        ],
-    },
-    {
-        "slug": "sql-fundamentals",
-        "title": "יסודות SQL",
-        "category": "נתונים",
-        "description": (
-            "שליפה, סינון וסיכום נתונים במסדי נתונים רלציוניים. בסוף הקורס תכתבו שאילתות עם JOIN "
-            "ו-GROUP BY בביטחון."
-        ),
-        "lessons": [
-            ("relational", "מה זה מסד נתונים רלציוני", "טבלאות, שורות, עמודות ומפתחות ראשיים."),
-            ("select", "שליפת נתונים עם SELECT", "בחירת עמודות, WHERE, ORDER BY ו-LIMIT."),
-            ("aggregate", "פונקציות סיכום", "COUNT, SUM, AVG, GROUP BY ו-HAVING."),
-            ("joins", "חיבור טבלאות", "INNER JOIN, LEFT JOIN ומפתחות זרים."),
-            ("modify", "הוספה ועדכון נתונים", "INSERT, UPDATE ו-DELETE בזהירות."),
-        ],
-    },
-    {
-        "slug": "intro-to-ai",
-        "title": "מבוא לבינה מלאכותית",
-        "category": "בינה מלאכותית",
-        "description": (
-            "מושגי היסוד של בינה מלאכותית ולמידת מכונה: איך מודלים לומדים מנתונים, איפה הם טועים "
-            "ואיך משתמשים בהם באחריות."
-        ),
-        "lessons": [
-            ("what-is-ai", "מהי בינה מלאכותית", "היסטוריה קצרה, סוגי בינה מלאכותית ודוגמאות מהיומיום."),
-            ("machine-learning", "למידת מכונה", "למידה מפוקחת ולא מפוקחת, נתוני אימון ובדיקה."),
-            ("neural-networks", "רשתות נוירונים", "נוירון מלאכותי, שכבות ואימון בעזרת שגיאה."),
-            ("language-models", "מודלי שפה", "איך מודלי שפה גדולים פועלים ומה המגבלות שלהם."),
-            ("responsible-ai", "בינה מלאכותית אחראית", "הטיות, פרטיות ושקיפות בשימוש במודלים."),
-        ],
-    },
-]
+# The three original demonstration courses (short sample videos), retired on
+# 17.11.2026. They are identified by their stable seed slugs, never by title.
+# The seed no longer creates them; existing copies are marked ``retired``
+# (hidden everywhere, data kept, reversible by unsetting the flag).
+RETIRED_COURSE_SLUGS = ("python-for-beginners", "sql-fundamentals", "intro-to-ai")
+
 
 # FocusMind Academy: original full lessons (about 3 minutes each) that play
 # inside FocusMind with progress, attention tracking and ReplayAI. Videos come
@@ -135,13 +90,24 @@ ACADEMY = [
 ]
 
 
+async def retire_demo_courses(database: AsyncDatabase, now: datetime | None = None) -> int:
+    """Hide the retired demonstration courses (by slug). Nothing is deleted:
+    lessons, enrollments, progress and video assets stay in the database.
+    Returns how many courses were newly retired."""
+    result = await database.courses.update_many(
+        {"type": "catalog", "slug": {"$in": list(RETIRED_COURSE_SLUGS)}, "retired": {"$ne": True}},
+        {"$set": {"retired": True, "retired_at": now or datetime.now(timezone.utc)}},
+    )
+    return result.modified_count
+
+
 async def seed_catalog(database: AsyncDatabase) -> int:
     """Creates or updates the example catalog. Returns the number of courses."""
     courses = CourseRepository(database)
     lessons = LessonRepository(database)
     now = datetime.now(timezone.utc)
-    for course in [*ACADEMY, *CATALOG]:
-        academy = course in ACADEMY
+    await retire_demo_courses(database, now)
+    for course in ACADEMY:
         existing = await database.courses.find_one({"slug": course["slug"]}, {"edited_by_manager": 1})
         if existing and existing.get("edited_by_manager"):
             continue  # a content manager owns this course now: never overwrite their edits
@@ -155,10 +121,8 @@ async def seed_catalog(database: AsyncDatabase) -> int:
                 "owner_id": None,
                 "status": "published",
                 "difficulty": course.get("difficulty", "beginner"),
-                # Academy courses have full original lessons; the others have
-                # short demonstration videos (python -m app.demo_videos).
-                "academy": academy,
-                "demo_lab": not academy,
+                # Full original lessons that play inside FocusMind.
+                "academy": True,
             },
             now,
         )
@@ -169,4 +133,4 @@ async def seed_catalog(database: AsyncDatabase) -> int:
     from app.seed.library import seed_library
 
     library_courses, _ = await seed_library(database)
-    return len(ACADEMY) + len(CATALOG) + library_courses
+    return len(ACADEMY) + library_courses

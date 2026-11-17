@@ -13,11 +13,11 @@ from pymongo import AsyncMongoClient
 
 from app.core.config import settings
 from app.main import app
-from app.seed.catalog import ACADEMY, CATALOG
+from app.seed.catalog import ACADEMY
 from app.seed.catalog_library import LIBRARY
 
 # Seeded catalog: 3 demonstration courses + the video library.
-SEEDED = {course["title"]: len(course["lessons"]) for course in ACADEMY + CATALOG + LIBRARY}
+SEEDED = {course["title"]: len(course["lessons"]) for course in ACADEMY + LIBRARY}
 
 MP4_HEADER = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom"
 WEBM_HEADER = b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81\x01\x42\xf7\x81\x01\x42\x82\x84webm"
@@ -309,18 +309,18 @@ def test_users_cannot_access_each_others_private_courses(client: TestClient) -> 
 def test_catalog_browse_enroll_and_progress(client: TestClient) -> None:
     sign_in(client, "ada")
     catalog = client.get("/api/courses/catalog").json()
-    assert len(catalog) == len(SEEDED) == 18
+    assert len(catalog) == len(SEEDED) == 15  # 5 Academy + 10 library courses
     assert all(course["type"] == "catalog" and not course["enrolled"] for course in catalog)
     assert "תכנות" in client.get("/api/courses/catalog/categories").json()
     found = client.get("/api/courses/catalog", params={"q": "SQL"}).json()
-    assert sorted(course["title"] for course in found) == sorted(["יסודות SQL", "SQL ומסדי נתונים", "SQL לניתוח נתונים"])
-    sql = [course for course in found if course["title"] == "יסודות SQL"]
+    assert sorted(course["title"] for course in found) == sorted(["SQL ומסדי נתונים", "SQL לניתוח נתונים"])
+    sql = [course for course in found if course["title"] == "SQL לניתוח נתונים"]
     data_courses = client.get("/api/courses/catalog", params={"category": "נתונים"}).json()
     assert sql[0]["id"] in [course["id"] for course in data_courses]
 
     course_id = sql[0]["id"]
     detail = client.get(f"/api/courses/{course_id}").json()
-    assert not detail["canEdit"] and not detail["canLearn"] and len(detail["lessons"]) == 5
+    assert not detail["canEdit"] and not detail["canLearn"] and len(detail["lessons"]) == 3
     assert all(lesson["video"]["sourceType"] == "none" for lesson in detail["lessons"])
     lesson_id = detail["lessons"][0]["id"]
 
@@ -336,9 +336,9 @@ def test_catalog_browse_enroll_and_progress(client: TestClient) -> None:
     mine = client.get("/api/courses/mine").json()
     assert [course["id"] for course in mine] == [course_id]
     assert mine[0]["enrolled"] and mine[0]["progress"] == {
-        "completedLessons": 0, "totalLessons": 5, "percent": 0, "continueLessonId": lesson_id,
+        "completedLessons": 0, "totalLessons": 3, "percent": 0, "continueLessonId": lesson_id,
     }
-    # Seeded lessons have no video yet, so they cannot be completed.
+    # Without the bundled videos (not installed in these tests) a lesson cannot be completed.
     assert client.post(f"/api/lessons/{lesson_id}/complete").status_code == 409
 
     # Another user's enrollment and progress are independent.

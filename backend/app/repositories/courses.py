@@ -64,7 +64,7 @@ class CourseRepository:
         return await self._courses.find({"_id": {"$in": course_ids}}).to_list(None)
 
     async def list_catalog(self, query: str | None, category: str | None) -> list[CourseDocument]:
-        criteria: dict = {"type": "catalog", "status": "published"}
+        criteria: dict = {"type": "catalog", "status": "published", "retired": {"$ne": True}}
         if category:
             criteria["category"] = category
         if query:
@@ -74,7 +74,7 @@ class CourseRepository:
         return await self._courses.find(criteria).sort([("academy", DESCENDING), ("title", ASCENDING)]).limit(200).to_list(None)
 
     async def catalog_categories(self) -> list[str]:
-        values = await self._courses.distinct("category", {"type": "catalog", "status": "published"})
+        values = await self._courses.distinct("category", {"type": "catalog", "status": "published", "retired": {"$ne": True}})
         return sorted(value for value in values if value)
 
     async def list_personal(self, owner_id: ObjectId) -> list[CourseDocument]:
@@ -182,6 +182,11 @@ class EnrollmentRepository:
     async def course_ids_for_user(self, user_id: ObjectId) -> list[ObjectId]:
         cursor = self._enrollments.find({"user_id": user_id}).sort("enrolled_at", DESCENDING)
         return [row["course_id"] async for row in cursor]
+
+    async def unenroll(self, user_id: ObjectId, course_id: ObjectId) -> bool:
+        """Removes only this user's enrollment. True when one existed."""
+        result = await self._enrollments.delete_one({"user_id": user_id, "course_id": course_id})
+        return result.deleted_count == 1
 
     async def delete_for_course(self, course_id: ObjectId) -> None:
         await self._enrollments.delete_many({"course_id": course_id})

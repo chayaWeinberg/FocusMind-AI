@@ -7,7 +7,7 @@ import urllib.error
 import pytest
 from fastapi.testclient import TestClient
 
-from app.seed.catalog_videos import LESSON_VIDEOS
+from app.seed.catalog_videos import all_entries
 from app.services import catalog_videos
 from app.services.catalog_videos import BLOCKED, PLAYABLE, REACHABLE, UNAVAILABLE, apply_choices, choose, probe
 from app.services.external_video import InvalidVideoUrlError, parse_external_video
@@ -75,18 +75,20 @@ def test_choose_prefers_the_most_integrated_reachable_candidate() -> None:
     assert choose({}, "direct") == "direct"
 
 
+COURSE = "python-programming"  # a library course: every lesson has a direct, YouTube or page candidate
+
+
 def test_every_curated_url_is_a_valid_supported_link() -> None:
-    assert len(LESSON_VIDEOS) == 15
-    for entry in LESSON_VIDEOS:
-        direct, youtube, page = (url for _, url in entry.lecture.candidates())
-        assert parse_external_video(direct)["provider"] == "direct"
-        assert parse_external_video(youtube)["provider"] == "youtube"
-        assert parse_external_video(page, "page")["provider"] == "page"
+    entries = all_entries()
+    assert len(entries) == 116  # the library; the retired demonstration courses have none
+    for entry in entries:
+        for kind, url in entry.lecture.candidates():
+            assert parse_external_video(url, "page" if kind == "page" else "video")["provider"] == kind
         assert entry.match in ("full", "partial")
 
 
-def choices_for(mode: str) -> dict:
-    return {(entry.course_slug, entry.seed_key): mode for entry in LESSON_VIDEOS}
+def choices_for(mode: str, course: str = COURSE) -> dict:
+    return {(entry.course_slug, entry.seed_key): mode for entry in all_entries() if entry.course_slug == course}
 
 
 def test_apply_attaches_videos_safely_and_idempotently(client: TestClient, env: dict) -> None:
@@ -95,53 +97,50 @@ def test_apply_attaches_videos_safely_and_idempotently(client: TestClient, env: 
     client.cookies.clear()
     client.post("/api/auth/login", json={"email": "editor@example.com", "password": "correct horse battery staple"})
     catalog = {row["title"]: row for row in client.get("/api/admin/catalog").json()}
-    python = client.get(f"/api/courses/{catalog['Python למתחילים']['id']}").json()
-    lessons = {lesson["title"]: lesson for lesson in python["lessons"]}
-    # A manager's own upload, and a video the manager removed on purpose.
-    own = lessons["פונקציות"]
+    python = client.get(f"/api/courses/{catalog['תכנות ב-Python']['id']}").json()
+    lessons = python["lessons"]
+    total = len(lessons)
+    # The seed links every library lesson to its page; a manager's own upload,
+    # and a video the manager removed on purpose, must stay as they are.
+    own, removed = lessons[1], lessons[2]
     assert upload(client, own["id"], fake_video()).status_code == 200
-    removed = lessons["לולאות"]
-    client.put(f"/api/lessons/{removed['id']}/video-url", json={"url": "https://cdn.example.com/x.mp4"})
     client.delete(f"/api/lessons/{removed['id']}/video")
 
     outcomes = db_call(env, lambda db: apply_choices(db, choices_for("page")))
-    by_key = {outcome.seed_key: outcome for outcome in outcomes if outcome.course_slug == "python-for-beginners"}
-    assert by_key["functions"].action == "skipped" and "own video" in by_key["functions"].detail
-    assert by_key["loops"].action == "skipped" and "removed" in by_key["loops"].detail
-    assert sum(outcome.action == "attached" for outcome in outcomes) == 13
+    by_key = {outcome.seed_key: outcome for outcome in outcomes if outcome.course_slug == COURSE}
+    own_key, removed_key = list(by_key)[1], list(by_key)[2]
+    assert by_key[own_key].action == "skipped" and "own video" in by_key[own_key].detail
+    assert by_key[removed_key].action == "skipped" and "removed" in by_key[removed_key].detail
+    assert sum(outcome.action == "unchanged" for outcome in by_key.values()) == total - 2
 
-    # Second run: nothing changes. A later direct run switches only tool-set videos.
-    again = db_call(env, lambda db: apply_choices(db, choices_for("page")))
-    assert {outcome.action for outcome in again} == {"unchanged", "skipped"}
+    # A direct run switches only the tool-set videos, then is idempotent.
     switched = db_call(env, lambda db: apply_choices(db, choices_for("direct")))
-    assert sum(outcome.action == "attached" for outcome in switched) == 13
+    assert sum(outcome.action == "attached" for outcome in switched) == total - 2
+    again = db_call(env, lambda db: apply_choices(db, choices_for("direct")))
+    assert {outcome.action for outcome in again} == {"unchanged", "skipped"}
 
     detail = client.get(f"/api/courses/{python['id']}").json()
-    video = {lesson["title"]: lesson["video"] for lesson in detail["lessons"]}
-    assert video["פונקציות"]["sourceType"] == "upload"
-    assert video["לולאות"]["sourceType"] == "none"
-    assert video["משתנים וטיפוסי נתונים"] == {
-        "sourceType": "external", "provider": "direct",
-        "url": "https://cdn.cs50.net/python/2022/x/lectures/0/lecture0-720p.mp4",
-        "embedUrl": None, "originalName": None, "sizeBytes": None, "trackable": True,
-        "sourceName": "CS50P, Lecture 0: Functions, Variables",
-        "sourceUrl": "https://cs50.harvard.edu/python/2022/weeks/0/", "license": "CC BY-NC-SA 4.0", "demo": False, "academy": False,
-    }
-    # The tool does not mark the course as edited by a manager.
-    course = db_call(env, lambda db: db.courses.find_one({"slug": "intro-to-ai"}))
+    video = {lesson["id"]: lesson["video"] for lesson in detail["lessons"]}
+    assert video[own["id"]]["sourceType"] == "upload"
+    assert video[removed["id"]]["sourceType"] == "none"
+    first = video[lessons[0]["id"]]
+    assert first["sourceType"] == "external" and first["provider"] == "direct" and first["trackable"] is True
+    assert first["academy"] is False and first["demo"] is False
+    # The tool itself never marks a course as edited by a manager (here a
+    # course the manager did not touch).
+    other = db_call(env, lambda db: apply_choices(db, choices_for("direct", "react")))
+    assert "attached" in {outcome.action for outcome in other}
+    course = db_call(env, lambda db: db.courses.find_one({"slug": "react"}))
     assert not course.get("edited_by_manager")
-    ai = db_call(env, lambda db: db.lessons.find_one({"course_id": course["_id"], "seed_key": "responsible-ai"}))
-    assert ai["video"]["source_type"] == "none"  # no matching lecture: nothing invented
 
 
 def test_external_page_lessons_are_learned_without_tracking(client: TestClient, env: dict) -> None:
-    db_call(env, lambda db: apply_choices(db, choices_for("page")))
     sign_in(client, "learner")
-    course = next(row for row in client.get("/api/courses/catalog").json() if row["title"] == "יסודות SQL")
+    course = next(row for row in client.get("/api/courses/catalog").json() if row["title"] == "SQL ומסדי נתונים")
     client.post(f"/api/courses/{course['id']}/enroll")
     lesson = client.get(f"/api/courses/{course['id']}").json()["lessons"][1]
     assert lesson["video"]["provider"] == "page" and lesson["video"]["trackable"] is False
-    assert lesson["video"]["url"] == "https://cs50.harvard.edu/sql/2024/weeks/0/"
+    assert lesson["video"]["url"] == lesson["resource"]["pageUrl"]
 
     assert client.put(f"/api/lessons/{lesson['id']}/progress", json={"positionSeconds": 5}).status_code == 409
     replay = client.get(f"/api/lessons/{lesson['id']}/replay").json()

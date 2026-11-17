@@ -245,11 +245,17 @@ class ReplayService:
         lesson_ids = list({item["lesson_id"] for item in items})
         lessons = {row["_id"]: row async for row in self.database.lessons.find({"_id": {"$in": lesson_ids}}, {"title": 1, "order": 1, "course_id": 1})}
         course_ids = list({row["course_id"] for row in lessons.values()})
-        courses = {row["_id"]: row async for row in self.database.courses.find({"_id": {"$in": course_ids}}, {"title": 1})}
+        courses = {row["_id"]: row async for row in self.database.courses.find({"_id": {"$in": course_ids}}, {"title": 1, "type": 1, "retired": 1})}
+        # Only items the learner can open now: own courses and enrolled catalog
+        # courses (after leaving a course its items stay stored, but hidden here).
+        enrolled = {row["course_id"] async for row in self.database.enrollments.find({"user_id": self.user_id}, {"course_id": 1})}
         result = []
         for item in sorted(items, key=lambda row: (str(row["course_id"]), lessons.get(row["lesson_id"], {}).get("order", 0), row["start_seconds"])):
             lesson = lessons.get(item["lesson_id"])
             if lesson is None:
+                continue
+            course = courses.get(lesson["course_id"])
+            if course is None or course.get("retired") or (course.get("type") == "catalog" and lesson["course_id"] not in enrolled):
                 continue
             result.append(item_out(item, lesson.get("title"), courses.get(lesson["course_id"], {}).get("title")))
         return result

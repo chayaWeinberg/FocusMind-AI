@@ -24,7 +24,9 @@ class CourseDocument(TypedDict):
     status: CourseStatus
     slug: NotRequired[str]  # stable key of seeded catalog courses
     difficulty: NotRequired[str]  # beginner | intermediate | advanced
-    demo_lab: NotRequired[bool]  # lessons play local demonstration videos
+    academy: NotRequired[bool]  # FocusMind Academy: full lessons that play here
+    external_library: NotRequired[bool]  # lessons link to lectures on their own sites
+    retired: NotRequired[bool]  # retired demonstration course: hidden everywhere, data kept
     created_at: datetime
     updated_at: datetime
 

@@ -389,7 +389,7 @@ def test_seed_does_not_overwrite_a_course_a_manager_edited(client: TestClient, e
     grant_manager(env, "editor")
     client.cookies.clear()
     client.post("/api/auth/login", json={"email": "editor@example.com", "password": "correct horse battery staple"})
-    course = next(row for row in client.get("/api/admin/catalog").json() if row["title"] == "Python למתחילים")
+    course = next(row for row in client.get("/api/admin/catalog").json() if row["title"] == "Python בפועל")
     client.patch(f"/api/courses/{course['id']}", json={"title": "Python - edited", "status": "draft"})
 
     db_call(env, lambda db: seed_catalog(db))

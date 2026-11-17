@@ -212,7 +212,6 @@ class CourseOut(ApiModel):
     type: Literal["catalog", "personal"]
     status: Literal["published", "draft"]
     difficulty: Literal["beginner", "intermediate", "advanced"] | None = None
-    demo_lab: bool = False  # lessons play local demonstration videos
     is_owner: bool
     enrolled: bool
     lesson_count: int

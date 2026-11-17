@@ -90,6 +90,13 @@ async def enroll(course_id: str, response: Response, database: Database, user: C
     return detail
 
 
+@router.delete("/courses/{course_id}/enroll", status_code=status.HTTP_204_NO_CONTENT)
+async def unenroll(course_id: str, database: Database, user: CurrentUser) -> Response:
+    # Only the signed-in user's own enrollment; the course itself is untouched.
+    await service(database, user).unenroll(course_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/courses/{course_id}/progress", response_model=CourseProgress)
 async def course_progress(course_id: str, database: Database, user: CurrentUser) -> CourseProgress:
     return await service(database, user).course_progress(course_id)
