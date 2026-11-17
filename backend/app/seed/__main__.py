@@ -11,7 +11,7 @@ async def main() -> None:
     await initialize_db(settings.mongo_uri, settings.mongo_db_name, settings.mongo_timeout_ms)
     try:
         count = await seed_catalog(get_database())
-        print(f"Catalog seeded: {count} courses (existing data kept).")
+        print(f"Catalog seeded: {count} courses (existing data, edited courses and chosen videos kept).")
     finally:
         await close_db()
 

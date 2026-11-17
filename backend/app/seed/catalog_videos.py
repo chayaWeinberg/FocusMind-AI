@@ -32,15 +32,18 @@ class Lecture:
     key: str
     name: str
     page_url: str
-    direct_url: str
-    youtube_id: str
+    direct_url: str | None
+    youtube_id: str | None
+    license: str = LICENSE
 
     def candidates(self) -> list[tuple[str, str]]:
-        return [
-            ("direct", self.direct_url),
-            ("youtube", f"https://www.youtube.com/watch?v={self.youtube_id}"),
-            ("page", self.page_url),
-        ]
+        found = []
+        if self.direct_url:
+            found.append(("direct", self.direct_url))
+        if self.youtube_id:
+            found.append(("youtube", f"https://www.youtube.com/watch?v={self.youtube_id}"))
+        found.append(("page", self.page_url))
+        return found
 
 
 def _lecture(key: str, name: str, page: str, cdn: str, youtube_id: str) -> Lecture:
@@ -102,3 +105,30 @@ NETFREE_RESULTS = {
     "youtube": "blocked: HTTP 418 for the embed and for the video stream",
     "page": "accessible: HTTP 200, the page opens in Edge; its embedded videos are YouTube/MP4 and therefore blocked too",
 }
+
+
+def library_entries() -> list[LessonVideo]:
+    """Lessons of the expanded catalog (app/seed/catalog_library.py)."""
+    from app.seed.catalog_library import LIBRARY
+
+    entries = []
+    for course in LIBRARY:
+        for lesson in course["lessons"]:
+            video = lesson["video"]
+            entries.append(LessonVideo(
+                course["slug"], lesson["key"],
+                Lecture(
+                    key=f"{course['slug']}/{lesson['key']}",
+                    name=video["source_title"],
+                    page_url=video["page_url"],
+                    direct_url=video.get("direct_url"),
+                    youtube_id=video.get("youtube_id"),
+                    license=video["license"],
+                ),
+                "full",
+            ))
+    return entries
+
+
+def all_entries() -> list[LessonVideo]:
+    return LESSON_VIDEOS + library_entries()

@@ -223,6 +223,7 @@ class CourseService:
             duration_seconds=lesson.get("duration_seconds"),
             video=await self._video_out(lesson.get("video", {"source_type": "none"})),
             reference=lesson.get("reference") if (lesson.get("reference") or {}).get("url") else None,
+            resource=lesson.get("resource") if (lesson.get("resource") or {}).get("page_url") else None,
             progress=self._progress_out(progress),
         )
 
@@ -251,6 +252,8 @@ class CourseService:
             category=course.get("category", ""),
             type=course["type"],
             status=course.get("status", "published"),
+            difficulty=course.get("difficulty"),
+            demo_lab=bool(course.get("demo_lab")),
             is_owner=self.is_owner(course),
             enrolled=enrolled,
             lesson_count=lesson_count,

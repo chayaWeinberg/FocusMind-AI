@@ -24,9 +24,9 @@ from dataclasses import dataclass
 
 from pymongo.asynchronous.database import AsyncDatabase
 
-from app.seed.catalog_videos import LICENSE, LESSON_VIDEOS, LessonVideo
+from app.seed.catalog_videos import LessonVideo, all_entries
 from app.services.courses import utcnow
-from app.services.external_video import parse_external_video
+from app.services.external_video import InvalidVideoUrlError, parse_external_video
 
 PLAYABLE = "playable"
 REACHABLE = "reachable"
@@ -82,7 +82,7 @@ def choose(results: dict[str, str], mode: str) -> str | None:
 def video_document(entry: LessonVideo, kind: str) -> dict:
     url = dict(entry.lecture.candidates())[kind]
     video = parse_external_video(url, "page" if kind == "page" else "video")
-    video["source"] = {"name": entry.lecture.name, "page_url": entry.lecture.page_url, "license": LICENSE}
+    video["source"] = {"name": entry.lecture.name, "page_url": entry.lecture.page_url, "license": entry.lecture.license}
     video["catalog_video_key"] = f"{entry.lecture.key}:{kind}"
     return video
 
@@ -97,11 +97,12 @@ class Outcome:
 
 async def apply_choices(database: AsyncDatabase, choices: dict[tuple[str, str], str | None], dry_run: bool = False) -> list[Outcome]:
     outcomes: list[Outcome] = []
+    entries = all_entries()
     courses = {
         row["slug"]: row
-        async for row in database.courses.find({"type": "catalog", "slug": {"$in": list({e.course_slug for e in LESSON_VIDEOS})}})
+        async for row in database.courses.find({"type": "catalog", "slug": {"$in": list({e.course_slug for e in entries})}})
     }
-    for entry in LESSON_VIDEOS:
+    for entry in entries:
         key = (entry.course_slug, entry.seed_key)
         course = courses.get(entry.course_slug)
         lesson = await database.lessons.find_one({"course_id": course["_id"], "seed_key": entry.seed_key}) if course else None
@@ -117,10 +118,17 @@ async def apply_choices(database: AsyncDatabase, choices: dict[tuple[str, str], 
             outcomes.append(Outcome(*key, "skipped", "a content manager removed the video"))
             continue
         kind = choices.get(key)
+        if kind is not None and kind not in dict(entry.lecture.candidates()):
+            outcomes.append(Outcome(*key, "skipped", f"no {kind} candidate"))
+            continue
         if kind is None:
             outcomes.append(Outcome(*key, "skipped", "no reachable candidate"))
             continue
-        video = video_document(entry, kind)
+        try:
+            video = video_document(entry, kind)
+        except InvalidVideoUrlError as error:
+            outcomes.append(Outcome(*key, "skipped", f"invalid {kind} link: {error}"))
+            continue
         if ours and current.get("catalog_video_key") == video["catalog_video_key"] and current.get("url") == video["url"]:
             outcomes.append(Outcome(*key, "unchanged", video["catalog_video_key"]))
             continue

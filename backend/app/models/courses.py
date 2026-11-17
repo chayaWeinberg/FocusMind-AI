@@ -23,6 +23,8 @@ class CourseDocument(TypedDict):
     owner_id: ObjectId | None  # set only for personal courses
     status: CourseStatus
     slug: NotRequired[str]  # stable key of seeded catalog courses
+    difficulty: NotRequired[str]  # beginner | intermediate | advanced
+    demo_lab: NotRequired[bool]  # lessons play local demonstration videos
     created_at: datetime
     updated_at: datetime
 
@@ -55,6 +57,8 @@ class LessonDocument(TypedDict):
     duration_seconds: float | None
     # Optional external resource kept next to a demo video: {"name", "url", "license"}.
     reference: NotRequired[dict]
+    # Catalog library: the real video behind the lesson and its verification.
+    resource: NotRequired[dict]
     seed_key: NotRequired[str]
     created_at: datetime
     updated_at: datetime

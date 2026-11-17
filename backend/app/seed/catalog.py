@@ -87,6 +87,10 @@ async def seed_catalog(database: AsyncDatabase) -> int:
                 "type": "catalog",
                 "owner_id": None,
                 "status": "published",
+                "difficulty": "beginner",
+                # Lessons play the locally generated demonstration videos
+                # (python -m app.demo_videos), for testing Smart Learning offline.
+                "demo_lab": True,
             },
             now,
         )
@@ -94,4 +98,7 @@ async def seed_catalog(database: AsyncDatabase) -> int:
             await lessons.upsert_seeded(
                 course_id, key, {"title": title, "description": description, "order": order}, now
             )
-    return len(CATALOG)
+    from app.seed.library import seed_library
+
+    library_courses, _ = await seed_library(database)
+    return len(CATALOG) + library_courses

@@ -151,6 +151,29 @@ class LessonVideoOut(ApiModel):
     demo: bool = False  # an original demonstration video generated for FocusMind
 
 
+class NetFreeStatus(ApiModel):
+    # "blocked": the video itself was measured as blocked; "page_only": the
+    # source page opens but its video is blocked; "playable": the video was
+    # seen playing; "unverified": not measured.
+    status: Literal["playable", "page_only", "blocked", "unverified"]
+    detail: str | None = None
+    checked_at: str | None = None
+
+
+class LessonResource(ApiModel):
+    """The real educational video behind a catalog lesson, with its source."""
+
+    provider: str
+    source_title: str
+    language: str
+    license: str | None = None
+    page_url: str
+    youtube_url: str | None = None
+    direct_url: str | None = None
+    duration_seconds: float | None = None  # only when verified at the source
+    netfree: NetFreeStatus
+
+
 class LessonReference(ApiModel):
     """An optional external resource for the lesson (e.g. the full lecture)."""
 
@@ -176,6 +199,7 @@ class LessonOut(ApiModel):
     duration_seconds: float | None
     video: LessonVideoOut
     reference: LessonReference | None = None
+    resource: LessonResource | None = None
     progress: LessonProgressOut | None = None
 
 
@@ -186,6 +210,8 @@ class CourseOut(ApiModel):
     category: str
     type: Literal["catalog", "personal"]
     status: Literal["published", "draft"]
+    difficulty: Literal["beginner", "intermediate", "advanced"] | None = None
+    demo_lab: bool = False  # lessons play local demonstration videos
     is_owner: bool
     enrolled: bool
     lesson_count: int

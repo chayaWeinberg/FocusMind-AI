@@ -1,0 +1,474 @@
+{
+  "checked_at": "2026-11-17",
+  "method": "Microsoft Edge (Playwright) on the NetFree connection: the lesson's source page was opened, every <video> on it and the direct video file were asked to play; playable = media time advanced. Measured individually for 75 of 116 lessons (both providers); the remaining lessons were not played individually after every measured lesson of the same providers was blocked.",
+  "providers": {
+    "Microsoft Learn": "page opens; video host videoencodingpublic-*.azurefd.net blocked (HTTP 418, default-block) for MP4, HLS, DASH and captions",
+    "Harvard CS50": "page opens; MP4 on cdn.cs50.net blocked by the rule *.mp4*; YouTube (youtube.com, youtube-nocookie.com) blocked (HTTP 418)"
+  },
+  "lessons": {
+    "python-programming/introducing": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/getting-started": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/print": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/strings": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/formatting": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/numbers": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/errors": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/conditions": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/collections": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/loops": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/functions": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/modules": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "python-programming/classes": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/core-concepts": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/relational": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/intro-tsql": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/sort-filter": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/joins": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/subqueries": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/group-by": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/modify": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "sql-databases/designing": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "sql-databases/optimizing": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "javascript/what-is-js": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/running": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/variables": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/strings": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/data-types": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/try-catch": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/if": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/arrays": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/array-methods": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/loops": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/functions": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/arrow-functions": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/objects": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/promises": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/async-await": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "javascript/dom": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/es6": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/components": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/user-interfaces": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/react-native": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/lists-input": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/debugging": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/navigation": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/data": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/redux": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/performance": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "react/testing-deploying": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "html-css/first-page": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/first-css": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/text": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/structure": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/images": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/lists": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/tables": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/forms": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/css-basics": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "html-css/box-model": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/machine-learning": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "ai-llms/neural-networks": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "ai-llms/language": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "ai-llms/intro-genai": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/comparing-llms": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/responsible": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/prompt-engineering": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/advanced-prompts": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/chat-apps": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/rag": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/agents": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "ai-llms/fine-tuning": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked"
+    },
+    "algorithms-data-structures/linear-search": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "algorithms-data-structures/binary-search": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "algorithms-data-structures/bubble-sort": {
+      "status": "page_only",
+      "detail": "page HTTP 200; no video playback on the page; direct file blocked; YouTube blocked on this network"
+    },
+    "algorithms-data-structures/selection-sort": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/recursion": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/merge-sort": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/data-structures": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/singly-linked-lists": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/doubly-linked-lists": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/hash-tables": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/stacks": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/queues": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "algorithms-data-structures/tries": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/intro-git": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/git-lecture": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/create-repo": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/commits": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/branches": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/push": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/pull": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/rebase": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "git-github/vscode": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/containers-intro": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/building-containers": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/publishing-containers": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/dev-containers": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/add-dev-container": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/ports": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/apis-intro": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/implement-api": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/calling-api": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "docker-apis-cloud/scalability-security": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/fundamentals": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/methodologies": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/creating-tests": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/unit-tests": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/bugs": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/automating": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/playwright-start": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/playwright-write": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/playwright-run": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/playwright-debug": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/ci": {
+      "status": "unverified",
+      "detail": "not played individually; Microsoft Learn: 0 of 55 measured lessons played on this network (page HTTP 200 checked at import)"
+    },
+    "software-testing/testing-cicd": {
+      "status": "unverified",
+      "detail": "not played individually; Harvard CS50: 0 of 20 measured lessons played on this network (page HTTP 200 checked at import)"
+    }
+  }
+}

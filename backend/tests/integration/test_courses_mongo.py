@@ -14,6 +14,10 @@ from pymongo import AsyncMongoClient
 from app.core.config import settings
 from app.main import app
 from app.seed.catalog import CATALOG
+from app.seed.catalog_library import LIBRARY
+
+# Seeded catalog: 3 demonstration courses + the video library.
+SEEDED = {course["title"]: len(course["lessons"]) for course in CATALOG + LIBRARY}
 
 MP4_HEADER = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom"
 WEBM_HEADER = b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81\x01\x42\xf7\x81\x01\x42\x82\x84webm"
@@ -304,12 +308,14 @@ def test_users_cannot_access_each_others_private_courses(client: TestClient) -> 
 def test_catalog_browse_enroll_and_progress(client: TestClient) -> None:
     sign_in(client, "ada")
     catalog = client.get("/api/courses/catalog").json()
-    assert len(catalog) == len(CATALOG)
+    assert len(catalog) == len(SEEDED) == 13
     assert all(course["type"] == "catalog" and not course["enrolled"] for course in catalog)
     assert "תכנות" in client.get("/api/courses/catalog/categories").json()
-    sql = client.get("/api/courses/catalog", params={"q": "SQL"}).json()
-    assert [course["title"] for course in sql] == ["יסודות SQL"]
-    assert client.get("/api/courses/catalog", params={"category": "נתונים"}).json()[0]["id"] == sql[0]["id"]
+    found = client.get("/api/courses/catalog", params={"q": "SQL"}).json()
+    assert sorted(course["title"] for course in found) == sorted(["יסודות SQL", "SQL ומסדי נתונים"])
+    sql = [course for course in found if course["title"] == "יסודות SQL"]
+    data_courses = client.get("/api/courses/catalog", params={"category": "נתונים"}).json()
+    assert sql[0]["id"] in [course["id"] for course in data_courses]
 
     course_id = sql[0]["id"]
     detail = client.get(f"/api/courses/{course_id}").json()
@@ -347,10 +353,7 @@ def test_seed_is_idempotent(env: dict) -> None:
     with TestClient(app) as client:
         sign_in(client, "ada")
         catalog = client.get("/api/courses/catalog").json()
-        assert len(catalog) == len(CATALOG)
-        for course in catalog:
-            expected = next(item for item in CATALOG if item["title"] == course["title"])
-            assert course["lessonCount"] == len(expected["lessons"])
+        assert {course["title"]: course["lessonCount"] for course in catalog} == SEEDED
 
 
 def test_learning_session_segments(client: TestClient) -> None:

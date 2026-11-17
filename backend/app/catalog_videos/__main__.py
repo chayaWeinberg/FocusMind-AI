@@ -15,18 +15,18 @@ import asyncio
 
 from app.core.config import settings
 from app.db.database import close_db, get_database, initialize_db
-from app.seed.catalog_videos import LESSON_VIDEOS
+from app.seed.catalog_videos import all_entries
 from app.services.catalog_videos import MODES, apply_choices, choose, probe
 
 
 def check_all() -> dict[str, dict[str, str]]:
     results: dict[str, dict[str, str]] = {}
-    for entry in LESSON_VIDEOS:
+    for entry in all_entries():
         lecture = entry.lecture
         if lecture.key not in results:
             results[lecture.key] = {kind: probe(kind, url) for kind, url in lecture.candidates()}
             row = results[lecture.key]
-            print(f"{lecture.key:10} direct={row['direct']:11} youtube={row['youtube']:11} page={row['page']:11} {lecture.name}")
+            print(f"{lecture.key[:40]:40} direct={row.get('direct', '-'):11} youtube={row.get('youtube', '-'):11} page={row.get('page', '-'):11} {lecture.name[:50]}")
     return results
 
 
@@ -48,7 +48,7 @@ async def run(command: str, mode: str, dry_run: bool) -> None:
         results = check_all() if mode == "auto" else {}
         choices = {
             (entry.course_slug, entry.seed_key): choose(results.get(entry.lecture.key, {}), mode)
-            for entry in LESSON_VIDEOS
+            for entry in all_entries()
         }
         for outcome in await apply_choices(database, choices, dry_run=dry_run):
             print(f"{outcome.action:13} {outcome.course_slug}/{outcome.seed_key}: {outcome.detail}")
