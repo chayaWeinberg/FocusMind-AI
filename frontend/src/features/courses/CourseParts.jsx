@@ -31,6 +31,13 @@ export function LoadState({ status, error, onRetry, loadingText = 'טוענים�
   return null;
 }
 
+export const DIFFICULTY_LABELS = Object.freeze({ beginner: 'מתחילים', intermediate: 'בינוני', advanced: 'מתקדמים' });
+
+export function DifficultyBadge({ difficulty }) {
+  if (!DIFFICULTY_LABELS[difficulty]) return null;
+  return <span className={`course-badge course-badge--level course-badge--${difficulty}`}>רמה: {DIFFICULTY_LABELS[difficulty]}</span>;
+}
+
 export function TypeBadge({ type }) {
   return (
     <span className={`course-badge course-badge--${type}`}>
@@ -59,6 +66,12 @@ export function CourseCard({ course, actions }) {
         </div>
         <TypeBadge type={course.type} />
       </div>
+      {(course.difficulty || course.demoLab) && (
+        <p className="course-card-badges">
+          <DifficultyBadge difficulty={course.difficulty} />
+          {course.demoLab && <span className="course-badge course-badge--demo">סרטוני הדגמה מקומיים</span>}
+        </p>
+      )}
       {course.description && <p className="course-card-description">{course.description}</p>}
       <p className="course-card-meta">
         {course.lessonCount} שיעורים

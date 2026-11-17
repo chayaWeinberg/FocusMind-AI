@@ -15,7 +15,8 @@ import useLessonReplay from '../replay/useLessonReplay.js';
 import { itemRange, replayStart, replayStep } from '../replay/replayLogic.js';
 import QuizPanel from '../quiz/QuizPanel.jsx';
 import useLoader from '../courses/useLoader.js';
-import { getLessonContext } from '../courses/coursesApi.js';
+import { formatDuration, getLessonContext } from '../courses/coursesApi.js';
+import { ACCESS_LABELS } from '../courses/CourseDetailsPage.jsx';
 import { courseUrl } from '../courses/courseRoutes.js';
 import './SmartLearningPage.css';
 import './AttentionMonitor.css';
@@ -531,8 +532,16 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
           >
             פתיחת הסרטון באתר החיצוני <span aria-hidden="true">↗</span>
           </a>
+          {lesson.resource && (
+            <span className="lesson-external-meta">
+              {lesson.resource.provider} · {lesson.resource.language === 'en' ? 'אנגלית' : lesson.resource.language}
+              {formatDuration(lesson.resource.durationSeconds) && <> · {formatDuration(lesson.resource.durationSeconds)}</>}
+              {' · '}{(ACCESS_LABELS[lesson.resource.netfree?.status] || ACCESS_LABELS.unverified).text}
+            </span>
+          )}
           <small>
             הסרטון אינו מתנגן בתוך FocusMind, ולכן מיקום הצפייה לא נשמר, ו-ReplayAI המסונכרן למעקב הקשב אינו זמין בשיעור הזה.
+            לתרגול מלא של מעקב הקשב ו-ReplayAI השתמשו בקורסי ההדגמה עם סרטונים מקומיים.
           </small>
         </div>
       );

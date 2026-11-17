@@ -260,3 +260,61 @@
   color: var(--signature-primary);
   font: 650 8.5px/1.5 var(--signature-font-family);
 }
+
+.lesson-resource {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.lesson-resource-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  color: var(--signature-muted);
+  font: 8.5px/1.5 var(--signature-font-family);
+}
+
+.lesson-resource-meta b {
+  color: var(--signature-ink);
+}
+
+.lesson-resource-title {
+  color: var(--signature-muted);
+  font: 8.5px/1.4 var(--signature-font-family);
+  text-align: start;
+}
+
+.lesson-access {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: 650 7.5px/1.5 var(--signature-font-family);
+}
+
+.lesson-access--ok { color: #1d5a3a; background: #e3f3e8; }
+.lesson-access--warn { color: #7a4a10; background: #fbecd8; }
+.lesson-access--bad { color: #8a2c1c; background: #fbe3dd; }
+.lesson-access--muted { color: var(--signature-muted); background: #f1efe9; }
+
+.lesson-links a.lesson-watch {
+  display: inline-flex;
+  min-height: 28px;
+  padding: 0 12px;
+  align-items: center;
+  color: #fff;
+  background: var(--signature-primary);
+  border-radius: 8px 3px 8px 3px;
+  text-decoration: none;
+}
+
+.lesson-links a.lesson-watch:hover,
+.lesson-links a.lesson-watch:focus-visible {
+  filter: brightness(1.08);
+  outline: 2px solid rgba(22, 125, 131, 0.3);
+  outline-offset: 2px;
+}
+
+.lesson-links {
+  align-items: center;
+}

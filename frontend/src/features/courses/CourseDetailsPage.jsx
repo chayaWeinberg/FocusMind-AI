@@ -4,7 +4,7 @@ import Notice, { useNotice } from '../../components/Notice.jsx';
 import { CourseDialog } from './CourseDialogs.jsx';
 import { enrollInCourse, formatDuration, getCourse } from './coursesApi.js';
 import { COURSES_URL, courseEditUrl, lessonUrl } from './courseRoutes.js';
-import { ContinueLink, LoadState, ProgressBar, TypeBadge, completedText } from './CourseParts.jsx';
+import { ContinueLink, DifficultyBadge, LoadState, ProgressBar, TypeBadge, completedText } from './CourseParts.jsx';
 import useLoader from './useLoader.js';
 import { getCourseLearningSummary, listReplayItems } from '../learning/learningApi.js';
 import { replayItemUrl } from '../replay/ReviewPage.jsx';
@@ -47,6 +47,39 @@ export function lessonStatus(lesson) {
   if (lesson.progress?.completed) return { key: 'completed', text: 'הושלם' };
   if (lesson.progress && lesson.progress.positionSeconds > 0) return { key: 'in-progress', text: 'בתהליך' };
   return { key: 'not-started', text: 'טרם התחיל' };
+}
+
+export const ACCESS_LABELS = Object.freeze({
+  playable: { text: 'נבדק: הסרטון מתנגן ברשת זו', tone: 'ok' },
+  page_only: { text: 'נבדק ב-NetFree: העמוד נפתח, הסרטון חסום', tone: 'warn' },
+  blocked: { text: 'נבדק ב-NetFree: חסום', tone: 'bad' },
+  unverified: { text: 'לא נבדק ברשת זו', tone: 'muted' },
+});
+
+/** The real video behind a catalog lesson: source, details and links. */
+export function LessonResource({ resource, title }) {
+  const access = ACCESS_LABELS[resource.netfree?.status] || ACCESS_LABELS.unverified;
+  const duration = formatDuration(resource.durationSeconds);
+  return (
+    <span className="lesson-resource">
+      <span className="lesson-resource-meta">
+        מקור: <b>{resource.provider}</b> · {resource.language === 'en' ? 'אנגלית' : resource.language}
+        {duration && <> · {duration}</>}
+        <span className={`lesson-access lesson-access--${access.tone}`} title={resource.netfree?.detail || undefined}>{access.text}</span>
+      </span>
+      <span className="lesson-resource-title" dir="ltr">{resource.sourceTitle}</span>
+      <span className="lesson-links">
+        <a className="lesson-watch" href={resource.pageUrl} target="_blank" rel="noopener noreferrer" aria-label={`צפייה בסרטון של השיעור ${title} באתר ${resource.provider} (נפתח בכרטיסייה חדשה)`}>
+          צפייה בסרטון <span aria-hidden="true">↗</span>
+        </a>
+        {resource.youtubeUrl && (
+          <a href={resource.youtubeUrl} target="_blank" rel="noopener noreferrer" aria-label={`השיעור ${title} ב-YouTube (נפתח בכרטיסייה חדשה)`}>
+            YouTube <span aria-hidden="true">↗</span>
+          </a>
+        )}
+      </span>
+    </span>
+  );
 }
 
 /** External links of a lesson, visible to everyone (also before enrolling). */
@@ -134,7 +167,7 @@ export default function CourseDetailsPage({ courseId }) {
         <>
           <header className="courses-hero course-detail-hero">
             <div>
-              <small>{course.category || 'ללא קטגוריה'} · <TypeBadge type={course.type} /></small>
+              <small>{course.category || 'ללא קטגוריה'} · <TypeBadge type={course.type} /> <DifficultyBadge difficulty={course.difficulty} /></small>
               <h1 id="course-title">{course.title}</h1>
               {course.description && <p>{course.description}</p>}
               <p className="course-card-meta">{completedText(course.progress)}</p>
@@ -194,7 +227,7 @@ export default function CourseDetailsPage({ courseId }) {
                           {videoLabel(lesson.video) && <> · {videoLabel(lesson.video)}</>}
                         </small>
                         <LessonBadges summary={lessonSummary.get(lesson.id)} />
-                        <LessonLinks lesson={lesson} />
+                        {lesson.resource ? <LessonResource resource={lesson.resource} title={lesson.title} /> : <LessonLinks lesson={lesson} />}
                       </div>
                       {playable && (
                         <a className="course-link" href={lessonUrl(lesson.id)} aria-label={`פתיחת השיעור ${lesson.title} בלמידה חכמה`}>

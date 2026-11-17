@@ -184,3 +184,8 @@
 .lesson-demo-note a {
   color: var(--signature-primary);
 }
+
+.lesson-external-page .lesson-external-meta {
+  color: #f6e4d4;
+  font: 650 9px/1.5 var(--signature-font-family);
+}
