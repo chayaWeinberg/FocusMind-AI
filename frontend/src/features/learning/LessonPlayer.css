@@ -164,7 +164,7 @@
   font-size: 11px;
 }
 
-.lesson-demo-note {
+.lesson-reference-note {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -173,15 +173,7 @@
   font: 9px/1.5 var(--signature-font-family);
 }
 
-.lesson-demo-badge {
-  padding: 2px 8px;
-  color: var(--signature-ink);
-  background: var(--signature-peach);
-  border-radius: 999px;
-  font: 700 8.5px/1.5 var(--signature-font-family);
-}
-
-.lesson-demo-note a {
+.lesson-reference-note a {
   color: var(--signature-primary);
 }
 

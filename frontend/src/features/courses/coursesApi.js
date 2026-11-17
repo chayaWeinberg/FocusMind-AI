@@ -41,6 +41,8 @@ const DETAIL_TEXTS = {
   'Catalog courses with enrolled learners cannot be deleted. Unpublish the course instead.':
     'אי אפשר למחוק קורס קטלוג שיש בו לומדים רשומים. אפשר להסתיר אותו מהקטלוג במקום זאת.',
   'Catalog lessons with learner progress cannot be deleted.': 'אי אפשר למחוק שיעור קטלוג שיש בו התקדמות של לומדים.',
+  'You are not enrolled in this course.': 'אתם כבר לא רשומים לקורס הזה.',
+  'Only catalog courses can be left. Delete a personal course instead.': 'אפשר לבטל הרשמה רק לקורס מהקטלוג. קורס אישי מוחקים.',
 };
 
 const STATUS_TEXTS = {
@@ -121,6 +123,8 @@ export const createCourse = (data) => apiRequest('/api/courses', { method: 'POST
 export const updateCourse = (courseId, data) => apiRequest(`/api/courses/${encodeURIComponent(courseId)}`, { method: 'PATCH', body: data });
 export const deleteCourse = (courseId) => apiRequest(`/api/courses/${encodeURIComponent(courseId)}`, { method: 'DELETE' });
 export const enrollInCourse = (courseId) => apiRequest(`/api/courses/${encodeURIComponent(courseId)}/enroll`, { method: 'POST' });
+/** Leaves a catalog course (only the signed-in user's own enrollment). */
+export const unenrollFromCourse = (courseId) => apiRequest(`/api/courses/${encodeURIComponent(courseId)}/enroll`, { method: 'DELETE' });
 
 export const addLesson = (courseId, data) => apiRequest(`/api/courses/${encodeURIComponent(courseId)}/lessons`, { method: 'POST', body: data });
 export const reorderLessons = (courseId, lessonIds) => apiRequest(

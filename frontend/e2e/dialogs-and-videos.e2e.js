@@ -112,30 +112,28 @@ test.describe.serial('dialogs and catalog videos', () => {
     await expect(dialog).toBeHidden();
   });
 
-  test('catalog lessons get curated videos; external pages open on their site', async ({ page }) => {
+  test('library lessons keep their curated links; external pages open on their site', async ({ page }) => {
     const output = execFileSync(python, ['-m', 'app.catalog_videos', 'apply', '--mode', 'page'], {
       cwd: backendDir, env: { ...process.env, MONGO_DB_NAME: E2E_DATABASE }, encoding: 'utf-8',
     });
-    expect(output).toContain('attached');
+    expect(output).toMatch(/attached|unchanged/);
     await login(page);
     await page.goto('/courses/catalog');
-    await page.getByRole('button', { name: 'הרשמה לקורס יסודות SQL' }).click();
-    await page.getByRole('link', { name: 'יסודות SQL' }).first().click();
-    const row = page.locator('.lesson-row', { hasText: 'שליפת נתונים עם SELECT' });
+    await page.getByRole('button', { name: 'הרשמה לקורס SQL ומסדי נתונים', exact: true }).click();
+    await page.getByRole('link', { name: 'SQL ומסדי נתונים', exact: true }).first().click();
+    const courseId = page.url().split('/').pop();
+    const [first] = (await (await page.request.get(`/api/courses/${courseId}`)).json()).lessons;
+    const row = page.locator('.lesson-row').first();
     await expect(row).toContainText('סרטון באתר חיצוני');
-    await row.getByRole('link', { name: 'שליפת נתונים עם SELECT', exact: true }).click();
+    await expect(row.locator('.learning-mode')).toHaveText(/קישור חיצוני בלבד|חסום ברשת הנוכחית/);
+    await row.getByRole('link', { name: first.title, exact: true }).click();
 
     const link = page.getByRole('link', { name: /פתיחת הסרטון באתר החיצוני/ });
-    await expect(link).toHaveAttribute('href', 'https://cs50.harvard.edu/sql/2024/weeks/0/');
+    await expect(link).toHaveAttribute('href', first.resource.pageUrl);
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(page.getByText(/ReplayAI המסונכרן למעקב הקשב אינו זמין/)).toBeVisible();
-    await expect(page.getByText(/מקור: CS50 SQL, Lecture 0: Querying/)).toContainText('CC BY-NC-SA 4.0');
     await expect(page.getByLabel(/^נגן וידאו: /)).toHaveCount(0);
-
-    // The course without a matching lecture stays honest.
-    await page.goto('/courses/catalog');
-    await page.getByRole('link', { name: 'מבוא לבינה מלאכותית' }).first().click();
-    await expect(page.locator('.lesson-row', { hasText: 'בינה מלאכותית אחראית' })).toContainText('אין עדיין סרטון');
+    await expect(page.getByRole('button', { name: 'הפעלת מצלמה' })).toHaveCount(0);
   });
 
   test('a direct video link that cannot be played shows a helpful message', async ({ page }) => {

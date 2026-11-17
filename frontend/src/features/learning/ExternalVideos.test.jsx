@@ -87,20 +87,20 @@ describe('external catalog videos', { timeout: 20_000 }, () => {
     expect(link).toHaveAttribute('target', '_blank');
   });
 
-  it('marks demonstration videos and keeps the full lecture as a reference', async () => {
+  it('marks FocusMind Academy lessons and keeps a related lecture as a reference', async () => {
     const reference = { name: 'CS50 SQL, Lecture 0: Querying', url: SOURCE.sourceUrl, license: 'CC BY-NC-SA 4.0' };
-    const demo = { sourceType: 'upload', url: '/api/videos/abc/stream', originalName: 'סרטון הדגמה', trackable: true, demo: true };
-    const lesson = api.addLesson(course.id, { title: 'שליפת נתונים עם SELECT', video: demo, reference, durationSeconds: 90 });
+    const academy = { sourceType: 'upload', url: '/api/videos/abc/stream', originalName: 'joins.mp4', trackable: true, academy: true };
+    const lesson = api.addLesson(course.id, { title: 'JOIN: לחבר הזמנות ללקוחות', video: academy, reference, durationSeconds: 167 });
     open(`/courses/${course.id}`);
-    expect(await screen.findByText(/סרטון הדגמה קצר/)).toBeInTheDocument();
+    expect(await screen.findByText(/שיעור מקורי של FocusMind Academy/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /ההרצאה המלאה באתר המקור: CS50 SQL/ })).toHaveAttribute('href', SOURCE.sourceUrl);
     cleanup();
 
     open(`/learning/lessons/${lesson.id}`);
     const video = await screen.findByLabelText(/^נגן וידאו: /, {}, { timeout: 5000 });
     expect(video).toHaveAttribute('src', '/api/videos/abc/stream'); // played inside FocusMind, through the backend
-    expect(screen.getByText('סרטון הדגמה', { selector: '.lesson-demo-badge' })).toBeInTheDocument();
-    expect(screen.getByText(/זו לא הרצאה מלאה/)).toBeInTheDocument();
+    expect(screen.getByText('שיעור מקורי של FocusMind Academy')).toBeInTheDocument();
+    expect(screen.getByText('למידה חכמה מלאה')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /ההרצאה המלאה באתר המקור/ })).toHaveAttribute('href', SOURCE.sourceUrl);
     // Trackable: ReplayAI and bookmarks are available.
     expect(await screen.findByRole('button', { name: 'סימון הרגע הנוכחי' })).toBeInTheDocument();

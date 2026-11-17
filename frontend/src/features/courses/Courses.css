@@ -723,11 +723,6 @@
   background: var(--signature-soft);
 }
 
-.course-badge--demo {
-  color: #7a4a10;
-  background: #fbecd8;
-}
-
 .catalog-summary {
   margin: 0;
   color: var(--signature-muted);
@@ -906,3 +901,47 @@
 .lesson-add[aria-busy="true"] {
   opacity: 0.85;
 }
+
+/* "הקורסים שלי": leaving a course (normal action) and deleting one (destructive). */
+.course-action-unenroll,
+.course-action-delete {
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: 600 10px/1.5 var(--signature-font-family);
+}
+
+.course-action-unenroll {
+  color: var(--signature-muted);
+  background: transparent;
+  border: 1px solid var(--signature-line);
+}
+
+.course-action-unenroll:hover { color: var(--signature-ink); border-color: var(--signature-muted); }
+
+.course-action-delete {
+  color: #a3352c;
+  background: #fff;
+  border: 1px solid #e3b1ab;
+}
+
+.course-action-delete:hover { background: #fbeceb; }
+
+.course-manage-dialog {
+  display: grid;
+  gap: 12px;
+  font: 10px/1.7 var(--signature-font-family);
+}
+
+.course-manage-dialog ul { margin: 0; padding-inline-start: 18px; }
+
+.course-manage-dialog--danger > p { margin: 0; color: #7a2a23; }
+
+.course-manage-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.course-manage-check input { margin-top: 3px; }

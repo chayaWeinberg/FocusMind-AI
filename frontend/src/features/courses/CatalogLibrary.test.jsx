@@ -47,13 +47,13 @@ describe('catalog library', { timeout: 20_000 }, () => {
     api.addLesson(js.id, { title: 'משתנים' });
     const react = api.addCourse({ title: 'React', type: 'catalog', category: 'פיתוח ווב', difficulty: 'intermediate' });
     api.addLesson(react.id, { title: 'קומפוננטות' });
-    api.addCourse({ title: 'Python למתחילים', type: 'catalog', category: 'תכנות', difficulty: 'beginner', demoLab: true });
+    api.addCourse({ title: 'Python בפועל', type: 'catalog', category: 'תכנות', difficulty: 'beginner', academy: true });
     open('/courses/catalog');
 
     expect(await screen.findByText('3 קורסים · 3 שיעורים')).toBeInTheDocument();
     const reactCard = screen.getByRole('article', { name: 'React' });
     expect(within(reactCard).getByText('רמה: בינוני')).toBeInTheDocument();
-    expect(within(screen.getByRole('article', { name: 'Python למתחילים' })).getByText('סרטוני הדגמה קצרים · מתנגנים כאן')).toBeInTheDocument();
+    expect(within(screen.getByRole('article', { name: 'Python בפועל' })).getByText('FocusMind Academy · למידה חכמה מלאה')).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('רמה'), 'intermediate');
     await waitFor(() => expect(screen.queryByRole('article', { name: 'JavaScript' })).not.toBeInTheDocument());

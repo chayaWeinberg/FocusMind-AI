@@ -133,9 +133,7 @@ input {
 }
 
 .signature-public-nav a,
-.signature-login-link,
-.signature-learning-header nav button,
-.signature-learning-back {
+.signature-login-link {
   color: var(--signature-muted);
   background: transparent;
   border: 0;
@@ -146,8 +144,7 @@ input {
 }
 
 .signature-public-nav a:hover,
-.signature-login-link:hover,
-.signature-learning-header nav button:hover {
+.signature-login-link:hover {
   color: var(--signature-primary);
 }
 
@@ -1093,37 +1090,6 @@ input {
 }
 
 /* Smart Learning remains a static visual concept and does not connect to media APIs. */
-.signature-learning-header {
-  display: grid;
-  min-height: 64px;
-  padding: 0 24px;
-  grid-template-columns: minmax(175px, 1fr) auto minmax(140px, 1fr);
-  align-items: center;
-  gap: 20px;
-  background: #fff;
-  border-bottom: 1px solid var(--signature-line);
-}
-
-.signature-learning-header nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.signature-learning-header nav button {
-  min-height: 33px;
-  padding: 0 10px;
-  border-radius: 8px;
-}
-
-.signature-learning-header nav button.is-active {
-  color: var(--signature-primary);
-  background: var(--signature-soft);
-}
-
-.signature-learning-back {
-  justify-self: end;
-}
 
 
 .signature-learning-layout {
@@ -1810,21 +1776,6 @@ input {
     grid-column: 2;
   }
 
-  .signature-learning-header {
-    min-height: 56px;
-    padding-inline: 11px;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 7px;
-  }
-
-  .signature-learning-header nav {
-    display: none;
-  }
-
-  .signature-learning-back {
-    font-size: 8px;
-  }
-
   .signature-learning-layout {
     width: calc(100% - 22px);
     padding-top: 13px;
@@ -2023,8 +1974,7 @@ input {
 
 .signature-production .signature-brand:focus-visible,
 .signature-production .signature-primary-button:focus-visible,
-.signature-production .signature-auth-switch a:focus-visible,
-.signature-production .signature-learning-header a:focus-visible {
+.signature-production .signature-auth-switch a:focus-visible {
   outline: 3px solid rgba(22, 125, 131, 0.38);
   outline-offset: 3px;
 }
@@ -2133,33 +2083,6 @@ input {
   display: block;
   width: 100%;
   height: auto;
-}
-
-.signature-production .signature-learning-header nav a {
-  display: inline-flex;
-  min-height: 33px;
-  padding: 0 10px;
-  align-items: center;
-  color: var(--signature-muted);
-  border-radius: 8px;
-  font: 9px/1.4 var(--signature-font-family);
-  text-decoration: none;
-}
-
-.signature-production .signature-learning-header nav a:hover,
-.signature-production .signature-learning-header nav a.is-active {
-  color: var(--signature-primary);
-  background: var(--signature-soft);
-}
-
-.signature-production .signature-learning-back {
-  display: inline-flex;
-  min-height: 33px;
-  align-items: center;
-  gap: 5px;
-  color: var(--signature-primary);
-  font: 9px/1.4 var(--signature-font-family);
-  text-decoration: none;
 }
 
 .signature-production .signature-learning-video-title {

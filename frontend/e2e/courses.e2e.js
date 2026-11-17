@@ -239,28 +239,29 @@ test.describe.serial('FocusMind courses end to end', () => {
     await login(page, owner);
     await page.getByRole('link', { name: 'קטלוג קורסים' }).click();
     await expect(page.getByRole('heading', { name: 'קטלוג קורסים', level: 1 })).toBeVisible();
-    // 5 FocusMind Academy courses + 3 demonstration courses + 10 courses of the video library.
-    await expect(page.locator('.course-card')).toHaveCount(18);
+    // 5 FocusMind Academy courses + 10 courses of the video library (the old demonstration courses are retired).
+    await expect(page.locator('.course-card')).toHaveCount(15);
+    await expect(page.getByRole('heading', { name: 'Python למתחילים' })).toHaveCount(0);
 
     await page.getByRole('searchbox').fill('SQL');
-    await expect(page.locator('.course-card')).toHaveCount(3);
-    await expect(page.getByRole('heading', { name: 'יסודות SQL' })).toBeVisible();
+    await expect(page.locator('.course-card')).toHaveCount(2);
+    await expect(page.getByRole('heading', { name: 'SQL לניתוח נתונים' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'SQL ומסדי נתונים' })).toBeVisible();
     await page.getByRole('searchbox').fill('');
-    await page.getByLabel('קטגוריה').selectOption('בינה מלאכותית');
+    await page.getByLabel('קטגוריה').selectOption('נתונים');
     await expect(page.locator('.course-card')).toHaveCount(2);
     await page.getByLabel('קטגוריה').selectOption('');
 
-    await page.getByRole('button', { name: 'הרשמה לקורס יסודות SQL' }).click();
+    await page.getByRole('button', { name: 'הרשמה לקורס SQL לניתוח נתונים' }).click();
     await expect(page.getByText('✓ רשומים לקורס')).toBeVisible();
 
     await page.getByRole('link', { name: 'הקורסים שלי' }).click();
     const catalogSection = page.getByRole('region', { name: 'קורסים מהקטלוג' });
-    await expect(catalogSection.getByText('יסודות SQL')).toBeVisible();
+    await expect(catalogSection.getByText('SQL לניתוח נתונים')).toBeVisible();
     await catalogSection.getByRole('link', { name: 'פרטי הקורס' }).click();
     await expect(page.getByText('✓ רשומים לקורס')).toBeVisible();
     await expect(page.getByRole('link', { name: /עריכת הקורס/ })).toHaveCount(0);
-    await expect(page.getByText(/עדיין ללא סרטון/)).toBeVisible();
+    await expect(page.locator('.lesson-row .learning-mode')).toHaveCount(3);
   });
 
   test('another user cannot see or change the private course, lessons, video or progress', async ({ page }) => {

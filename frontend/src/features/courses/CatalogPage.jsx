@@ -11,8 +11,7 @@ const SEARCH_DELAY_MS = 300;
 // How a course's videos can be watched; also linkable as /courses/catalog?video=academy.
 export const VIDEO_FILTERS = Object.freeze({
   '': { label: 'כל הקורסים', match: () => true },
-  here: { label: 'מתנגנים בתוך FocusMind (למידה חכמה מלאה)', match: (course) => course.academy || course.demoLab },
-  academy: { label: 'FocusMind Academy בלבד', match: (course) => course.academy },
+  academy: { label: 'מתנגנים בתוך FocusMind (FocusMind Academy)', match: (course) => course.academy },
   external: { label: 'הרצאות באתרים חיצוניים', match: (course) => course.externalLibrary },
 });
 
@@ -111,7 +110,7 @@ export default function CatalogPage() {
           <small>קורסים מוכנים ללמידה</small>
           <h1 id="catalog-title">קטלוג קורסים</h1>
           <p>
-            קורסי FocusMind Academy ושיעורי ההדגמה מתנגנים כאן עם למידה חכמה מלאה.
+            קורסי FocusMind Academy מתנגנים כאן עם למידה חכמה מלאה.
             קורסי הספרייה מקשרים להרצאות של Harvard CS50 ושל Microsoft Learn באתרים שלהן.
           </p>
         </div>

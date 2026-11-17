@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import AppShell from '../../components/AppShell.jsx';
 import Notice, { useNotice } from '../../components/Notice.jsx';
 import { CourseDialog } from './CourseDialogs.jsx';
+import { DeleteCourseDialog, UnenrollDialog } from './CourseManagementDialogs.jsx';
 import { listMyCourses } from './coursesApi.js';
 import { CATALOG_URL, COURSES_URL, NEW_COURSE_URL, courseEditUrl, courseUrl, navigateTo } from './courseRoutes.js';
 import { ContinueLink, CourseCard, LoadState } from './CourseParts.jsx';
 import useLoader from './useLoader.js';
 import './Courses.css';
 
-function CourseSection({ title, subtitle, courses, empty }) {
+function CourseSection({ title, subtitle, courses, empty, manage }) {
   return (
     <section className="courses-section" aria-label={title}>
       <div className="signature-section-heading">
@@ -29,6 +30,7 @@ function CourseSection({ title, subtitle, courses, empty }) {
                 <>
                   <ContinueLink course={course} />
                   <a className="course-link" href={courseUrl(course.id)}>פרטי הקורס</a>
+                  {manage(course)}
                 </>
               )}
             />
@@ -41,8 +43,9 @@ function CourseSection({ title, subtitle, courses, empty }) {
 
 /** `startCreating`: opened as /courses/new (the creation dialog is open). */
 export default function MyCoursesPage({ startCreating = false }) {
-  const { status, data, error, reload } = useLoader(listMyCourses, []);
+  const { status, data, error, reload, setData } = useLoader(listMyCourses, []);
   const [creating, setCreating] = useState(startCreating);
+  const [pending, setPending] = useState(null); // { action: 'unenroll' | 'delete', course }
   const [notice, showNotice, clearNotice] = useNotice();
   const courses = data || [];
 
@@ -60,6 +63,35 @@ export default function MyCoursesPage({ startCreating = false }) {
     showNotice(`הקורס ״${course.title}״ נוצר.`, { href: courseEditUrl(course.id), label: 'להוספת שיעורים ←' });
     await reload({ quiet: true });
   }
+
+  // Leaving or deleting removes the course from this page once the server confirmed it.
+  function removed(course, message) {
+    setPending(null);
+    setData((current) => (current || []).filter((entry) => entry.id !== course.id));
+    showNotice(message);
+  }
+
+  // Own personal courses can be deleted; enrolled catalog courses can be left.
+  const manage = (course) => (course.type === 'personal' && course.isOwner
+    ? (
+      <button
+        type="button"
+        className="course-action-delete"
+        onClick={() => setPending({ action: 'delete', course })}
+        aria-label={`מחיקת הקורס ${course.title}`}
+      >
+        מחיקת קורס
+      </button>
+    ) : course.type === 'catalog' && course.enrolled ? (
+      <button
+        type="button"
+        className="course-action-unenroll"
+        onClick={() => setPending({ action: 'unenroll', course })}
+        aria-label={`ביטול ההרשמה לקורס ${course.title}`}
+      >
+        ביטול הרשמה
+      </button>
+    ) : null);
 
   const createButton = (label, className) => (
     <button type="button" className={className} onClick={() => setCreating(true)}>{label}</button>
@@ -83,6 +115,20 @@ export default function MyCoursesPage({ startCreating = false }) {
 
       <Notice notice={notice} onClose={clearNotice} />
       {creating && <CourseDialog onClose={closeDialog} onSaved={created} />}
+      {pending?.action === 'unenroll' && (
+        <UnenrollDialog
+          course={pending.course}
+          onClose={() => setPending(null)}
+          onDone={(course) => removed(course, `ההרשמה לקורס ״${course.title}״ בוטלה. הקורס נשאר בקטלוג.`)}
+        />
+      )}
+      {pending?.action === 'delete' && (
+        <DeleteCourseDialog
+          course={pending.course}
+          onClose={() => setPending(null)}
+          onDone={(course) => removed(course, `הקורס ״${course.title}״ נמחק.`)}
+        />
+      )}
       <LoadState status={status} error={error} onRetry={reload} loadingText="טוענים את הקורסים שלך…" />
       {status === 'ready' && (
         <>
@@ -90,6 +136,7 @@ export default function MyCoursesPage({ startCreating = false }) {
             title="קורסים אישיים"
             subtitle="קורסים שיצרתם בעצמכם"
             courses={personal}
+            manage={manage}
             empty={(
               <>
                 <strong>עדיין לא יצרתם קורס אישי</strong>
@@ -102,6 +149,7 @@ export default function MyCoursesPage({ startCreating = false }) {
             title="קורסים מהקטלוג"
             subtitle="קורסים שנרשמתם אליהם"
             courses={catalog}
+            manage={manage}
             empty={(
               <>
                 <strong>עדיין לא נרשמתם לקורסים מהקטלוג</strong>

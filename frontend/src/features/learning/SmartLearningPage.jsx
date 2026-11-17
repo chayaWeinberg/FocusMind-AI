@@ -615,15 +615,11 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                       {lessonVideo?.academy && <span>שיעור מקורי של FocusMind Academy</span>}
                     </span>
                   )}
-                  {lessonVideo?.demo && (
-                    <span className="lesson-demo-note">
-                      <span className="lesson-demo-badge">סרטון הדגמה</span>
-                      סרטון קצר ומקורי שנוצר עבור FocusMind לתרגול ולבדיקת הלמידה. זו לא הרצאה מלאה.
-                      {lesson?.reference && (
-                        <a href={lesson.reference.url} target="_blank" rel="noopener noreferrer">
-                          ההרצאה המלאה באתר המקור ↗
-                        </a>
-                      )}
+                  {lesson?.reference && (
+                    <span className="lesson-reference-note">
+                      <a href={lesson.reference.url} target="_blank" rel="noopener noreferrer">
+                        ההרצאה המלאה באתר המקור ↗
+                      </a>
                     </span>
                   )}
                   {lessonVideo?.sourceName && (

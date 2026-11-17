@@ -31,8 +31,8 @@ test.describe.serial('video library catalog', () => {
     test.setTimeout(180_000);
     await login(page);
     await page.goto('/courses/catalog');
-    await expect(page.locator('.course-card')).toHaveCount(18);
-    await expect(page.locator('.catalog-summary')).toContainText('18 קורסים');
+    await expect(page.locator('.course-card')).toHaveCount(15);
+    await expect(page.locator('.catalog-summary')).toContainText('15 קורסים');
 
     const catalog = await (await page.request.get('/api/courses/catalog')).json();
     let lessons = 0;

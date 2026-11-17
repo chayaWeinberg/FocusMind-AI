@@ -60,28 +60,28 @@ test.describe.serial('production journey', () => {
     await register(page, learner);
     await login(page, learner);
     await page.getByRole('link', { name: 'קטלוג קורסים' }).click();
-    await expect(page.locator('.course-card')).toHaveCount(18);
+    await expect(page.locator('.course-card')).toHaveCount(15);
     await page.getByRole('searchbox').fill('SQL');
-    await expect(page.locator('.course-card')).toHaveCount(3);
+    await expect(page.locator('.course-card')).toHaveCount(2);
     await page.getByRole('searchbox').fill('');
     await page.getByLabel('רמה').selectOption('intermediate');
     await expect(page.locator('.course-card')).toHaveCount(8);
     await page.getByLabel('רמה').selectOption('');
-    await page.getByRole('button', { name: 'הרשמה לקורס יסודות SQL' }).click();
-    await expect(page.getByRole('article', { name: 'יסודות SQL' }).getByText('✓ רשומים לקורס')).toBeVisible();
+    await page.getByRole('button', { name: 'הרשמה לקורס SQL לניתוח נתונים' }).click();
+    await expect(page.getByRole('article', { name: 'SQL לניתוח נתונים' }).getByText('✓ רשומים לקורס')).toBeVisible();
     expect(problems).toEqual([]);
   });
 
-  test('play a demonstration lesson: pause, resume, seek, save, restore; camera and Smart Timer', async ({ page }) => {
+  test('play an Academy lesson: pause, resume, seek, save, restore; camera and Smart Timer', async ({ page }) => {
     const problems = watch(page);
     await login(page, learner);
     await page.goto('/courses');
-    await page.getByRole('region', { name: 'קורסים מהקטלוג' }).getByRole('link', { name: 'יסודות SQL' }).click();
-    await page.locator('.lesson-row', { hasText: 'חיבור טבלאות' }).getByRole('link', { name: 'חיבור טבלאות', exact: true }).click();
+    await page.getByRole('region', { name: 'קורסים מהקטלוג' }).getByRole('link', { name: 'SQL לניתוח נתונים' }).click();
+    await page.locator('.lesson-row', { hasText: 'JOIN: לחבר הזמנות ללקוחות' }).getByRole('link', { name: 'JOIN: לחבר הזמנות ללקוחות', exact: true }).click();
     state.lessonId = page.url().split('/').pop();
     const player = page.getByLabel(/^נגן וידאו: /);
     await expect(player).toHaveAttribute('src', /^\/api\/videos\/.+\/stream$/);
-    await expect(page.locator('.lesson-demo-badge')).toHaveText('סרטון הדגמה');
+    await expect(page.locator('.lesson-mode-note')).toContainText('שיעור מקורי של FocusMind Academy');
 
     await page.getByRole('button', { name: 'הפעלת מצלמה' }).click();
     await expect(page.getByRole('status', { name: 'מצב הקשב' })).toContainText(/לא זוהו פנים|מתאימים את המעקב/, { timeout: 45_000 });
@@ -175,14 +175,14 @@ test.describe.serial('production journey', () => {
 
     await page.goto('/insights');
     await expect(page.locator('article', { hasText: 'זמן למידה פעיל בסך הכול' }).locator('strong')).not.toHaveText('0 דק׳');
-    await expect(page.getByRole('table').filter({ hasText: 'חיבור טבלאות' })).toBeVisible();
+    await expect(page.getByRole('table').filter({ hasText: 'JOIN: לחבר הזמנות ללקוחות' })).toBeVisible();
     await expect(page.locator('article', { hasText: 'קטעים לחזרה (ReplayAI)' })).toContainText('נבדקו 1');
     await expect(page.locator('article', { hasText: 'שאלות חזרה' })).toContainText('100%');
 
     await page.goto('/study');
     await expect(page.getByRole('region', { name: 'FocusCoach – המלצות אישיות' })).toBeVisible();
     const form = page.getByRole('form', { name: 'מטרת לימוד' });
-    await form.getByLabel('קורס להתמקד בו').selectOption({ label: 'יסודות SQL' });
+    await form.getByLabel('קורס להתמקד בו').selectOption({ label: 'SQL לניתוח נתונים' });
     await form.getByLabel('כמה זמן פנוי יש לכם למפגש (דקות)').fill('30');
     await form.getByRole('button', { name: 'שמירת המטרה' }).click();
     await expect(page.getByRole('region', { name: 'המפגש הבא המוצע (30 דקות)' })).toBeVisible();

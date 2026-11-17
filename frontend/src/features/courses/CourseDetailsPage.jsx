@@ -122,8 +122,7 @@ const STATUS_ICONS = { completed: '✓', 'in-progress': '◔', 'not-started': '�
 
 function videoLabel(video) {
   if (video.sourceType === 'upload') {
-    if (video.academy) return 'שיעור מקורי של FocusMind Academy';
-    return video.demo ? 'סרטון הדגמה קצר' : 'סרטון שהועלה';
+    return video.academy ? 'שיעור מקורי של FocusMind Academy' : 'סרטון שהועלה';
   }
   if (video.sourceType === 'external') {
     if (video.provider === 'youtube') return 'YouTube';
