@@ -1,0 +1,19 @@
+# Build context of the production image (root Dockerfile).
+.git
+.env
+.env.*
+!.env.production.example
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+frontend/e2e/.generated
+frontend/public/mediapipe/webgazer-face-mesh
+backend/storage
+backend/tests
+demo-videos
+docs
+*.log

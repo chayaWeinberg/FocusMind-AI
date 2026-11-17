@@ -32,6 +32,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.info("Removed %d interrupted video uploads.", removed)
     if settings.seed_catalog:
         await seed_catalog(get_database())
+        if settings.demo_videos_dir and (settings.demo_videos_dir / "manifest.json").is_file():
+            from app.services.demo_videos import install_demo_videos
+
+            outcomes = await install_demo_videos(get_database(), settings.demo_videos_dir)
+            installed = sum(outcome.action == "installed" for outcome in outcomes)
+            logger.info("Demo videos: %d installed, %d unchanged or kept.", installed, len(outcomes) - installed)
     if settings.attention_retention_days:
         expired = await apply_retention(get_database(), settings.attention_retention_days)
         if expired:
@@ -102,3 +108,8 @@ app.include_router(auth_router)
 app.include_router(courses_router)
 app.include_router(learning_sessions_router)
 app.include_router(learning_router)
+
+if settings.frontend_dist_dir:
+    from app.web import mount_frontend
+
+    mount_frontend(app, settings.frontend_dist_dir)  # must stay last: catch-all route

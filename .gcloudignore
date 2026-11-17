@@ -1,0 +1,11 @@
+# Source uploaded by "gcloud builds submit" (see docs/DEPLOYMENT-HE.md).
+# Everything Git ignores (secrets, certificates, node_modules, builds) stays local.
+#!include:.gitignore
+.git
+.gitignore
+docs/
+frontend/e2e/
+frontend/e2e-production/
+frontend/test-results/
+backend/tests/
+demo-videos/

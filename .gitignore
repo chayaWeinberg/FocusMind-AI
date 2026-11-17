@@ -93,3 +93,7 @@ backend/storage/
 
 # Locally generated demonstration videos (frontend/scripts/demo-videos); never committed
 /demo-videos/
+
+# Safe templates with placeholders only (real .env files stay ignored)
+!.env.example
+!.env.production.example

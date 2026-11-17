@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     # bookmarks are never removed by retention.
     attention_retention_days: int = Field(default=0, ge=0, le=3650)
 
+    # Production: serve the built React app from this folder (same origin as
+    # the API). Unset in development, where Vite serves the frontend.
+    frontend_dist_dir: Path | None = None
+    # Original demonstration videos shipped with the image (manifest.json +
+    # MP4). Installed idempotently on startup when the catalog is seeded.
+    demo_videos_dir: Path | None = None
+    # Brute-force protection for login and registration (per process).
+    auth_rate_limit_enabled: bool = True
+
     @field_validator("video_storage_dir")
     @classmethod
     def resolve_storage_dir(cls, value: Path) -> Path:
