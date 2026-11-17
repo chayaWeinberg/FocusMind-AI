@@ -437,6 +437,17 @@ def test_health_reports_database_state(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.json() == {"status": "degraded", "database": False}
 
 
+def test_health_is_also_served_at_root_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The Load Balancer sends /health to the server container.
+    async def healthy() -> bool:
+        return True
+
+    monkeypatch.setattr("app.main.ping_db", healthy)
+    response = TestClient(app).get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "database": True}
+
+
 def test_logout_revokes_the_token_on_the_server(
     auth_client: tuple[TestClient, FakeDatabase],
     registered_user: dict,

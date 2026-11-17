@@ -18,7 +18,7 @@ FocusMind AI היא פלטפורמת למידה בעברית עם קורסים, 
 | שעון חכם, תובנות, FocusCoach, AdaptiveStudy, QuizFlow | כולם מבוססים על נתונים שנשמרו בפועל. אין מספרים לדוגמה |
 | ניהול קטלוג | הרשאת מנהל תוכן ניתנת רק משורת הפקודה של השרת. כולל טיוטות, פרסום והסתרה |
 | פרטיות | עמוד שמציג מה נשמר, עם מחיקה עם אישור ותמיכה במדיניות שמירה |
-| ייצור | אימג' Docker אחד ללינוקס, ‏`docker-compose.prod.yml`, ‏`.env.production.example`, ‏`scripts/verify-deployment.sh`, ומדריך פריסה ל-Google Cloud |
+| ייצור | שתי תמונות Docker (לקוח nginx על 3000, שרת FastAPI על 8000), ‏`docker-compose.prod.yml`, ‏`.env.production.example`, ‏`scripts/verify-deployment.sh`, ומדריך פריסה ל-Google Cloud |
 
 ## מה תוקן בשלב הסופי
 - **חלונות יצירה ועריכה:** החלון נסגר רק אחרי שהשרת מאשר את השמירה. בכישלון הוא נשאר פתוח, עם הודעה והנתונים שהוקלדו. לא נשארת שכבת רקע.
@@ -32,7 +32,7 @@ FocusMind AI היא פלטפורמת למידה בעברית עם קורסים, 
   - הגשת הקבצים מוגנת מפני path traversal.
   - נתיב API לא קיים מחזיר 404 בפורמט JSON.
 - **התקנה אוטומטית:** שיעורי Academy מותקנים בהפעלה ראשונה. אין תלות בתיקייה מקומית.
-- **הכנה לענן:** Dockerfile לייצור, docker-compose.prod.yml, תבנית סביבה, ‏.gcloudignore, וסקריפט בדיקה.
+- **הכנה לענן:** Dockerfile ללקוח ו-Dockerfile לשרת, docker-compose.prod.yml, תבנית סביבה, ‏.gcloudignore, וסקריפט בדיקה.
 
 ## עדכון אחרון: שיעורים אמיתיים ואבטחה (17.11.2026)
 **FocusMind Academy:**

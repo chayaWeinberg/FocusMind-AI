@@ -31,14 +31,33 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+# Original demonstration videos (manifest.json + MP4), installed on startup
+# when SEED_CATALOG=true.
+COPY demo_assets ./demo_assets
 
 # Run as an unprivileged user. /data/videos is the mount point of the
-# persistent video volume (docker-compose.yml); a fresh named volume inherits
-# this ownership.
-RUN useradd --create-home --uid 10001 focusmind     && mkdir -p /data/videos     && chown -R focusmind:focusmind /data/videos
-ENV VIDEO_STORAGE_DIR=/data/videos
+# persistent video volume (a Docker volume locally, a Cloud Storage bucket on
+# Cloud Run); a fresh named volume inherits this ownership.
+RUN useradd --create-home --uid 10001 focusmind \
+    && mkdir -p /data/videos \
+    && chown -R focusmind:focusmind /data/videos
+
+# Production defaults. Secrets (SECRET_KEY, MONGO_URI) are never baked in: on
+# Cloud Run they come from Secret Manager, locally from docker compose.
+# The client and the API share one domain behind the Load Balancer, so no CORS
+# origins are needed.
+ENV ENV=production \
+    VIDEO_STORAGE_DIR=/data/videos \
+    DEMO_VIDEOS_DIR=/app/demo_assets \
+    CORS_ORIGINS=[] \
+    PORT=8000
 USER focusmind
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD python -c "import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\"PORT\", \"8000\")}/health', timeout=4)"
+
+# The Load Balancer terminates HTTPS in front of the container; --proxy-headers
+# makes the real client IP visible (login rate limiting).
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 20"]

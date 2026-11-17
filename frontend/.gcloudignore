@@ -1,0 +1,16 @@
+# Source uploaded by "gcloud builds submit frontend" (deploy/deploy-gcp.sh).
+# node_modules is reinstalled inside the build with `npm ci`.
+.gcloudignore
+.env
+.env.*
+certs/*.crt
+certs/*.pem
+node_modules/
+dist/
+coverage/
+.vite/
+test-results/
+playwright-report/
+e2e/
+e2e-production/
+public/mediapipe/webgazer-face-mesh/

@@ -1,0 +1,15 @@
+# Source uploaded by "gcloud builds submit backend" (deploy/deploy-gcp.sh).
+# Cloud Build runs on Google's network: local CA certificates, secrets and
+# caches stay on this machine.
+.gcloudignore
+.env
+.env.*
+certs/*.crt
+certs/*.pem
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+storage/
+tests/

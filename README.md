@@ -60,19 +60,21 @@ docker compose up --build
 
 ## Production build
 
-The root `Dockerfile` builds **one Linux image**: the React app is compiled in
-a Node stage and served by FastAPI next to the API, on the same origin (no
-CORS, first-party cookie). The image has no Windows or local-folder
-dependencies:
+Production runs as **two containers** behind one domain. A Load Balancer
+sends `/api/*` and `/health` to the server and everything else to the client,
+so the API is same-origin (no CORS, first-party cookie):
 
-- it runs as a non-root user and listens on `$PORT` (default 8080);
-- it exposes `GET /api/health` (database ping) for health checks;
-- it reads all settings from environment variables;
-- it keeps uploaded videos in `/data/videos` (a volume, or a Cloud Storage
-  bucket mount on Cloud Run).
+| Image | Dockerfile | Port | What it does |
+|---|---|---|---|
+| server | `backend/Dockerfile` | 8000 | FastAPI, non-root, settings from environment variables, `GET /health` and `GET /api/health` (database ping), uploaded videos in `/data/videos` (a volume, or a Cloud Storage mount on Cloud Run) |
+| client | `frontend/Dockerfile` | 3000 | `npm run build` served by nginx, SPA fallback to `index.html`, CSP and security headers |
 
-With `SEED_CATALOG=true` it creates the 15-course catalog on startup and installs
-the 15 FocusMind Academy lessons bundled in `backend/demo_assets/`, idempotently.
+With `SEED_CATALOG=true` the server creates the 15-course catalog on startup and
+installs the 15 FocusMind Academy lessons bundled in `backend/demo_assets/`,
+idempotently.
+
+`docker-compose.prod.yml` runs both images locally, with a small nginx in front
+that plays the cloud Load Balancer (same path rules):
 
 ```powershell
 copy .env.production.example .env.production   # replace every placeholder
@@ -80,8 +82,9 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 # http://localhost:8080  (MongoDB is not published; data lives on named volumes)
 ```
 
-Deployment to **Google Cloud Run + MongoDB Atlas + Cloud Storage** is described
-step by step, in Hebrew, in [docs/DEPLOYMENT-HE.md](docs/DEPLOYMENT-HE.md).
+Deployment to **Google Cloud Run (two services) + Load Balancer + domain/HTTPS +
+MongoDB Atlas + Secret Manager + Cloud Storage** is described step by step, in
+Hebrew, in [docs/DEPLOYMENT-HE.md](docs/DEPLOYMENT-HE.md).
 `scripts/verify-deployment.sh <url>` checks a running deployment.
 
 ## Tests

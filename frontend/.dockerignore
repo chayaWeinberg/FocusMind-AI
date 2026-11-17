@@ -8,5 +8,5 @@ coverage/
 public/mediapipe/webgazer-face-mesh/
 .env
 .env.*
-Dockerfile
+Dockerfile.dev
 .dockerignore

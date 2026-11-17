@@ -1,7 +1,7 @@
 #!/bin/sh
-# Checks a running FocusMind AI deployment (Cloud Run URL or a local container).
+# Checks a running FocusMind AI deployment (your domain behind the Load Balancer, or the local rehearsal).
 #
-#   sh scripts/verify-deployment.sh https://focusmind-xxxxx.a.run.app
+#   sh scripts/verify-deployment.sh https://YOUR-DOMAIN
 #   sh scripts/verify-deployment.sh http://localhost:8080 --journey
 #
 # Without --journey nothing is written. With --journey a throwaway account
@@ -21,8 +21,9 @@ check() { # name, expected, actual
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
 echo "FocusMind AI deployment check: $BASE"
-check "health endpoint answers 200" 200 "$(status "$BASE/api/health")"
-check "database is connected" true "$(curl -s "$BASE/api/health" | sed -n 's/.*"database":[ ]*\([a-z]*\).*/\1/p')"
+check "health endpoint answers 200" 200 "$(status "$BASE/health")"
+check "API health answers 200" 200 "$(status "$BASE/api/health")"
+check "database is connected" true "$(curl -s "$BASE/health" | sed -n 's/.*"database":[ ]*\([a-z]*\).*/\1/p')"
 check "home page is served" 200 "$(status "$BASE/")"
 check "client route returns the app" 200 "$(status "$BASE/courses/catalog")"
 check "home page is the React app" 1 "$(curl -s "$BASE/" | grep -c '<div id="root">')"

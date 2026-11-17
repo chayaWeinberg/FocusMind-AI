@@ -98,6 +98,9 @@ async def handle_database_error(_, error: PyMongoError) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": "Service temporarily unavailable."})
 
 
+# /health is the path the Load Balancer routes to the server container (and the
+# one the assignment checks); /api/health is kept for existing tooling.
+@app.get("/health", tags=["health"])
 @app.get("/api/health", tags=["health"])
 async def health() -> JSONResponse:
     database_ok = await ping_db()
