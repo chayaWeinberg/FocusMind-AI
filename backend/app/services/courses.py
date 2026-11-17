@@ -184,7 +184,8 @@ class CourseService:
                 original_name=asset["original_name"] if asset else None,
                 size_bytes=asset["size_bytes"] if asset else None,
                 trackable=True,
-                demo=bool(video.get("demo_key")),
+                demo=str(video.get("demo_key") or "").startswith("demo:"),
+                academy=str(video.get("demo_key") or "").startswith("academy:"),
             )
         if source == "external":
             provider = video.get("provider", "direct")
@@ -257,6 +258,8 @@ class CourseService:
             is_owner=self.is_owner(course),
             enrolled=enrolled,
             lesson_count=lesson_count,
+            academy=bool(course.get("academy")),
+            external_library=bool(course.get("external_library")),
             progress=progress,
             created_at=course["created_at"],
             updated_at=course["updated_at"],

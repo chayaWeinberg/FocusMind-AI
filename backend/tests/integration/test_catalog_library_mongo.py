@@ -52,10 +52,15 @@ def catalog(client: TestClient) -> dict:
 def test_import_is_idempotent_and_exposes_sources(client: TestClient, env: dict) -> None:
     sign_in(client, "learner")
     rows = catalog(client)
-    assert len(rows) == 13  # 3 demonstration courses + 10 library courses
+    assert len(rows) == 18  # 5 Academy + 3 demonstration + 10 library courses
     python = rows["תכנות ב-Python"]
     assert python["difficulty"] == "beginner" and python["lessonCount"] == 13 and python["demoLab"] is False
     assert rows["Python למתחילים"]["demoLab"] is True
+    assert rows["Python בפועל"]["academy"] is True and rows["Python בפועל"]["demoLab"] is False
+    assert python["externalLibrary"] is True and python["academy"] is False
+    # Academy courses come first in the catalog.
+    ordered = [row["title"] for row in client.get("/api/courses/catalog").json()]
+    assert set(ordered[:5]) == {"Python בפועל", "JavaScript לדפדפן", "SQL לניתוח נתונים", "אלגוריתמים בפועל", "Docker למפתחים"}
 
     lessons = client.get(f"/api/courses/{python['id']}").json()["lessons"]
     assert [lesson["order"] for lesson in lessons] == list(range(13))
@@ -72,7 +77,7 @@ def test_import_is_idempotent_and_exposes_sources(client: TestClient, env: dict)
     before = db_call(env, counts)
     db_call(env, seed_catalog)
     db_call(env, seed_catalog)
-    assert db_call(env, counts) == before == (13, 16 + 116)
+    assert db_call(env, counts) == before == (18, 15 + 16 + 116)
 
 
 def test_import_keeps_people_s_changes_and_the_chosen_kind(client: TestClient, env: dict) -> None:

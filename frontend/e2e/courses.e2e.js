@@ -238,11 +238,11 @@ test.describe.serial('FocusMind courses end to end', () => {
     await login(page, owner);
     await page.getByRole('link', { name: 'קטלוג קורסים' }).click();
     await expect(page.getByRole('heading', { name: 'קטלוג קורסים', level: 1 })).toBeVisible();
-    // 3 demonstration courses + 10 courses of the video library.
-    await expect(page.locator('.course-card')).toHaveCount(13);
+    // 5 FocusMind Academy courses + 3 demonstration courses + 10 courses of the video library.
+    await expect(page.locator('.course-card')).toHaveCount(18);
 
     await page.getByRole('searchbox').fill('SQL');
-    await expect(page.locator('.course-card')).toHaveCount(2);
+    await expect(page.locator('.course-card')).toHaveCount(3);
     await expect(page.getByRole('heading', { name: 'יסודות SQL' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'SQL ומסדי נתונים' })).toBeVisible();
     await page.getByRole('searchbox').fill('');

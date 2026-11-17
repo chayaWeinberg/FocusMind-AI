@@ -71,13 +71,20 @@ test.describe.serial('ready-made catalog with playable demonstration videos', ()
       }
       // The browser can decode each one: real duration from the media itself.
       await page.goto(`/courses/${course.id}`);
-      const durations = await page.evaluate(async (urls) => Promise.all(urls.map((src) => new Promise((resolve) => {
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => resolve(video.duration);
-        video.onerror = () => resolve(-1);
-        video.src = src;
-      }))), detail.lessons.map((lesson) => lesson.video.url));
+      // One at a time: several parallel media loads in one page can be cut off under load.
+      const durations = await page.evaluate(async (urls) => {
+        const result = [];
+        for (const src of urls) {
+          result.push(await new Promise((resolve) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.onloadedmetadata = () => resolve(video.duration);
+            video.onerror = () => resolve(-1);
+            video.src = src;
+          }));
+        }
+        return result;
+      }, detail.lessons.map((lesson) => lesson.video.url));
       for (const duration of durations) expect(duration).toBeGreaterThan(85);
     }
     expect(lessons).toBe(16);
@@ -90,7 +97,8 @@ test.describe.serial('ready-made catalog with playable demonstration videos', ()
       await page.getByRole('link', { name: courseTitle }).first().click();
       const lessonTitle = REPRESENTATIVE[courseTitle];
       const row = page.locator('.lesson-row', { hasText: lessonTitle });
-      await expect(row).toContainText('סרטון הדגמה (מתנגן כאן)');
+      await expect(row).toContainText('סרטון הדגמה קצר');
+      await expect(row).toContainText('למידה חכמה מלאה');
       await expect(row.getByRole('link', { name: /ההרצאה המלאה באתר המקור/ })).toBeVisible();
       await row.getByRole('link', { name: lessonTitle, exact: true }).click();
 

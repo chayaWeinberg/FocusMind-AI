@@ -92,7 +92,7 @@ describe('external catalog videos', { timeout: 20_000 }, () => {
     const demo = { sourceType: 'upload', url: '/api/videos/abc/stream', originalName: 'סרטון הדגמה', trackable: true, demo: true };
     const lesson = api.addLesson(course.id, { title: 'שליפת נתונים עם SELECT', video: demo, reference, durationSeconds: 90 });
     open(`/courses/${course.id}`);
-    expect(await screen.findByText(/סרטון הדגמה \(מתנגן כאן\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/סרטון הדגמה קצר/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /ההרצאה המלאה באתר המקור: CS50 SQL/ })).toHaveAttribute('href', SOURCE.sourceUrl);
     cleanup();
 

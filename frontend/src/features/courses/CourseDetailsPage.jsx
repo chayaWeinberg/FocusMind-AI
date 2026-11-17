@@ -1,3 +1,4 @@
+import { LearningModeBadge, learningModeOf } from './learningMode.jsx';
 import { useState } from 'react';
 import AppShell from '../../components/AppShell.jsx';
 import Notice, { useNotice } from '../../components/Notice.jsx';
@@ -120,7 +121,10 @@ function LessonBadges({ summary }) {
 const STATUS_ICONS = { completed: '✓', 'in-progress': '◔', 'not-started': '○', 'no-video': '–' };
 
 function videoLabel(video) {
-  if (video.sourceType === 'upload') return video.demo ? 'סרטון הדגמה (מתנגן כאן)' : 'סרטון שהועלה';
+  if (video.sourceType === 'upload') {
+    if (video.academy) return 'שיעור מקורי של FocusMind Academy';
+    return video.demo ? 'סרטון הדגמה קצר' : 'סרטון שהועלה';
+  }
   if (video.sourceType === 'external') {
     if (video.provider === 'youtube') return 'YouTube';
     if (video.provider === 'page') return 'סרטון באתר חיצוני';
@@ -226,6 +230,7 @@ export default function CourseDetailsPage({ courseId }) {
                           {duration && <> · {duration}</>}
                           {videoLabel(lesson.video) && <> · {videoLabel(lesson.video)}</>}
                         </small>
+                        <LearningModeBadge mode={learningModeOf(lesson.video, lesson.resource)} />
                         <LessonBadges summary={lessonSummary.get(lesson.id)} />
                         {lesson.resource ? <LessonResource resource={lesson.resource} title={lesson.title} /> : <LessonLinks lesson={lesson} />}
                       </div>

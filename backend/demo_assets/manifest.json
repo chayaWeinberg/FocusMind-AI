@@ -161,6 +161,171 @@
       "sizeBytes": 951941,
       "sha256": "25400d8d128ca43649e14c9c04cec782aa2ac72cd82490a219329ca3e22efa01",
       "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "python-academy",
+      "key": "lists-dicts",
+      "title": "רשימות ומילונים בעבודה אמיתית",
+      "file": "python-academy--lists-dicts.mp4",
+      "durationSeconds": 196.42,
+      "sizeBytes": 1438220,
+      "sha256": "71d2bd1a8cbda9c53c049ed3ff6cd67a5b0e44977b3ad6750ca2a511793548f3",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "python-academy",
+      "key": "functions",
+      "title": "פונקציות: פרמטרים, ערכי החזרה וברירות מחדל",
+      "file": "python-academy--functions.mp4",
+      "durationSeconds": 192.87,
+      "sizeBytes": 1487549,
+      "sha256": "1f58b52b913951354081bc47549536077dd75c93cce880e0983189b004828e42",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "python-academy",
+      "key": "errors-files",
+      "title": "טיפול בשגיאות וקריאת קבצים",
+      "file": "python-academy--errors-files.mp4",
+      "durationSeconds": 187.37,
+      "sizeBytes": 1401410,
+      "sha256": "9a1f20582d164cee2007c72dd83d8e15a36727b5500cb51cfd0e24f39e299adc",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "javascript-academy",
+      "key": "basics",
+      "title": "let, const וטיפוסים",
+      "file": "javascript-academy--basics.mp4",
+      "durationSeconds": 173.91,
+      "sizeBytes": 1210583,
+      "sha256": "b11ed3d2cb88ea8e4d40b56725c07fe21dcee4fb1e01711a916b4a1ee82ce150",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "javascript-academy",
+      "key": "arrays",
+      "title": "מערכים: map, filter ו-reduce",
+      "file": "javascript-academy--arrays.mp4",
+      "durationSeconds": 166.88,
+      "sizeBytes": 1201210,
+      "sha256": "485cd07772d17a145989dc01a4e884eec84988b62a92b00eb621373584d548cd",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "javascript-academy",
+      "key": "dom",
+      "title": "DOM ואירועים: כפתור שמגיב ללחיצה",
+      "file": "javascript-academy--dom.mp4",
+      "durationSeconds": 164.39,
+      "sizeBytes": 1281554,
+      "sha256": "4dee836d66f03674dab9d740ab7302ca8d639f1ad5f4581f2fb8e79c3429e2ee",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "sql-academy",
+      "key": "filtering",
+      "title": "סינון ומיון: WHERE ו-ORDER BY",
+      "file": "sql-academy--filtering.mp4",
+      "durationSeconds": 179.4,
+      "sizeBytes": 1269664,
+      "sha256": "df242e13493490ffeb521d7e967b8d98a64046b15e51e0f630b1add1777497ba",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "sql-academy",
+      "key": "grouping",
+      "title": "GROUP BY ו-HAVING",
+      "file": "sql-academy--grouping.mp4",
+      "durationSeconds": 157.42,
+      "sizeBytes": 1129332,
+      "sha256": "e68f22fd381ba8b0b44b6fba25ce8a342b61c542117790968024e7780f897522",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "sql-academy",
+      "key": "joins",
+      "title": "JOIN: לחבר הזמנות ללקוחות",
+      "file": "sql-academy--joins.mp4",
+      "durationSeconds": 166.87,
+      "sizeBytes": 1293030,
+      "sha256": "01172bd5b4492d3cd27c1c2d5e4acf074fdeb3a99d059cec73280b94f5d6daa6",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "algorithms-academy",
+      "key": "big-o",
+      "title": "סיבוכיות זמן ו-Big-O",
+      "file": "algorithms-academy--big-o.mp4",
+      "durationSeconds": 173.9,
+      "sizeBytes": 1208177,
+      "sha256": "19740b767486a0e19a0e4c91bfe9d68d1f430fc9aa18fa3ab3a05e6f0a5cdf3d",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "algorithms-academy",
+      "key": "binary-search",
+      "title": "חיפוש בינארי",
+      "file": "algorithms-academy--binary-search.mp4",
+      "durationSeconds": 166.4,
+      "sizeBytes": 1163323,
+      "sha256": "32df515bdbffb9ef949e6d018183efcd1b5760fc8f31c150f68e83b4fc4eb39b",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "algorithms-academy",
+      "key": "sorting",
+      "title": "מיון: בועות מול מיזוג",
+      "file": "algorithms-academy--sorting.mp4",
+      "durationSeconds": 172.89,
+      "sizeBytes": 1216826,
+      "sha256": "37f07a76dc7c47bccecb7ee5d17dc83de9944694582a1cf9592b6ee6e6dcb23f",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "docker-academy",
+      "key": "containers",
+      "title": "אימג'ים וקונטיינרים",
+      "file": "docker-academy--containers.mp4",
+      "durationSeconds": 167.4,
+      "sizeBytes": 1168867,
+      "sha256": "241b42cb1ff566865db3e76f3ad56e3d2b5e0738063b5e50e08e0bdc4a42e0fc",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "docker-academy",
+      "key": "dockerfile",
+      "title": "כתיבת Dockerfile",
+      "file": "docker-academy--dockerfile.mp4",
+      "durationSeconds": 175.91,
+      "sizeBytes": 1325999,
+      "sha256": "19e6b2768c76bb984dbd90982eaf28d1df352cc963d54fb69b49e6418a532edc",
+      "version": 1
+    },
+    {
+      "kind": "academy",
+      "course": "docker-academy",
+      "key": "compose",
+      "title": "Docker Compose ו-volumes",
+      "file": "docker-academy--compose.mp4",
+      "durationSeconds": 176.38,
+      "sizeBytes": 1341704,
+      "sha256": "518c6be5f18938907dc524d612f23e509f05c5a039d11d0654dcda68392aa4da",
+      "version": 1
     }
   ]
 }

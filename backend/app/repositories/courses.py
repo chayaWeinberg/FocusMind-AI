@@ -70,7 +70,8 @@ class CourseRepository:
         if query:
             pattern = re.compile(re.escape(query), re.IGNORECASE)
             criteria["$or"] = [{"title": pattern}, {"description": pattern}, {"category": pattern}]
-        return await self._courses.find(criteria).sort("title", ASCENDING).limit(200).to_list(None)
+        # FocusMind Academy (fully playable here) first, then by title.
+        return await self._courses.find(criteria).sort([("academy", DESCENDING), ("title", ASCENDING)]).limit(200).to_list(None)
 
     async def catalog_categories(self) -> list[str]:
         values = await self._courses.distinct("category", {"type": "catalog", "status": "published"})

@@ -31,19 +31,19 @@ test.describe.serial('video library catalog', () => {
     test.setTimeout(180_000);
     await login(page);
     await page.goto('/courses/catalog');
-    await expect(page.locator('.course-card')).toHaveCount(13);
-    await expect(page.locator('.catalog-summary')).toContainText('13 קורסים');
+    await expect(page.locator('.course-card')).toHaveCount(18);
+    await expect(page.locator('.catalog-summary')).toContainText('18 קורסים');
 
     const catalog = await (await page.request.get('/api/courses/catalog')).json();
     let lessons = 0;
     for (const title of LIBRARY) {
-      const card = page.getByRole('article', { name: title });
+      const card = page.getByRole('article', { name: title, exact: true });
       await expect(card).toBeVisible();
       await expect(card.locator('.course-badge--level')).toBeVisible();
       const course = catalog.find((row) => row.title === title);
       const detail = await (await page.request.get(`/api/courses/${course.id}`)).json();
 
-      await card.getByRole('link', { name: title }).click();
+      await card.getByRole('link', { name: title, exact: true }).click();
       await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible();
       const rows = page.locator('.lesson-row');
       await expect(rows).toHaveCount(detail.lessons.length);
@@ -79,13 +79,15 @@ test.describe.serial('video library catalog', () => {
   test('a library lesson explains its external video and links back to the course', async ({ page }) => {
     await login(page);
     await page.goto('/courses/catalog');
-    await page.getByRole('button', { name: 'הרשמה לקורס JavaScript' }).click();
-    await page.getByRole('article', { name: 'JavaScript' }).getByRole('link', { name: 'JavaScript' }).click();
+    await page.getByRole('button', { name: 'הרשמה לקורס JavaScript', exact: true }).click();
+    await page.getByRole('article', { name: 'JavaScript', exact: true }).getByRole('link', { name: 'JavaScript', exact: true }).click();
     await page.locator('.lesson-row', { hasText: 'מהי JavaScript' }).getByRole('link', { name: 'מהי JavaScript', exact: true }).click();
     const open = page.getByRole('link', { name: /פתיחת הסרטון באתר החיצוני/ });
     await expect(open).toHaveAttribute('href', /learn\.microsoft\.com\/en-us\/shows\/beginners-series-to-javascript\//);
     await expect(page.getByText(/ReplayAI המסונכרן למעקב הקשב אינו זמין/)).toBeVisible();
     await expect(page.locator('.lesson-external-meta')).toContainText('Microsoft Learn');
+    await expect(page.locator('.lesson-mode-note')).toContainText('קישור חיצוני בלבד');
+    await expect(page.getByRole('button', { name: 'הפעלת מצלמה' })).toHaveCount(0);
     await page.getByRole('link', { name: /חזרה לקורס/ }).click();
     await expect(page.getByRole('heading', { name: 'JavaScript', level: 1 })).toBeVisible();
   });

@@ -60,12 +60,12 @@ test.describe.serial('production journey', () => {
     await register(page, learner);
     await login(page, learner);
     await page.getByRole('link', { name: 'קטלוג קורסים' }).click();
-    await expect(page.locator('.course-card')).toHaveCount(13);
+    await expect(page.locator('.course-card')).toHaveCount(18);
     await page.getByRole('searchbox').fill('SQL');
-    await expect(page.locator('.course-card')).toHaveCount(2);
+    await expect(page.locator('.course-card')).toHaveCount(3);
     await page.getByRole('searchbox').fill('');
     await page.getByLabel('רמה').selectOption('intermediate');
-    await expect(page.locator('.course-card')).toHaveCount(5);
+    await expect(page.locator('.course-card')).toHaveCount(8);
     await page.getByLabel('רמה').selectOption('');
     await page.getByRole('button', { name: 'הרשמה לקורס יסודות SQL' }).click();
     await expect(page.getByRole('article', { name: 'יסודות SQL' }).getByText('✓ רשומים לקורס')).toBeVisible();
@@ -109,6 +109,29 @@ test.describe.serial('production journey', () => {
     await page.reload();
     await expect(page.getByText(/ממשיכים מהמקום שבו עצרתם/)).toBeVisible();
     await expect.poll(async () => (await media(page)).currentTime).toBeGreaterThan(40);
+    expect(problems).toEqual([]);
+  });
+
+  test('FocusMind Academy lessons ship with the image and play here with full tracking', async ({ page }) => {
+    const problems = watch(page);
+    await login(page, learner);
+    const catalog = await (await page.request.get('/api/courses/catalog')).json();
+    const academy = catalog.filter((course) => course.academy);
+    expect(academy.map((course) => course.title).sort()).toEqual(['Docker למפתחים', 'JavaScript לדפדפן', 'Python בפועל', 'SQL לניתוח נתונים', 'אלגוריתמים בפועל'].sort());
+    const docker = academy.find((course) => course.title === 'Docker למפתחים');
+    await page.goto('/courses/catalog');
+    await page.getByRole('button', { name: 'הרשמה לקורס Docker למפתחים' }).click();
+    await page.goto(`/courses/${docker.id}`);
+    await expect(page.locator('.learning-mode--smart')).toHaveCount(3);
+    await page.locator('.lesson-row', { hasText: 'כתיבת Dockerfile' }).getByRole('link', { name: 'כתיבת Dockerfile', exact: true }).click();
+    await expect(page.locator('.lesson-mode-note')).toContainText('שיעור מקורי של FocusMind Academy');
+    const player = page.getByLabel(/^נגן וידאו: /);
+    await player.evaluate((video) => { video.currentTime = 60; video.play(); });
+    await expect.poll(async () => (await media(page)).currentTime, { timeout: 20_000 }).toBeGreaterThan(61);
+    expect((await media(page)).duration).toBeGreaterThan(150);
+    const saved = page.waitForResponse((response) => response.url().endsWith('/progress') && response.request().method() === 'PUT');
+    await player.evaluate((video) => video.pause());
+    expect((await (await saved).json()).positionSeconds).toBeGreaterThan(60);
     expect(problems).toEqual([]);
   });
 

@@ -77,6 +77,8 @@ async def seed_library(database: AsyncDatabase) -> tuple[int, int]:
                 "type": "catalog",
                 "owner_id": None,
                 "status": "published",
+                # Lessons link to lectures on their own sites (no tracking here).
+                "external_library": True,
             },
             now,
         )

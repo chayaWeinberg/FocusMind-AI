@@ -148,7 +148,8 @@ class LessonVideoOut(ApiModel):
     source_name: str | None = None  # attribution of curated catalog videos
     source_url: str | None = None
     license: str | None = None
-    demo: bool = False  # an original demonstration video generated for FocusMind
+    demo: bool = False  # a short original demonstration video generated for FocusMind
+    academy: bool = False  # a full original FocusMind Academy lesson, played and tracked here
 
 
 class NetFreeStatus(ApiModel):
@@ -215,6 +216,8 @@ class CourseOut(ApiModel):
     is_owner: bool
     enrolled: bool
     lesson_count: int
+    academy: bool = False  # FocusMind Academy: every lesson plays inside FocusMind
+    external_library: bool = False  # lessons are external lecture links (no tracking)
     progress: CourseProgress | None = None
     created_at: datetime
     updated_at: datetime

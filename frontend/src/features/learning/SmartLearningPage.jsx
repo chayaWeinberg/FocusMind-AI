@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import FocusIllustration from '../../components/FocusIllustration.jsx';
 import SignatureBrand from '../../components/SignatureBrand.jsx';
 import AttentionMonitor from './AttentionMonitor.jsx';
+import { HeaderLogoutButton } from '../../components/AppShell.jsx';
+import { LearningModeBadge, learningModeOf } from '../courses/learningMode.jsx';
 import AttentionSessionSummary, { AttentionTimeline } from './AttentionSessionSummary.jsx';
 import { createAttentionSessionStats } from './attentionSessionStats.js';
 import { resumePosition } from './lessonPlayback.js';
@@ -138,6 +140,9 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
 
   // --- ReplayAI -------------------------------------------------------------
   const trackableLesson = lessonMode && Boolean(lessonSource);
+  // The camera tools only make sense when the video plays here (or a local file).
+  const attentionAvailable = !lessonMode || Boolean(lessonSource);
+  const explainNoAttention = lessonMode && lessonContext.status === 'ready' && canLearn && !lessonSource;
   const replay = useLessonReplay(lessonId, trackableLesson);
   const replayRef = useRef(null); // { item, phase: 'playing' | 'finished' }
   const [replayState, setReplayState] = useState(null);
@@ -541,7 +546,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
           )}
           <small>
             הסרטון אינו מתנגן בתוך FocusMind, ולכן מיקום הצפייה לא נשמר, ו-ReplayAI המסונכרן למעקב הקשב אינו זמין בשיעור הזה.
-            לתרגול מלא של מעקב הקשב ו-ReplayAI השתמשו בקורסי ההדגמה עם סרטונים מקומיים.
+            ללמידה עם מעקב קשב ו-ReplayAI בחרו בקורסי FocusMind Academy, שהשיעורים שלהם מתנגנים כאן.
           </small>
         </div>
       );
@@ -572,7 +577,10 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                 <a href="/review">חזרה חכמה</a>
                 <a href="/insights">תובנות</a>
               </nav>
-              <a className="signature-learning-back" href="/dashboard">חזרה ללוח הבקרה <span aria-hidden="true">←</span></a>
+              <div className="signature-learning-header-actions">
+                <a className="signature-learning-back" href="/dashboard">חזרה ללוח הבקרה <span aria-hidden="true">←</span></a>
+                <HeaderLogoutButton />
+              </div>
             </header>
 
             <div className="smart-learning-heading">
@@ -615,6 +623,12 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                       {lessonVideo?.sourceUrl && (
                         <> <a href={lessonVideo.sourceUrl} target="_blank" rel="noopener noreferrer">פתיחת עמוד המקור של הסרטון ↗</a></>
                       )}
+                    </span>
+                  )}
+                  {lessonMode && context && canLearn && (
+                    <span className="lesson-mode-note">
+                      <LearningModeBadge mode={learningModeOf(lessonVideo, lesson?.resource)} />
+                      {lessonVideo?.academy && <span>שיעור מקורי של FocusMind Academy</span>}
                     </span>
                   )}
                   {lessonVideo?.demo && (
@@ -704,10 +718,12 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
               )}
             </div>
             <div className="signature-learning-secondary">
-              <section aria-labelledby="timeline-title">
-                <h2 id="timeline-title">ציר זמן של כיוון המבט</h2>
-                <AttentionTimeline timeline={attentionStats.timeline} />
-              </section>
+              {attentionAvailable && (
+                <section aria-labelledby="timeline-title">
+                  <h2 id="timeline-title">ציר זמן של כיוון המבט</h2>
+                  <AttentionTimeline timeline={attentionStats.timeline} />
+                </section>
+              )}
               {!lessonMode && (
                 <section aria-labelledby="replay-local-title">
                   <h2 id="replay-local-title">ReplayAI</h2>
@@ -735,7 +751,18 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
           </section>
 
           <aside className="signature-learning-side" aria-label="כלי למידה">
-            <AttentionMonitor onStateChange={handleAttentionState} sessionRunning={sessionState === 'running'} />
+            {attentionAvailable ? (
+              <AttentionMonitor onStateChange={handleAttentionState} sessionRunning={sessionState === 'running'} />
+            ) : explainNoAttention && (
+              <section className="signature-side-card attention-unavailable" aria-labelledby="attention-unavailable-title">
+                <h2 id="attention-unavailable-title">מעקב קשב אינו זמין בשיעור הזה</h2>
+                <p>
+                  מעקב הקשב ו-ReplayAI עובדים רק כשהסרטון מתנגן בתוך FocusMind, כי הם צריכים לדעת בכל רגע מה זמן הסרטון.
+                  {lessonVideo?.provider === 'youtube' ? ' בסרטון YouTube מוטמע זמן הסרטון אינו נגיש.' : ''}
+                </p>
+                <a className="course-link" href="/courses/catalog">לקורסי FocusMind Academy עם למידה חכמה מלאה <span aria-hidden="true">←</span></a>
+              </section>
+            )}
             <SmartTimerCard
               elapsedSeconds={elapsedSeconds}
               statusText={sessionStatus}
@@ -752,7 +779,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
               onSnooze={() => setBlockStartMs(currentActiveMs())}
               canBreak={Boolean(videoSource || manualTimer)}
             />
-            <AttentionSessionSummary stats={attentionStats} />
+            {attentionAvailable && <AttentionSessionSummary stats={attentionStats} />}
           </aside>
         </div>
       </section>

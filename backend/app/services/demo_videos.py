@@ -45,7 +45,10 @@ class DemoOutcome:
 
 
 def demo_key(entry: dict) -> str:
-    return f"demo:{entry['course']}:{entry['key']}:v{entry['version']}"
+    # Full FocusMind Academy lessons and short demonstration videos share the
+    # installer; the prefix tells the UI which one it is.
+    prefix = "academy" if entry.get("kind") == "academy" else "demo"
+    return f"{prefix}:{entry['course']}:{entry['key']}:v{entry['version']}"
 
 
 async def _file_chunks(path: Path) -> AsyncIterator[bytes]:
@@ -108,12 +111,16 @@ def load_manifest(directory: Path) -> list[dict]:
     return manifest["videos"]
 
 
-async def install_demo_videos(database: AsyncDatabase, directory: Path, dry_run: bool = False) -> list[DemoOutcome]:
+async def install_demo_videos(
+    database: AsyncDatabase, directory: Path, dry_run: bool = False, kind: str | None = None
+) -> list[DemoOutcome]:
     await database.video_assets.create_index(
         [("demo_key", 1), ("sha256", 1)], partialFilterExpression={"demo_key": {"$type": "string"}}
     )
     outcomes: list[DemoOutcome] = []
     for entry in load_manifest(directory):
+        if kind and entry.get("kind", "demo") != kind:
+            continue  # only the requested kind ("academy" or "demo")
         slug, seed_key = entry["course"], entry["key"]
         course = await database.courses.find_one({"type": "catalog", "slug": slug})
         lesson = await database.lessons.find_one({"course_id": course["_id"], "seed_key": seed_key}) if course else None

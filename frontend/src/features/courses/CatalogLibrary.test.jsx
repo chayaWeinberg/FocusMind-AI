@@ -53,7 +53,7 @@ describe('catalog library', { timeout: 20_000 }, () => {
     expect(await screen.findByText('3 קורסים · 3 שיעורים')).toBeInTheDocument();
     const reactCard = screen.getByRole('article', { name: 'React' });
     expect(within(reactCard).getByText('רמה: בינוני')).toBeInTheDocument();
-    expect(within(screen.getByRole('article', { name: 'Python למתחילים' })).getByText('סרטוני הדגמה מקומיים')).toBeInTheDocument();
+    expect(within(screen.getByRole('article', { name: 'Python למתחילים' })).getByText('סרטוני הדגמה קצרים · מתנגנים כאן')).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('רמה'), 'intermediate');
     await waitFor(() => expect(screen.queryByRole('article', { name: 'JavaScript' })).not.toBeInTheDocument());
@@ -100,7 +100,7 @@ describe('catalog library', { timeout: 20_000 }, () => {
     open(`/learning/lessons/${lesson.id}`);
     expect(await screen.findByRole('link', { name: /פתיחת הסרטון באתר החיצוני/ }, { timeout: 5000 })).toHaveAttribute('href', PAGE);
     expect(screen.getByText(/Microsoft Learn · אנגלית · 3:32 · נבדק ב-NetFree: העמוד נפתח, הסרטון חסום/)).toBeInTheDocument();
-    expect(screen.getByText(/השתמשו בקורסי ההדגמה עם סרטונים מקומיים/)).toBeInTheDocument();
+    expect(screen.getByText(/בחרו בקורסי FocusMind Academy, שהשיעורים שלהם מתנגנים כאן/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /חזרה לקורס/ })).toBeInTheDocument();
   });
 });

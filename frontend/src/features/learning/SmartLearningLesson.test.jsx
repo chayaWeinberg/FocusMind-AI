@@ -197,8 +197,30 @@ describe('Smart Learning lesson player', () => {
     await advance(50);
     expect(screen.getByText('כדי ללמוד את השיעור צריך להירשם לקורס.')).toBeInTheDocument();
     expect(screen.queryByLabelText(/נגן וידאו:/)).not.toBeInTheDocument();
-    // The attention monitor stays available on the page.
+    // Nothing to track before enrolling: the camera is not offered.
+    expect(screen.queryByRole('button', { name: 'הפעלת מצלמה' })).not.toBeInTheDocument();
+  });
+
+  it('offers attention tracking only where the video plays inside FocusMind', async () => {
+    const course = api.addCourse({ title: 'מעבדה' });
+    const direct = api.addLesson(course.id, { title: 'ישיר', video: DIRECT });
+    const page = api.addLesson(course.id, {
+      title: 'עמוד',
+      video: { sourceType: 'external', provider: 'page', url: 'https://example.org/lecture', embedUrl: null, trackable: false },
+    });
+    openLesson(direct.id);
+    await advance(50);
+    expect(screen.getByText('למידה חכמה מלאה')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'הפעלת מצלמה' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ציר זמן של כיוון המבט' })).toBeInTheDocument();
+
+    cleanup();
+    openLesson(page.id);
+    await advance(50);
+    expect(screen.getByText('קישור חיצוני בלבד')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'הפעלת מצלמה' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ציר זמן של כיוון המבט' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'מעקב קשב אינו זמין בשיעור הזה' })).toBeInTheDocument();
   });
 
   it('embeds YouTube lessons, runs the timer manually and completes them manually', async () => {

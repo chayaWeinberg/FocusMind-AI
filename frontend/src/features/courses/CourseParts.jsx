@@ -66,10 +66,12 @@ export function CourseCard({ course, actions }) {
         </div>
         <TypeBadge type={course.type} />
       </div>
-      {(course.difficulty || course.demoLab) && (
+      {(course.difficulty || course.demoLab || course.academy || course.externalLibrary) && (
         <p className="course-card-badges">
           <DifficultyBadge difficulty={course.difficulty} />
-          {course.demoLab && <span className="course-badge course-badge--demo">סרטוני הדגמה מקומיים</span>}
+          {course.academy && <span className="course-badge course-badge--academy">FocusMind Academy · למידה חכמה מלאה</span>}
+          {course.demoLab && <span className="course-badge course-badge--demo">סרטוני הדגמה קצרים · מתנגנים כאן</span>}
+          {course.externalLibrary && <span className="course-badge course-badge--external">הרצאות באתרים חיצוניים · בלי מעקב קשב</span>}
         </p>
       )}
       {course.description && <p className="course-card-description">{course.description}</p>}

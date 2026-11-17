@@ -2,6 +2,7 @@
 
     python -m app.demo_videos install <directory with manifest.json>
     python -m app.demo_videos install <directory> --dry-run
+    python -m app.demo_videos install <directory> --kind academy   # or --kind demo
 
 Docker (the files are generated on the host, see docs/catalog-videos.md):
     docker compose cp demo-videos backend:/tmp/demo-videos
@@ -19,10 +20,10 @@ from app.db.database import close_db, get_database, initialize_db
 from app.services.demo_videos import install_demo_videos
 
 
-async def run(directory: Path, dry_run: bool) -> int:
+async def run(directory: Path, dry_run: bool, kind: str | None = None) -> int:
     await initialize_db(settings.mongo_uri, settings.mongo_db_name, settings.mongo_timeout_ms)
     try:
-        outcomes = await install_demo_videos(get_database(), directory, dry_run)
+        outcomes = await install_demo_videos(get_database(), directory, dry_run, kind)
     finally:
         await close_db()
     for outcome in outcomes:
@@ -35,8 +36,9 @@ def main() -> None:
     parser.add_argument("command", choices=["install"])
     parser.add_argument("directory", type=Path)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--kind", choices=["academy", "demo"], help="install only this kind of video")
     args = parser.parse_args()
-    raise SystemExit(asyncio.run(run(args.directory.resolve(), args.dry_run)))
+    raise SystemExit(asyncio.run(run(args.directory.resolve(), args.dry_run, args.kind)))
 
 
 if __name__ == "__main__":

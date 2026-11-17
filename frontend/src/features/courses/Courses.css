@@ -733,3 +733,52 @@
   color: var(--signature-muted);
   font: 9px/1.5 var(--signature-font-family);
 }
+
+.course-badge--academy {
+  color: #0f5257;
+  background: #d7efec;
+  font-weight: 700;
+}
+
+.course-badge--external {
+  color: #5b6664;
+  background: #eceeed;
+}
+
+/* What a lesson's video can do here (learningMode.jsx). */
+.learning-mode {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.learning-mode--smart { color: #0f5257; background: #d7efec; }
+.learning-mode--embedded { color: #7a4a10; background: #fbecd8; }
+.learning-mode--external { color: #4b5654; background: #eceeed; }
+.learning-mode--blocked { color: #8a2b1d; background: #f9e0dc; }
+.learning-mode--unavailable { color: #6b7c7a; background: #f1f3f2; }
+
+.lesson-mode-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lesson-mode-note .learning-mode { margin-top: 0; }
+
+.attention-unavailable {
+  padding: 18px;
+  border: 1px dashed var(--fm-border, #d9dedb);
+  border-radius: 16px;
+  background: var(--fm-surface, #fff);
+}
+
+.attention-unavailable h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.attention-unavailable p { margin: 0 0 10px; color: #4b5654; line-height: 1.6; }
