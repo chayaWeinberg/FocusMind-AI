@@ -37,3 +37,11 @@ for _key, _value in _TEST_DEFAULTS.items():
 # Tests that need production behaviour patch ``settings.environment`` locally.
 os.environ["ENV"] = "development"
 os.environ["BCRYPT_ROUNDS"] = "4"
+# The brute-force limiter has its own test (tests/test_rate_limit.py).
+os.environ["AUTH_RATE_LIMIT_ENABLED"] = "false"
+
+# Settings may already exist at this point (imported above); disable the
+# limiter on the instance too.
+from app.core.config import settings as _settings  # noqa: E402
+
+_settings.auth_rate_limit_enabled = False

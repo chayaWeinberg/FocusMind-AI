@@ -160,6 +160,8 @@ export default function RegisterPage() {
         setSuccess(true);
       } else if (response.status === 409) {
         setFormError('כתובת האימייל הזו כבר רשומה. אפשר להתחבר לחשבון שלך.');
+      } else if (response.status === 429) {
+        setFormError('נשלחו יותר מדי בקשות הרשמה מהחיבור הזה. המתינו ונסו שוב מאוחר יותר.');
       } else if (response.status === 422) {
         setFieldErrors(serverFieldErrors(response.body));
         setFormError('חלק מהפרטים אינם תקינים. בדקו את השדות ונסו שוב.');

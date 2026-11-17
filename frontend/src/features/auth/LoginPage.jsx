@@ -55,6 +55,8 @@ export default function LoginPage({ onAuthenticated }) {
         setFormError('כתובת האימייל או הסיסמה אינם נכונים. נסו שוב.');
       } else if (result.status === 422) {
         setFormError('פרטי ההתחברות אינם תקינים. בדקו את השדות ונסו שוב.');
+      } else if (result.status === 429) {
+        setFormError('היו יותר מדי ניסיונות התחברות. המתינו כמה דקות ונסו שוב.');
       } else {
         setFormError('לא הצלחנו להתחבר כרגע. נסו שוב בעוד רגע.');
       }

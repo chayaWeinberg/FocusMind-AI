@@ -13,6 +13,7 @@ from app.schemas.auth import (
     RegistrationRequest,
     RegistrationResponse,
 )
+from app.services import rate_limit
 from app.services.auth import (
     ACCESS_TOKEN_COOKIE,
     ACCESS_TOKEN_TTL,
@@ -38,6 +39,18 @@ def _secure_cookie() -> bool:
     return settings.environment == "production"
 
 
+def _client_ip(request: Request) -> str:
+    # Behind Cloud Run / a proxy, uvicorn --proxy-headers puts the real client here.
+    return request.client.host if request.client else "unknown"
+
+
+def _too_many() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many attempts. Please wait a few minutes and try again.",
+    )
+
+
 def _unauthorized() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,8 +72,12 @@ def _database_error(action: str, detail: str) -> HTTPException:
     status_code=status.HTTP_201_CREATED,
 )
 async def register(
-    registration: RegistrationRequest, database: Database
+    registration: RegistrationRequest, request: Request, database: Database
 ) -> RegistrationResponse:
+    ip_key = f"register:ip:{_client_ip(request)}"
+    if rate_limit.limited(ip_key, rate_limit.REGISTRATIONS_PER_IP):
+        raise _too_many()
+    rate_limit.record(ip_key)
     try:
         user = await register_user(database, registration)
     except EmailAlreadyRegisteredError:
@@ -78,14 +95,22 @@ async def register(
 
 @router.post("/login", response_model=RegisteredUser)
 async def login(
-    credentials: LoginRequest, response: Response, database: Database
+    credentials: LoginRequest, request: Request, response: Response, database: Database
 ) -> RegisteredUser:
+    email_key = f"login:email:{credentials.email}"
+    ip_key = f"login:ip:{_client_ip(request)}"
+    if rate_limit.limited(email_key, rate_limit.LOGIN_FAILURES_PER_EMAIL) or rate_limit.limited(
+        ip_key, rate_limit.LOGIN_FAILURES_PER_IP
+    ):
+        raise _too_many()
     try:
         result = await authenticate_user(database, credentials)
     except PyMongoError:
         raise _database_error("User login", "Login could not be completed.") from None
 
     if result is None:
+        rate_limit.record(email_key)
+        rate_limit.record(ip_key)
         raise _unauthorized()
 
     user, token = result
