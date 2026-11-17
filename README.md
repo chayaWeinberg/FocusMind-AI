@@ -71,9 +71,8 @@ dependencies:
 - it keeps uploaded videos in `/data/videos` (a volume, or a Cloud Storage
   bucket mount on Cloud Run).
 
-With `SEED_CATALOG=true` it creates the 18-course catalog on startup and
-installs the 15 FocusMind Academy lessons plus the 16 demonstration videos
-bundled in `backend/demo_assets/`, idempotently.
+With `SEED_CATALOG=true` it creates the 15-course catalog on startup and installs
+the 15 FocusMind Academy lessons bundled in `backend/demo_assets/`, idempotently.
 
 ```powershell
 copy .env.production.example .env.production   # replace every placeholder
@@ -223,27 +222,29 @@ The camera and ReplayAI are offered only where the video plays in FocusMind.
 
 ## Example catalog
 
-The catalog has 18 courses (Academy first):
+The catalog has 15 courses (Academy first):
 - **5 FocusMind Academy courses (15 lessons):** full original lessons that play here. See above.
 - **10 video-library courses (116 lessons):** each lesson links to a real Harvard CS50 or
   Microsoft Learn video. See [docs/catalog-library.md](docs/catalog-library.md).
-- **3 demonstration courses:** their videos are generated locally and play offline, for testing
-  Smart Learning and ReplayAI.
 
-`python -m app.seed` imports both, idempotently.
+The three earlier demonstration courses, with their short sample videos, are **retired**.
+The seed no longer creates them. A database that still has them marks them `retired`: they
+are hidden everywhere, and their data is kept, so this is reversible. The slugs are in
+`RETIRED_COURSE_SLUGS` in `app/seed/catalog.py`.
+
+`python -m app.seed` creates or updates the catalog, idempotently.
 
 ```powershell
-# Idempotent: creates/updates the Python, SQL and AI example courses only.
 docker compose exec backend python -m app.seed      # Docker
 cd backend; .venv\Scripts\python -m app.seed         # local backend
 ```
 
 Or set `SEED_CATALOG=true` to seed on startup (off by default in development, on in
-the production image). In the production image this also installs the bundled
-demonstration videos when `DEMO_VIDEOS_DIR` is set.
+the production image). In the production image this also installs the bundled Academy
+lessons when `DEMO_VIDEOS_DIR` is set.
 
-Curated lecture videos (Harvard CS50, CC BY-NC-SA 4.0) are attached
-separately. The tool checks what the server's network can reach (direct
+The library's lecture links (Harvard CS50 and Microsoft Learn) can be switched between
+direct, YouTube and page links. The tool checks what the server's network can reach (direct
 MP4, YouTube or the external lecture page) and never overwrites a video
 chosen by a person:
 
@@ -253,14 +254,11 @@ docker compose exec backend python -m app.catalog_videos apply      # --mode dir
 docker compose exec backend python -m app.catalog_videos status
 ```
 
-Every catalog lesson also has an original **demonstration video** ("סרטון הדגמה").
-It is generated offline and played from the local backend, so the whole
-Smart Learning and ReplayAI workflow can be tested without internet access:
+Academy lessons in the development stack (the production image does this on startup):
 
 ```powershell
-cd frontend; npm run demo-videos; cd ..                  # generate (local Edge, cached)
-docker compose cp demo-videos backend:/tmp/demo-videos
-docker compose exec backend python -m app.demo_videos install /tmp/demo-videos
+docker compose cp backend/demo_assets backend:/tmp/lesson-videos
+docker compose exec backend python -m app.demo_videos install /tmp/lesson-videos --kind academy
 ```
 
 Behind NetFree every external `.mp4` and YouTube is blocked. See
@@ -387,7 +385,7 @@ Full review, URL patterns, user identification and isolation: [docs/SECURITY-HE.
 
 - **External videos behind NetFree:** every external `.mp4` and YouTube are blocked on
   the development network. None of the library's external videos was verified
-  to play here; they open on their own site. The demonstration videos are local
+  to play here; they open on their own site. The Academy lessons are local
   and always play. See [docs/catalog-videos.md](docs/catalog-videos.md).
 - **Attention accuracy:** automated tests use Chromium's synthetic camera, and the ReplayAI
   tests use controlled sessions. Real-webcam accuracy has not been measured; use

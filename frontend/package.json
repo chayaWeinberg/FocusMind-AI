@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "demo-videos": "node scripts/demo-videos/generate.mjs"
+    "academy-videos": "node scripts/academy-videos/generate.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.2.0",

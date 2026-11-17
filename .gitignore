@@ -1,41 +1,21 @@
-# Environment — never commit real secrets
+# Environment — never commit real secrets (templates with placeholders only)
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 .pytest_cache/
 .venv/
 venv/
 *.egg-info/
 .coverage
 htmlcov/
-
-# Node
-node_modules/
-dist/
-.vite/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Python
-.venv/
-venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.coverage
-htmlcov/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
 
 # Node.js / React
 node_modules/
@@ -44,33 +24,28 @@ build/
 coverage/
 .vite/
 
-# Environment variables and secrets
-.env
-.env.*
-!.env.example
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
 
-# Logs
+# Logs and temporary files
 *.log
 npm-debug.log*
+*.tmp
+*.bak
+*~
 
-# Local NetFree certificates
-/backend/netfree-ca.pem
-/backend/netfree-sign-root.crt
-
-# Private keys and certificates (never commit)
+# Private keys and certificates (never commit; see backend/certs and frontend/certs)
 *.pem
 *.key
 *.crt
 *.p12
 *.pfx
-
-# Generated WebGazer Face Mesh assets (recreated by scripts/copy-mediapipe-assets.mjs on `npm run dev`)
-frontend/public/mediapipe/webgazer-face-mesh/
-
-# Test and tool caches
-.hypothesis/
-.ruff_cache/
-.mypy_cache/
+/backend/netfree-ca.pem
+/backend/netfree-sign-root.crt
 
 # Personal webcam/gaze diagnostic exports (contain facial measurements)
 screen-calibration-data*.json
@@ -85,15 +60,3 @@ frontend/playwright-report/
 
 # Uploaded lesson videos (local development storage)
 backend/storage/
-
-# Temporary files
-*.tmp
-*.bak
-*~
-
-# Locally generated demonstration videos (frontend/scripts/demo-videos); never committed
-/demo-videos/
-
-# Safe templates with placeholders only (real .env files stay ignored)
-!.env.example
-!.env.production.example

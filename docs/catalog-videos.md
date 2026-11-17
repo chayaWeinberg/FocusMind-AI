@@ -1,57 +1,32 @@
 # Catalog videos and NetFree
 
-## Demonstration videos (play inside FocusMind, also behind NetFree)
+The catalog has two kinds of video lessons.
 
-Every catalog lesson (16 of 16) has an **original demonstration video**
-(labeled "סרטון הדגמה"), about 90 seconds of slides about the lesson's topic:
-- explanations, code examples, tables and diagrams;
-- an on-screen clock and progress bar, so seeking and replay are visible.
+## FocusMind Academy (plays inside FocusMind)
 
-They are uploaded videos like any other:
-- stored in the video volume and streamed by `/api/videos/{id}/stream`;
-- position, progress, attention segments and ReplayAI all work.
+The FocusMind Academy has 15 original lessons, about 3 minutes each, in 5 courses.
+- The files are bundled in `backend/demo_assets/` and installed on startup (`SEED_CATALOG=true`
+  plus `DEMO_VIDEOS_DIR`), or by hand:
+  `python -m app.demo_videos install <dir> --kind academy`.
+- They are stored like uploads and streamed by `/api/videos/{id}/stream`, also behind NetFree.
+  Position, progress, attention segments and ReplayAI all work.
+- To change the content, edit `frontend/scripts/academy-videos/lessons.mjs`, raise
+  `ACADEMY_VERSION`, then run `npm run academy-videos`. The script records in local Edge and
+  writes to `backend/demo_assets/`.
 
-They are not full lectures. Where a CS50 lecture matches, it stays as the
-lesson's **reference** ("ההרצאה המלאה באתר המקור"), and that link may be
-blocked by NetFree.
+The three earlier demonstration courses, with their short "סרטון הדגמה" videos, were
+**retired** on 17.11.2026. The slugs are listed in `RETIRED_COURSE_SLUGS` in
+`app/seed/catalog.py`. They are hidden everywhere, and they are never recreated or given
+videos. Their data is kept, so the change is reversible.
 
-| Step | Command |
-|---|---|
-| Generate (offline, local Microsoft Edge; about 7 minutes the first time, then cached) | `cd frontend; npm run demo-videos` |
-| Copy into the backend container | `docker compose cp demo-videos backend:/tmp/demo-videos` |
-| Install (idempotent) | `docker compose exec backend python -m app.demo_videos install /tmp/demo-videos` |
-| Remove the temporary copy | `docker compose exec -u root backend rm -rf /tmp/demo-videos` |
+## External lecture links (the library)
 
-In Git Bash, prefix the commands with `MSYS_NO_PATHCONV=1`; otherwise `/tmp/...` is rewritten to a Windows path. PowerShell needs no prefix.
-
-- **Output:** `demo-videos/*.mp4` plus `manifest.json` (duration, size,
-  sha256, version). Git ignores this folder. Only the generator
-  (`frontend/scripts/demo-videos/`) and the installer are committed.
-- **No ffmpeg needed:** Edge renders the slides on a canvas and records
-  H.264 MP4 with MediaRecorder. Every file is checked for its full duration;
-  a short recording is retried.
-- **The installer:**
-  - stores files through the normal video storage, owned by a non-user demo
-    owner (no quota);
-  - is idempotent by demo key and sha256, so restarting Docker adds nothing;
-  - releases files of an older demo version;
-  - never replaces uploads or links chosen by people, or videos a manager
-    removed.
-
-  The external link tool (below) never replaces a demo video either.
-- **Changing the content:** edit `frontend/scripts/demo-videos/lessons.mjs`,
-  raise `DEMO_VERSION`, then generate and install again.
-
-## External lecture links
-
-The example catalog lessons are linked to lectures from Harvard University's
-**CS50** open courses (CS50P, CS50 SQL, CS50 AI). The license is
-**CC BY-NC-SA 4.0**, and attribution is shown in the player.
-
-- Every URL was taken from the course's official week page, never composed
-  by hand.
+The 10 library courses (116 lessons) link to Harvard CS50 and Microsoft Learn lectures.
+- The data is in `backend/app/seed/catalog_library.py`, documented in
+  [catalog-library.md](catalog-library.md).
 - FocusMind only links to them. Nothing is downloaded or re-hosted.
-- Data: `backend/app/seed/catalog_videos.py`. Tool: `python -m app.catalog_videos`.
+- Each lesson has up to three candidates: `direct`, `youtube` and `page`. The tool
+  `python -m app.catalog_videos check|apply|status` chooses one.
 
 ## Playback types
 
@@ -66,35 +41,10 @@ An ordinary web page is never treated as a video file. In the editor it must
 be chosen explicitly as "עמוד אינטרנט שמציג את הסרטון". If you paste a web
 page as a video link, it is rejected.
 
-## Lessons and candidates
-
-The lecture notes were checked for each lesson's topics. The direct link for
-each lecture is `https://cdn.cs50.net/<path>-720p.mp4`. The YouTube link is
-`https://www.youtube.com/watch?v=<id>`.
-
-| Course / lesson | CS50 lecture | Match | Page (`page`) | MP4 path | YouTube id |
-|---|---|---|---|---|---|
-| Python / היכרות עם Python | CS50P 0 Functions, Variables | partial: no installation | https://cs50.harvard.edu/python/2022/weeks/0/ | `python/2022/x/lectures/0/lecture0` | `JP7ITIXGpHk` |
-| Python / משתנים וטיפוסי נתונים | CS50P 0 | full | same | same | same |
-| Python / תנאים וקבלת החלטות | CS50P 1 Conditionals | full | https://cs50.harvard.edu/python/2022/weeks/1/ | `python/2022/x/lectures/1/lecture1` | `_b6NgY_pMdw` |
-| Python / לולאות | CS50P 2 Loops | full | https://cs50.harvard.edu/python/2022/weeks/2/ | `python/2022/x/lectures/2/lecture2` | `-7xg8pGcP6w` |
-| Python / פונקציות | CS50P 0 | full | weeks/0 | lecture0 | `JP7ITIXGpHk` |
-| Python / רשימות ומילונים | CS50P 2 | full: lists and dicts | weeks/2 | lecture2 | `-7xg8pGcP6w` |
-| SQL / מה זה מסד נתונים רלציוני | CS50 SQL 1 Relating | full | https://cs50.harvard.edu/sql/2024/weeks/1/ | `sql/2023/x/lectures/1/lecture1` | `_2t18Hy9Z0Y` |
-| SQL / שליפת נתונים עם SELECT | CS50 SQL 0 Querying | full | https://cs50.harvard.edu/sql/2024/weeks/0/ | `sql/2023/x/lectures/0/lecture0` | `vHYeChEf2lA` |
-| SQL / פונקציות סיכום | CS50 SQL 0 | partial: GROUP BY/HAVING are in lecture 1 | weeks/0 | lecture0 | `vHYeChEf2lA` |
-| SQL / חיבור טבלאות | CS50 SQL 1 | full | weeks/1 | lecture1 | `_2t18Hy9Z0Y` |
-| SQL / הוספה ועדכון נתונים | CS50 SQL 3 Writing | full | https://cs50.harvard.edu/sql/2024/weeks/3/ | `sql/2023/x/lectures/3/lecture3` | `BD08USRd2M8` |
-| AI / מהי בינה מלאכותית | CS50 AI 0 Search | partial: a short intro, then search | https://cs50.harvard.edu/ai/2024/weeks/0/ | `ai/2020/spring/lectures/0/lecture0` | `WbzNRTTrX0g` |
-| AI / למידת מכונה | CS50 AI 4 Learning | full | https://cs50.harvard.edu/ai/2024/weeks/4/ | `ai/2020/spring/lectures/4/lecture4` | `-g0iJjnO2_w` |
-| AI / רשתות נוירונים | CS50 AI 5 Neural Networks | full | https://cs50.harvard.edu/ai/2024/weeks/5/ | `ai/2020/spring/lectures/5/lecture5` | `J1QD9hLDEDY` |
-| AI / מודלי שפה | CS50 AI 6 Language | full | https://cs50.harvard.edu/ai/2024/weeks/6/ | `ai/2023/x/lectures/6/lecture6` | `QAZc9xsQNjQ` |
-| AI / בינה מלאכותית אחראית | none | | no video: no CS50 lecture covers it, so none is invented | | |
-
 ## Verification behind NetFree (2026-11-16)
 
 Measured on the development machine, through its real NetFree connection.
-Three methods were used, with the same result for all ten lectures:
+The same check was later run on the library links (see catalog-library.md). Three methods were used:
 
 1. **Microsoft Edge (Playwright):**
    - a real `<video>` element given the MP4;

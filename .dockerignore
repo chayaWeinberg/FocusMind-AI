@@ -11,9 +11,7 @@ frontend/dist
 frontend/test-results
 frontend/playwright-report
 frontend/e2e/.generated
-frontend/public/mediapipe/webgazer-face-mesh
 backend/storage
 backend/tests
-demo-videos
 docs
 *.log
