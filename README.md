@@ -52,11 +52,38 @@ The frontend calls `/api/...` on its own origin. Vite forwards those requests
 to the backend (`VITE_API_PROXY_TARGET`, default `http://localhost:8000`), so
 the session cookie stays first-party and CORS is not needed in development.
 
-### Everything in Docker
+### Everything in Docker (development)
 
 ```powershell
 docker compose up --build
 ```
+
+## Production build
+
+The root `Dockerfile` builds **one Linux image**: the React app is compiled in
+a Node stage and served by FastAPI next to the API, on the same origin (no
+CORS, first-party cookie). The image has no Windows or local-folder
+dependencies:
+
+- it runs as a non-root user and listens on `$PORT` (default 8080);
+- it exposes `GET /api/health` (database ping) for health checks;
+- it reads all settings from environment variables;
+- it keeps uploaded videos in `/data/videos` (a volume, or a Cloud Storage
+  bucket mount on Cloud Run).
+
+With `SEED_CATALOG=true` it creates the 13-course catalog on startup and
+installs the 16 bundled demonstration videos (`backend/demo_assets/`),
+idempotently.
+
+```powershell
+copy .env.production.example .env.production   # replace every placeholder
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# http://localhost:8080  (MongoDB is not published; data lives on named volumes)
+```
+
+Deployment to **Google Cloud Run + MongoDB Atlas + Cloud Storage** is described
+step by step, in Hebrew, in [docs/DEPLOYMENT-HE.md](docs/DEPLOYMENT-HE.md).
+`scripts/verify-deployment.sh <url>` checks a running deployment.
 
 ## Tests
 
@@ -113,6 +140,29 @@ The camera is Chromium's synthetic fake device, so these tests prove the
 attention monitor runs with lesson playback, not real-webcam accuracy. Use
 `E2E_BROWSER_CHANNEL=chrome` for Google Chrome.
 
+### Production-build journey
+
+`frontend/e2e-production/journey.e2e.js` runs the whole user journey against a
+running production container, without a dev server:
+
+- registration and login;
+- the catalog, filters and enrollment;
+- demo video playback, seek and saved progress;
+- the camera and the Smart Timer;
+- an exact ReplayAI replay;
+- a quiz, insights, the coach and a study goal;
+- the course and lesson dialogs, upload, an external link and deletion;
+- an administrator granted through the CLI;
+- privacy, a phone-width layout, and logging out and back in.
+
+It fails on any browser console error or failed API call. Use **isolated test
+data**: run it against a rehearsal stack, not a database with real users.
+
+```powershell
+$env:PROD_BASE_URL='http://localhost:8088'; $env:PROD_COMPOSE_PROJECT='focusmind-rehearsal'
+cd frontend; npx playwright test -c playwright.production.config.js
+```
+
 CI (`.github/workflows/ci.yml`) runs both suites and the production build on
 every push to `main` and on every pull request.
 
@@ -148,8 +198,9 @@ docker compose exec backend python -m app.seed      # Docker
 cd backend; .venv\Scripts\python -m app.seed         # local backend
 ```
 
-Or set `SEED_CATALOG=true` to seed on startup (off by default). The seed
-creates lessons without videos.
+Or set `SEED_CATALOG=true` to seed on startup (off by default in development, on in
+the production image). In the production image this also installs the bundled
+demonstration videos when `DEMO_VIDEOS_DIR` is set.
 
 Curated lecture videos (Harvard CS50, CC BY-NC-SA 4.0) are attached
 separately. The tool checks what the server's network can reach (direct
@@ -265,14 +316,49 @@ authenticated endpoint.
 "Looking toward the screen" is **not** a concentration or comprehension score.
 ReplayAI suggestions are review hints based on gaze direction and pauses.
 
+## Security notes
+
+- Passwords are hashed with bcrypt. The session is an HttpOnly JWT cookie: `Secure` and
+  `SameSite=Lax` in production, and scoped to `/api`.
+- Login and registration are rate-limited, and the server answers `429` when the limit is exceeded:
+  - failed logins: 10 per email and 30 per IP per 15 minutes;
+  - registrations: 20 per IP per hour.
+  The limiter is in-process, so with several instances each one counts separately.
+- Uploads are type-sniffed (only real video containers are accepted), size-limited and
+  subject to a per-user quota.
+- Videos stream only to users who are allowed to see them.
+- The SPA file server never serves files outside the build folder, and unknown
+  `/api/*` paths return JSON 404s.
+- `/docs` is disabled in production.
+- No secrets are committed: `.env*` (except the two templates) and `certs/` are ignored by git.
+
+## Known limitations
+
+- **External videos behind NetFree:** every external `.mp4` and YouTube are blocked on
+  the development network. None of the library's external videos was verified
+  to play here; they open on their own site. The demonstration videos are local
+  and always play. See [docs/catalog-videos.md](docs/catalog-videos.md).
+- **Attention accuracy:** automated tests use Chromium's synthetic camera, and the ReplayAI
+  tests use controlled sessions. Real-webcam accuracy has not been measured; use
+  the protocol in [docs/attention-engine-testing.md](docs/attention-engine-testing.md).
+- **Cloud:** the production image is verified locally (a rehearsal with the same image), but
+  it is **not yet deployed** to Google Cloud.
+- **Upload size:** Cloud Run limits a request body to 32 MiB, so the production template
+  limits uploads to 30 MiB. Larger videos need a direct-to-bucket upload, which
+  is not implemented yet.
+- **Admin role:** content managers are granted only from the command line.
+
 ## Further documentation
+
+- [docs/DEPLOYMENT-HE.md](docs/DEPLOYMENT-HE.md): Google Cloud deployment guide (Hebrew)
+- [docs/USER-GUIDE-HE.md](docs/USER-GUIDE-HE.md): full user guide (Hebrew)
+- [docs/FINAL-SUBMISSION-HE.md](docs/FINAL-SUBMISSION-HE.md): submission summary, test evidence and demo script (Hebrew)
 
 - [frontend/src/features/attention-engine/README.md](frontend/src/features/attention-engine/README.md): how the attention engine works
 - [docs/architecture.md](docs/architecture.md): final architecture and main user journey
 - [docs/courses.md](docs/courses.md): courses, lessons, video storage, progress and session data
 - [docs/replayai.md](docs/replayai.md): ReplayAI rules, thresholds, storage and replay mode
 - [docs/learning-features.md](docs/learning-features.md): Smart Timer, insights, coach, study plan, quizzes, catalog management, privacy
-- [docs/user-guide.md](docs/user-guide.md): user guide (Hebrew)
 - [docs/catalog-videos.md](docs/catalog-videos.md): catalog lecture videos, playback types, NetFree verification
 - [docs/catalog-library.md](docs/catalog-library.md): the 10-course / 116-lesson video library, sources per lesson and measured accessibility
 - [docs/attention-engine-testing.md](docs/attention-engine-testing.md): real-camera test protocol (Hebrew)

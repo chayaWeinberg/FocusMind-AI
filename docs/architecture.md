@@ -62,4 +62,4 @@ Smart Timer, ReplayAI, QuizFlow) → Review (`/review`) → Insights
 More detail: [courses.md](courses.md), [replayai.md](replayai.md),
 [learning-features.md](learning-features.md), the attention engine
 [README](../frontend/src/features/attention-engine/README.md), and the
-[user guide (Hebrew)](user-guide.md).
+[user guide (Hebrew)](USER-GUIDE-HE.md).
