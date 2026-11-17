@@ -238,42 +238,120 @@ function LessonEditor({ lesson, index, total, onMove, onLessonChange, onLessonSa
   );
 }
 
-function AddLessonForm({ courseId, onAdded }) {
-  const [values, setValues] = useState({ title: '', description: '', url: '' });
+const EMPTY_LESSON = Object.freeze({ title: '', description: '', source: 'none', url: '' });
+
+/**
+ * A fresh "add lesson" form. It reports success only after the server
+ * confirmed the lesson (and its upload, when a file was chosen); on failure it
+ * stays open with everything the user typed. A lesson that was created but
+ * whose upload failed is remembered, so trying again only retries the upload
+ * and never creates a second lesson.
+ */
+function AddLessonForm({ courseId, onCreated, onDone, onCancel }) {
+  const [values, setValues] = useState(EMPTY_LESSON);
+  const [file, setFile] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [created, setCreated] = useState(null);
   const [state, run] = useAction();
+  const uploadRef = useRef(null);
+  const titleRef = useRef(null);
+  const fileInputId = `add-lesson-file-${courseId}`;
+
+  useEffect(() => {
+    titleRef.current?.focus();
+    return () => uploadRef.current?.abort();
+  }, []);
+
+  const set = (field) => (event) => setValues({ ...values, [field]: event.target.value });
+  const locked = state.busy || Boolean(created); // details are fixed once the lesson exists
+  const valid = values.title.trim().length >= 2
+    && (values.source !== 'url' || values.url.trim().length > 0)
+    && (values.source !== 'file' || Boolean(file));
 
   async function submit(event) {
     event.preventDefault();
-    if (values.title.trim().length < 2) return;
-    const lesson = await run(() => addLesson(courseId, {
-      title: values.title.trim(),
-      description: values.description.trim(),
-      ...(values.url.trim() ? { externalUrl: values.url.trim() } : {}),
-    }), 'השיעור נוסף. אפשר להעלות אליו סרטון דרך "עריכה".');
-    if (lesson) {
-      setValues({ title: '', description: '', url: '' });
-      onAdded(lesson);
-    }
+    if (!valid || state.busy) return;
+    const lesson = await run(async () => {
+      let current = created;
+      if (!current) {
+        current = await addLesson(courseId, {
+          title: values.title.trim(),
+          description: values.description.trim(),
+          ...(values.source === 'url' ? { externalUrl: values.url.trim() } : {}),
+        });
+        setCreated(current);
+        onCreated(current); // already on the server: show it in the list right away
+      }
+      if (values.source === 'file' && current.video.sourceType !== 'upload') {
+        const durationSeconds = await readVideoDuration(file);
+        const request = uploadLessonVideo(current.id, file, { durationSeconds, onProgress: setProgress });
+        uploadRef.current = request;
+        setProgress(0);
+        try {
+          current = await request.promise;
+        } catch (error) {
+          throw new Error(`השיעור נוצר, אבל העלאת הסרטון נכשלה: ${error.message} אפשר לנסות שוב – השיעור לא ייווצר פעם נוספת.`);
+        } finally {
+          uploadRef.current = null;
+          setProgress(null);
+        }
+      }
+      return current;
+    });
+    if (lesson) onDone(lesson);
   }
 
   return (
-    <form className="course-form lesson-add" onSubmit={submit} aria-label="הוספת שיעור">
+    <form className="course-form lesson-add" onSubmit={submit} aria-label="הוספת שיעור" aria-busy={state.busy}>
       <h3>הוספת שיעור</h3>
       <label>
         <span>שם השיעור</span>
-        <input value={values.title} onChange={(event) => setValues({ ...values, title: event.target.value })} maxLength={120} required minLength={2} />
+        <input ref={titleRef} value={values.title} onChange={set('title')} maxLength={120} required minLength={2} disabled={locked} />
       </label>
-      <label>
-        <span>קישור לסרטון (לא חובה)</span>
-        <input type="url" dir="ltr" value={values.url} onChange={(event) => setValues({ ...values, url: event.target.value })} placeholder="https://…" maxLength={2048} />
-      </label>
+      <fieldset className="lesson-add-source course-form-wide" disabled={locked}>
+        <legend>סרטון לשיעור</legend>
+        <label><input type="radio" name={`add-source-${courseId}`} checked={values.source === 'none'} onChange={() => setValues({ ...values, source: 'none' })} /> בלי סרטון כרגע</label>
+        <label><input type="radio" name={`add-source-${courseId}`} checked={values.source === 'url'} onChange={() => setValues({ ...values, source: 'url' })} /> קישור לסרטון</label>
+        <label><input type="radio" name={`add-source-${courseId}`} checked={values.source === 'file'} onChange={() => setValues({ ...values, source: 'file' })} /> העלאת קובץ וידאו</label>
+      </fieldset>
+      {values.source === 'url' && (
+        <label className="course-form-wide">
+          <span>קישור לסרטון (קובץ וידאו ישיר, YouTube או עמוד וידאו)</span>
+          <input type="url" dir="ltr" value={values.url} onChange={set('url')} placeholder="https://…" maxLength={2048} required disabled={locked} />
+        </label>
+      )}
+      {values.source === 'file' && (
+        <div className="course-form-wide lesson-add-file">
+          <label htmlFor={fileInputId}>
+            <span>קובץ וידאו (MP4 או WebM)</span>
+          </label>
+          <input
+            id={fileInputId}
+            type="file"
+            accept="video/mp4,video/webm,.mp4,.webm,.m4v"
+            aria-label="קובץ וידאו לשיעור החדש"
+            onChange={(event) => setFile(event.target.files?.[0] || null)}
+            disabled={state.busy}
+          />
+          {file && <small dir="auto">{file.name} · {formatBytes(file.size)}</small>}
+          {progress !== null && (
+            <progress max="1" value={progress} aria-label="התקדמות ההעלאה">{Math.round(progress * 100)}%</progress>
+          )}
+        </div>
+      )}
       <label className="course-form-wide">
         <span>תיאור (לא חובה)</span>
-        <textarea value={values.description} onChange={(event) => setValues({ ...values, description: event.target.value })} maxLength={2000} rows={2} />
+        <textarea value={values.description} onChange={set('description')} maxLength={2000} rows={2} disabled={locked} />
       </label>
+      {created && !state.busy && (
+        <p className="course-note course-form-wide">השיעור ״{created.title}״ כבר נשמר. נשאר רק להעלות את הסרטון.</p>
+      )}
       <div className="course-form-actions">
-        <button type="submit" className="signature-primary-button" disabled={state.busy || values.title.trim().length < 2}>
-          {state.busy ? 'מוסיפים…' : 'הוספת השיעור'}
+        <button type="submit" className="signature-primary-button" disabled={state.busy || !valid}>
+          {state.busy ? (progress !== null ? `מעלים… ${Math.round(progress * 100)}%` : 'שומרים…') : (created ? 'ניסיון חוזר להעלאה' : 'שמירת השיעור')}
+        </button>
+        <button type="button" className="signature-secondary-button" onClick={onCancel} disabled={state.busy}>
+          {created ? 'סגירה (השיעור נשמר בלי סרטון)' : 'ביטול'}
         </button>
         <Feedback state={state} />
       </div>
@@ -289,6 +367,14 @@ function EditCourse({ courseId }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingCourse, setEditingCourse] = useState(false);
   const [notice, showNotice, clearNotice] = useNotice();
+  // null: open automatically only while the course has no lessons yet.
+  const [addingLesson, setAddingLesson] = useState(null);
+  const [addFormKey, setAddFormKey] = useState(0);
+  const addButtonRef = useRef(null);
+  // After the form closes, keyboard focus returns to "+ הוספת שיעור".
+  useEffect(() => {
+    if (addingLesson === false) addButtonRef.current?.focus();
+  }, [addingLesson]);
 
   if (course && !course.canEdit) {
     return (
@@ -305,6 +391,30 @@ function EditCourse({ courseId }) {
     ...course,
     lessons: lessons.map((lesson) => (lesson.id === updated.id ? { ...lesson, ...updated } : lesson)),
   });
+
+  // The new lesson replaces an earlier copy of itself (created, then uploaded), never duplicates.
+  const upsertLesson = (lesson) => setData((current) => {
+    const existing = current?.lessons || [];
+    const next = existing.some((entry) => entry.id === lesson.id)
+      ? existing.map((entry) => (entry.id === lesson.id ? { ...entry, ...lesson } : entry))
+      : [...existing, lesson];
+    return { ...current, lessons: next, lessonCount: next.length };
+  });
+
+  const addFormOpen = addingLesson ?? lessons.length === 0;
+
+  function openAddLesson() {
+    setAddFormKey((key) => key + 1); // a fresh, empty form every time
+    setAddingLesson(true);
+  }
+
+  function lessonAdded(lesson) {
+    upsertLesson(lesson);
+    setAddingLesson(false);
+    showNotice(lesson.video.sourceType === 'none'
+      ? `השיעור ״${lesson.title}״ נוסף. אפשר להוסיף לו סרטון בכפתור "סרטון".`
+      : `השיעור ״${lesson.title}״ נוסף עם הסרטון.`);
+  }
 
   function courseSaved(updated) {
     setEditingCourse(false);
@@ -394,7 +504,19 @@ function EditCourse({ courseId }) {
                 ))}
               </ol>
             )}
-            <AddLessonForm courseId={courseId} onAdded={(lesson) => setData({ ...course, lessons: [...lessons, lesson], lessonCount: lessons.length + 1 })} />
+            {addFormOpen ? (
+              <AddLessonForm
+                key={addFormKey}
+                courseId={courseId}
+                onCreated={upsertLesson}
+                onDone={lessonAdded}
+                onCancel={() => setAddingLesson(false)}
+              />
+            ) : (
+              <button type="button" className="signature-primary-button lesson-add-open" onClick={openAddLesson} ref={addButtonRef}>
+                + הוספת שיעור
+              </button>
+            )}
           </section>
 
           <section className="course-panel course-danger" aria-labelledby="danger-title">

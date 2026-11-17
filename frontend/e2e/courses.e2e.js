@@ -85,8 +85,9 @@ test.describe.serial('FocusMind courses end to end', () => {
 
     const addForm = page.getByRole('form', { name: 'הוספת שיעור' });
     for (const title of ['תנועה', 'כוחות', 'אנרגיה']) {
+      if (!(await addForm.isVisible())) await page.getByRole('button', { name: '+ הוספת שיעור' }).click();
       await addForm.getByLabel('שם השיעור').fill(title);
-      await addForm.getByRole('button', { name: 'הוספת השיעור' }).click();
+      await addForm.getByRole('button', { name: 'שמירת השיעור' }).click();
       await expect(page.locator('.lesson-editor-summary strong', { hasText: title })).toBeVisible();
     }
 

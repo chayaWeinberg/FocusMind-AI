@@ -29,5 +29,11 @@ export default function useLoader(load, dependencies) {
     };
   }, [reload]);
 
-  return { ...state, reload, setData: (data) => setState({ status: 'ready', data, error: '' }) };
+  // setData accepts a value or an updater (previous data -> new data).
+  const setData = useCallback((data) => setState((previous) => ({
+    status: 'ready',
+    data: typeof data === 'function' ? data(previous.data) : data,
+    error: '',
+  })), []);
+  return { ...state, reload, setData };
 }

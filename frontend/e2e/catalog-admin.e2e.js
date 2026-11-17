@@ -57,8 +57,9 @@ test('a content manager creates, fills and publishes a catalog course that learn
   // The existing course editor manages catalog lessons and videos.
   await expect(page).toHaveURL(/\/courses\/.+\/edit$/);
   const addForm = page.getByRole('form', { name: 'הוספת שיעור' });
+  if (!(await addForm.isVisible())) await page.getByRole('button', { name: '+ הוספת שיעור' }).click();
   await addForm.getByLabel('שם השיעור').fill('ממוצע וחציון');
-  await addForm.getByRole('button', { name: 'הוספת השיעור' }).click();
+  await addForm.getByRole('button', { name: 'שמירת השיעור' }).click();
   await expect(page.getByText('ממוצע וחציון').first()).toBeVisible();
 
   // Draft: invisible to learners.

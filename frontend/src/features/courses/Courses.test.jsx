@@ -91,19 +91,38 @@ describe('Courses screens (fake backend)', { timeout: 20_000 }, () => {
     expect(await screen.findByRole('heading', { name: 'פיזיקה', level: 1 })).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/courses/${course.id}/edit`);
 
-    const addForm = within(screen.getByRole('form', { name: 'הוספת שיעור' }));
+    // A new course opens the add-lesson form right away.
+    let addForm = within(screen.getByRole('form', { name: 'הוספת שיעור' }));
     await user.type(addForm.getByLabelText('שם השיעור'), 'תנועה');
-    await user.click(addForm.getByRole('button', { name: 'הוספת השיעור' }));
+    await user.click(addForm.getByRole('button', { name: 'שמירת השיעור' }));
     expect(await screen.findByText('תנועה')).toBeInTheDocument();
+    // Saved: the form closes, "+ הוספת שיעור" stays, a notice confirms.
+    expect(screen.queryByRole('form', { name: 'הוספת שיעור' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ הוספת שיעור' })).toHaveFocus();
+    expect(screen.getByText(/השיעור ״תנועה״ נוסף/)).toBeInTheDocument();
 
+    // A fresh, empty form.
+    await user.click(screen.getByRole('button', { name: '+ הוספת שיעור' }));
+    addForm = within(screen.getByRole('form', { name: 'הוספת שיעור' }));
+    expect(addForm.getByLabelText('שם השיעור')).toHaveValue('');
     await user.type(addForm.getByLabelText('שם השיעור'), 'כוחות');
-    await user.type(addForm.getByLabelText('קישור לסרטון (לא חובה)'), 'https://example.com/page');
-    await user.click(addForm.getByRole('button', { name: 'הוספת השיעור' }));
+    await user.click(addForm.getByRole('radio', { name: 'קישור לסרטון' }));
+    await user.type(addForm.getByLabelText(/^קישור לסרטון \(/), 'https://example.com/page');
+    const before = api.requests.filter((request) => request.method === 'POST' && /\/lessons$/.test(request.url)).length;
+    await user.click(addForm.getByRole('button', { name: 'שמירת השיעור' }));
+    // Failed save: still open, values kept, a Hebrew error.
     expect(await screen.findByRole('alert')).toHaveTextContent('הקישור אינו נתמך');
-    await user.clear(addForm.getByLabelText('קישור לסרטון (לא חובה)'));
-    await user.type(addForm.getByLabelText('קישור לסרטון (לא חובה)'), 'https://cdn.example.com/forces.mp4');
-    await user.click(addForm.getByRole('button', { name: 'הוספת השיעור' }));
+    expect(screen.getByRole('form', { name: 'הוספת שיעור' })).toBeInTheDocument();
+    expect(addForm.getByLabelText('שם השיעור')).toHaveValue('כוחות');
+    expect(addForm.getByLabelText(/^קישור לסרטון \(/)).toHaveValue('https://example.com/page');
+    await user.clear(addForm.getByLabelText(/^קישור לסרטון \(/));
+    await user.type(addForm.getByLabelText(/^קישור לסרטון \(/), 'https://cdn.example.com/forces.mp4');
+    await user.click(addForm.getByRole('button', { name: 'שמירת השיעור' }));
     expect(await screen.findByText('כוחות')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'הוספת שיעור' })).not.toBeInTheDocument();
+    // Exactly one more create request succeeded (the failed one created nothing).
+    expect(api.requests.filter((request) => request.method === 'POST' && /\/lessons$/.test(request.url)).length).toBe(before + 2);
+    expect(screen.getAllByText('כוחות')).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'הזזת השיעור כוחות למעלה' }));
     await waitFor(() => {

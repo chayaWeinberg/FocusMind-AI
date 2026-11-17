@@ -859,3 +859,50 @@
   .academy-spotlight { grid-template-columns: 1fr; }
   .academy-spotlight > .signature-primary-button { grid-column: auto; grid-row: auto; justify-self: start; }
 }
+
+/* "+ הוספת שיעור" and the add-lesson form. */
+.lesson-add-open {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.lesson-add-source {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  gap: 8px 18px;
+  border: 0;
+  font: 10px/1.6 var(--signature-font-family);
+}
+
+.lesson-add-source legend {
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--signature-muted);
+  font-weight: 600;
+}
+
+.lesson-add-source label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lesson-add-file {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.lesson-add-file input[type="file"] {
+  max-width: 100%;
+}
+
+.lesson-add-file progress {
+  width: min(320px, 100%);
+}
+
+.lesson-add[aria-busy="true"] {
+  opacity: 0.85;
+}

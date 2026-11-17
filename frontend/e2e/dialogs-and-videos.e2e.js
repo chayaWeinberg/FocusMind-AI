@@ -94,8 +94,9 @@ test.describe.serial('dialogs and catalog videos', () => {
 
     // Lesson details dialog.
     const add = page.getByRole('form', { name: 'הוספת שיעור' });
+    if (!(await add.isVisible())) await page.getByRole('button', { name: '+ הוספת שיעור' }).click();
     await add.getByLabel('שם השיעור').fill('משולשים');
-    await add.getByRole('button', { name: 'הוספת השיעור' }).click();
+    await add.getByRole('button', { name: 'שמירת השיעור' }).click();
     await page.getByRole('button', { name: 'עריכת פרטי השיעור משולשים' }).click();
     const lessonDialog = page.getByRole('dialog', { name: 'עריכת פרטי השיעור' });
     await lessonDialog.getByLabel('שם השיעור').fill('משולשים ישרי זווית');

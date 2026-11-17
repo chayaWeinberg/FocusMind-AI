@@ -210,8 +210,9 @@ test.describe.serial('production journey', () => {
 
     const add = page.getByRole('form', { name: 'הוספת שיעור' });
     for (const title of ['שיעור וידאו', 'שיעור קישור']) {
+      if (!(await add.isVisible())) await page.getByRole('button', { name: '+ הוספת שיעור' }).click();
       await add.getByLabel('שם השיעור').fill(title);
-      await add.getByRole('button', { name: 'הוספת השיעור' }).click();
+      await add.getByRole('button', { name: 'שמירת השיעור' }).click();
       await expect(page.locator('.lesson-editor-summary strong', { hasText: title })).toBeVisible();
     }
     await page.getByRole('button', { name: 'פתיחת הסרטון והכלים של השיעור שיעור וידאו' }).click();
