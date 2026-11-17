@@ -71,9 +71,9 @@ dependencies:
 - it keeps uploaded videos in `/data/videos` (a volume, or a Cloud Storage
   bucket mount on Cloud Run).
 
-With `SEED_CATALOG=true` it creates the 13-course catalog on startup and
-installs the 16 bundled demonstration videos (`backend/demo_assets/`),
-idempotently.
+With `SEED_CATALOG=true` it creates the 18-course catalog on startup and
+installs the 15 FocusMind Academy lessons plus the 16 demonstration videos
+bundled in `backend/demo_assets/`, idempotently.
 
 ```powershell
 copy .env.production.example .env.production   # replace every placeholder
@@ -182,9 +182,49 @@ docker compose build frontend
 docker compose up -d --no-deps frontend   # MongoDB and volumes are untouched
 ```
 
+## FocusMind Academy (full lessons that play here)
+
+The **FocusMind Academy** is 5 courses × 3 original lessons, each about 3 minutes, 15 in total:
+- Python;
+- JavaScript;
+- SQL;
+- algorithms;
+- Docker.
+
+The lessons teach real concepts:
+- explanation captions that change through the video;
+- code examples with their output;
+- step-by-step array traces for binary search and sorting;
+- terminal sessions;
+- a "check yourself" question in every lesson.
+
+How they are made and served:
+- The lessons are written in `frontend/scripts/academy-videos/lessons.mjs`.
+- They are drawn and recorded offline in Edge (`node scripts/academy-videos/generate.mjs`, about 20 MB in total).
+- They are committed in `backend/demo_assets/` (manifest entries with `"kind": "academy"`).
+- They are installed on startup, so a fresh Linux deployment has them without any local machine or volume.
+
+They play inside FocusMind with:
+- saved and restored progress;
+- attention segments in video time;
+- ReplayAI;
+- analytics.
+
+There is no narration: no Hebrew voice is available offline. The explanation is in the on-screen captions.
+
+Each lesson shows its **learning mode** (`frontend/src/features/courses/learningMode.jsx`):
+- "למידה חכמה מלאה" (full Smart Learning);
+- "וידאו מוטמע – מעקב חלקי" (embedded YouTube, partial tracking);
+- "קישור חיצוני בלבד" (external link only);
+- "חסום ברשת הנוכחית" (blocked on this network);
+- "אין סרטון עדיין" (no video yet).
+
+The camera and ReplayAI are offered only where the video plays in FocusMind.
+
 ## Example catalog
 
-The catalog has 13 courses:
+The catalog has 18 courses (Academy first):
+- **5 FocusMind Academy courses (15 lessons):** full original lessons that play here. See above.
 - **10 video-library courses (116 lessons):** each lesson links to a real Harvard CS50 or
   Microsoft Learn video. See [docs/catalog-library.md](docs/catalog-library.md).
 - **3 demonstration courses:** their videos are generated locally and play offline, for testing
@@ -318,6 +358,15 @@ ReplayAI suggestions are review hints based on gaze direction and pauses.
 
 ## Security notes
 
+Full review, URL patterns, user identification and isolation: [docs/SECURITY-HE.md](docs/SECURITY-HE.md).
+
+- The identity comes only from the HttpOnly session cookie, never from an id the browser sends. Other accounts' objects answer 404.
+- Logout revokes the token on the server (`jti` plus the `revoked_tokens` collection with a TTL).
+- Every `/api` response is `Cache-Control: no-store`.
+- Cross-site writes are rejected: a POST, PUT, PATCH or DELETE with a foreign or `null` `Origin` gets 403.
+- The production pages have a CSP and the usual hardening headers.
+- The UI signs out on any 401 and keeps tabs in sync (BroadcastChannel). It re-checks the session when Back/Forward restores a page from the bfcache.
+
 - Passwords are hashed with bcrypt. The session is an HttpOnly JWT cookie: `Secure` and
   `SameSite=Lax` in production, and scoped to `/api`.
 - Login and registration are rate-limited, and the server answers `429` when the limit is exceeded:
@@ -352,6 +401,7 @@ ReplayAI suggestions are review hints based on gaze direction and pauses.
 
 - [docs/DEPLOYMENT-HE.md](docs/DEPLOYMENT-HE.md): Google Cloud deployment guide (Hebrew)
 - [docs/USER-GUIDE-HE.md](docs/USER-GUIDE-HE.md): full user guide (Hebrew)
+- [docs/SECURITY-HE.md](docs/SECURITY-HE.md): security review, user identification, URL patterns and account isolation (Hebrew)
 - [docs/FINAL-SUBMISSION-HE.md](docs/FINAL-SUBMISSION-HE.md): submission summary, test evidence and demo script (Hebrew)
 
 - [frontend/src/features/attention-engine/README.md](frontend/src/features/attention-engine/README.md): how the attention engine works
