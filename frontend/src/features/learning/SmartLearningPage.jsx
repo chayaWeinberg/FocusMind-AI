@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import FocusIllustration from '../../components/FocusIllustration.jsx';
-import SignatureBrand from '../../components/SignatureBrand.jsx';
 import AttentionMonitor from './AttentionMonitor.jsx';
-import { HeaderLogoutButton } from '../../components/AppShell.jsx';
+import AppShell from '../../components/AppShell.jsx';
 import { LearningModeBadge, learningModeOf } from '../courses/learningMode.jsx';
 import AttentionSessionSummary, { AttentionTimeline } from './AttentionSessionSummary.jsx';
 import { createAttentionSessionStats } from './attentionSessionStats.js';
@@ -562,32 +561,17 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   }
 
   return (
-    <main className="signature-production smart-learning-page" dir="rtl" lang="he">
-      <section className="signature-page signature-learning-page" aria-labelledby="learning-title">
+    <AppShell active="learning" labelledBy="learning-title" className="smart-learning-page" contentClassName="smart-learning-content">
         {lessonMode ? (
           <LessonHeader context={context} />
         ) : (
-          <>
-            <header className="signature-learning-header">
-              <SignatureBrand />
-              <nav aria-label="ניווט ראשי">
-                <a href="/dashboard">לוח הבקרה</a>
-                <a href="/courses">הקורסים שלי</a>
-                <a href="/learning" className="is-active" aria-current="page">למידה חכמה</a>
-                <a href="/review">חזרה חכמה</a>
-                <a href="/insights">תובנות</a>
-              </nav>
-              <div className="signature-learning-header-actions">
-                <a className="signature-learning-back" href="/dashboard">חזרה ללוח הבקרה <span aria-hidden="true">←</span></a>
-                <HeaderLogoutButton />
-              </div>
-            </header>
-
-            <div className="smart-learning-heading">
-              <span>המרחב שלך ללמידה</span>
+          <header className="courses-hero">
+            <div>
+              <small>המרחב שלך ללמידה</small>
               <h1 id="learning-title">למידה חכמה</h1>
+              <p>מנגנים סרטון מהמכשיר, עם שעון למידה ומעקב קשב בדפדפן. הסרטון לא מועלה לשרת.</p>
             </div>
-          </>
+          </header>
         )}
 
         <div className="signature-learning-layout">
@@ -782,7 +766,6 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
             {attentionAvailable && <AttentionSessionSummary stats={attentionStats} />}
           </aside>
         </div>
-      </section>
-    </main>
+    </AppShell>
   );
 }

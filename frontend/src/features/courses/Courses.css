@@ -782,3 +782,80 @@
 
 .attention-unavailable h2 { margin: 0 0 8px; font-size: 1.05rem; }
 .attention-unavailable p { margin: 0 0 10px; color: #4b5654; line-height: 1.6; }
+
+/* Catalog: FocusMind Academy spotlight (playable lessons first). */
+.academy-spotlight {
+  display: grid;
+  padding: 18px 22px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 20px;
+  background: #fff;
+  border: 2px solid var(--signature-primary);
+  border-radius: 20px 6px 20px 6px;
+}
+
+.academy-spotlight small {
+  color: var(--signature-primary);
+  font: 700 8px/1.4 var(--signature-font-family);
+}
+
+.academy-spotlight h2 {
+  margin: 4px 0;
+  color: var(--signature-ink);
+  font: 600 16px/1.3 var(--signature-font-family);
+}
+
+.academy-spotlight p {
+  margin: 0;
+  color: var(--signature-muted);
+  font: 10px/1.6 var(--signature-font-family);
+}
+
+.academy-spotlight-links {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  grid-column: 1 / -1;
+  gap: 8px;
+  list-style: none;
+}
+
+.academy-spotlight-links a {
+  display: inline-block;
+  padding: 5px 12px;
+  color: #0f5257;
+  background: #d7efec;
+  border-radius: 999px;
+  font: 600 10px/1.5 var(--signature-font-family);
+  text-decoration: none;
+}
+
+.academy-spotlight-links a:hover { text-decoration: underline; }
+
+.academy-spotlight > .signature-primary-button {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+
+.course-mode-notice {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  align-items: center;
+  gap: 8px 14px;
+  color: #4b5654;
+  background: #f4f6f5;
+  border: 1px dashed var(--signature-line);
+  border-radius: 14px;
+  font: 10px/1.6 var(--signature-font-family);
+}
+
+.course-mode-notice strong { color: var(--signature-ink); }
+
+@media (max-width: 700px) {
+  .academy-spotlight { grid-template-columns: 1fr; }
+  .academy-spotlight > .signature-primary-button { grid-column: auto; grid-row: auto; justify-self: start; }
+}

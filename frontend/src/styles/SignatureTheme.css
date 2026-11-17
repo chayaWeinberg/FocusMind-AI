@@ -53,7 +53,8 @@ input {
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes a scroll container, which breaks the sticky sidebar. */
+  overflow-x: clip;
   color: var(--signature-ink);
   background: var(--signature-bg);
   font-family: var(--signature-font-family);
@@ -68,7 +69,7 @@ input {
 .signature-page {
   position: relative;
   min-height: 620px;
-  overflow: hidden;
+  overflow: clip; /* see .signature-production: keeps the sidebar sticky */
   background: var(--signature-bg);
   border: 1px solid var(--signature-line);
   border-radius: 20px;
@@ -1124,23 +1125,6 @@ input {
   justify-self: end;
 }
 
-.signature-learning-header-actions {
-  display: flex;
-  justify-self: end;
-  align-items: center;
-  gap: 14px;
-}
-
-.signature-header-logout {
-  padding: 4px 10px;
-  border: 1px solid var(--signature-line);
-  border-radius: 8px;
-}
-
-.signature-header-logout:hover {
-  color: var(--signature-primary);
-  border-color: var(--signature-primary);
-}
 
 .signature-learning-layout {
   display: grid;
@@ -2560,12 +2544,37 @@ input {
     display: none;
   }
 
-  .signature-production .signature-dashboard-sidebar .signature-sidebar-user > div,
-  .signature-production .signature-dashboard-sidebar .signature-sidebar-user > button {
+  /* Keep logout reachable on phones: only the name is hidden. */
+  .signature-production .signature-dashboard-sidebar .signature-sidebar-user > div {
     display: none;
   }
 
   .signature-production .signature-dashboard-sidebar .signature-sidebar-user {
     justify-content: center;
+    justify-items: center;
   }
+}
+/* Shared side navigation stays in place while the page scrolls (all widths:
+   the sidebar is a narrow icon column on small screens). Long menus scroll
+   inside the sidebar itself. */
+.signature-production .signature-dashboard-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Smart Learning inside the shared AppShell. */
+.signature-production .smart-learning-content .signature-learning-layout {
+  width: 100%;
+  padding: 0 0 28px;
+}
+
+.signature-production .lesson-hero .lesson-heading {
+  display: grid;
+  max-width: 760px;
+  gap: 5px;
 }

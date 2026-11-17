@@ -1,45 +1,31 @@
 import { useState } from 'react';
-import { HeaderLogoutButton } from '../../components/AppShell.jsx';
-import SignatureBrand from '../../components/SignatureBrand.jsx';
 import { completeLesson, formatDuration } from '../courses/coursesApi.js';
 import { courseUrl, lessonUrl } from '../courses/courseRoutes.js';
 
-/** Header of the Smart Learning page when it plays a course lesson. */
+/** Title of the Smart Learning page when it plays a course lesson (inside AppShell). */
 export default function LessonHeader({ context }) {
   return (
-    <>
-      <header className="signature-learning-header">
-        <SignatureBrand />
-        <nav aria-label="ניווט ראשי">
-          <a href="/dashboard">לוח הבקרה</a>
-          <a href="/courses">הקורסים שלי</a>
-          <a href="/learning" className="is-active" aria-current="page">למידה חכמה</a>
-          <a href="/review">חזרה חכמה</a>
-          <a href="/insights">תובנות</a>
-        </nav>
-        <div className="signature-learning-header-actions">
-          {context && (
-            <a className="signature-learning-back" href={courseUrl(context.course.id)}>
-              חזרה לקורס <span aria-hidden="true">←</span>
-            </a>
-          )}
-          <HeaderLogoutButton />
-        </div>
-      </header>
-
-      <div className="smart-learning-heading lesson-heading">
-        <span>
+    <header className="courses-hero lesson-hero">
+      <div className="lesson-heading">
+        <small>
           {context ? (
             <>
               <a href={courseUrl(context.course.id)}>{context.course.title}</a>
               {' · '}שיעור {context.lessonNumber} מתוך {context.lessonTotal}
             </>
           ) : 'למידה חכמה'}
-        </span>
+        </small>
         <h1 id="learning-title">{context?.lesson.title || 'טוענים את השיעור…'}</h1>
         {context?.lesson.description && <p>{context.lesson.description}</p>}
       </div>
-    </>
+      {context && (
+        <div className="courses-hero-actions">
+          <a className="signature-secondary-button" href={courseUrl(context.course.id)}>
+            חזרה לקורס <span aria-hidden="true">←</span>
+          </a>
+        </div>
+      )}
+    </header>
   );
 }
 

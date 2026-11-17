@@ -31,30 +31,29 @@ describe('App routes and authentication', () => {
 
       render(<App />);
 
-      expect(await screen.findByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
+      await waitFor(() => expect(window.location.pathname).toBe('/login'));
       expect(screen.queryByText(/WebGazer|ניסוי/)).not.toBeInTheDocument();
     },
   );
 
-  it('keeps the existing registration page at /register and at the root', async () => {
+  it('opens the login page for signed-out visitors at the root, and keeps registration at /register', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(401, {}));
     vi.stubGlobal('fetch', fetchMock);
-    window.history.pushState({}, '', '/register');
+    window.history.pushState({}, '', '/');
     const { unmount } = render(<App />);
+    expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe('/login'));
+    // Registration is one link away.
+    expect(screen.getByRole('link', { name: 'יוצרים חשבון חדש' })).toHaveAttribute('href', '/register');
+
+    unmount();
+    window.history.pushState({}, '', '/register');
+    render(<App />);
     expect(screen.getByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
     expect(screen.getByLabelText('שם מלא')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'עיפרון מצייר שביל מתפתל שהופך לספרים ורעיונות חדשים' })).toBeInTheDocument();
-    await waitFor(async () => {
-      expect(await fetchMock.mock.results[0].value).toMatchObject({ status: 401 });
-    });
-
-    unmount();
-    window.history.pushState({}, '', '/');
-    render(<App />);
-    expect(screen.getByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
-    await waitFor(async () => {
-      expect(await fetchMock.mock.results[1].value).toMatchObject({ status: 401 });
-    });
+    expect(window.location.pathname).toBe('/register');
   });
 
   it('restores a session through /me and shows the personalized dashboard', async () => {
@@ -102,7 +101,11 @@ describe('App routes and authentication', () => {
 
     expect(await screen.findByRole('heading', { name: 'למידה חכמה', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'הפעלת מצלמה' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'חזרה ללוח הבקרה' })).toHaveAttribute('href', '/dashboard');
+    // The same side navigation as every signed-in page (one main navigation, no top bar).
+    expect(screen.getAllByRole('navigation', { name: 'ניווט ראשי' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'לוח הבקרה' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('link', { name: 'למידה חכמה' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'התנתקות' })).toBeInTheDocument();
   });
 
   it('redirects an authenticated visitor from /login to /dashboard', async () => {
@@ -216,7 +219,7 @@ describe('App routes and authentication', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'מתחילים להתמקד' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'חוזרים לפוקוס' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'בחירת כיוון עיצובי' })).not.toBeInTheDocument();
   });
 

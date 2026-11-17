@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth, useOptionalAuth } from '../features/auth/AuthContext.jsx';
+import { useOptionalAuth } from '../features/auth/AuthContext.jsx';
 import SignatureBrand from './SignatureBrand.jsx';
 
 export const NAV_ITEMS = Object.freeze([
@@ -16,31 +16,10 @@ export const NAV_ITEMS = Object.freeze([
 // Shown only to content managers; the API enforces the permission itself.
 export const ADMIN_NAV_ITEM = Object.freeze({ key: 'admin', href: '/admin/catalog', icon: '⚙', label: 'ניהול הקטלוג' });
 
-/** Logout for pages without the sidebar (the Smart Learning player). */
-export function HeaderLogoutButton() {
-  const auth = useOptionalAuth();
-  const [busy, setBusy] = useState(false);
-  if (!auth) return null;
-  const { logout } = auth;
-  async function handleLogout() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await logout();
-    } catch {
-      setBusy(false);
-    }
-  }
-  return (
-    <button type="button" className="signature-learning-back signature-header-logout" onClick={handleLogout} disabled={busy}>
-      {busy ? 'מתנתקים...' : 'התנתקות'}
-    </button>
-  );
-}
-
 /** Sidebar navigation shared by the dashboard and the course screens. */
 export function SidebarNav({ active }) {
-  const { user } = useAuth();
+  // Optional: isolated component tests render pages without an AuthProvider.
+  const user = useOptionalAuth()?.user;
   const items = user?.role === 'content_manager' ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
   return (
     <nav aria-label="ניווט ראשי">
@@ -61,7 +40,9 @@ export function SidebarNav({ active }) {
 }
 
 export function SidebarUser() {
-  const { user, logout } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
+  const logout = auth?.logout ?? (async () => {});
   const [loggingOut, setLoggingOut] = useState(false);
   const displayName = user?.displayName || 'לומד';
 
@@ -96,9 +77,9 @@ export function SidebarUser() {
 }
 
 /** Dashboard-style page: sidebar + top bar + content column. */
-export default function AppShell({ active, children, labelledBy }) {
+export default function AppShell({ active, children, labelledBy, className = '', contentClassName = '' }) {
   return (
-    <main className="signature-production" dir="rtl" lang="he">
+    <main className={`signature-production ${className}`.trim()} dir="rtl" lang="he">
       <div className="signature-page signature-dashboard">
         <aside className="signature-dashboard-sidebar">
           <SignatureBrand />
@@ -110,7 +91,7 @@ export default function AppShell({ active, children, labelledBy }) {
             <span>FocusMind AI <span aria-hidden="true">·</span> המרחב האישי שלך</span>
             <span>לומדים בסקרנות, צעד אחר צעד</span>
           </header>
-          <div className="signature-dashboard-content courses-content" aria-labelledby={labelledBy}>
+          <div className={`signature-dashboard-content courses-content ${contentClassName}`.trim()} aria-labelledby={labelledBy}>
             {children}
           </div>
         </div>

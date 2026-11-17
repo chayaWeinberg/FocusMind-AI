@@ -151,6 +151,11 @@ export default function CourseDetailsPage({ courseId }) {
     }
   }
 
+  // Lessons that do not play here (external page, YouTube, blocked or no video).
+  const externalCount = (course?.lessons || []).filter(
+    (lesson) => learningModeOf(lesson.video, lesson.resource).key !== 'smart',
+  ).length;
+
   return (
     <AppShell active={course?.type === 'catalog' && !course?.enrolled ? 'catalog' : 'courses'} labelledBy="course-title">
       <a className="course-back" href={COURSES_URL}><span aria-hidden="true">→</span> חזרה לקורסים שלי</a>
@@ -198,6 +203,22 @@ export default function CourseDetailsPage({ courseId }) {
               {enrollState.error && <p className="course-inline-error" role="alert">{enrollState.error}</p>}
             </div>
           </header>
+
+          {course.externalLibrary && externalCount > 0 && (
+            <aside className="course-mode-notice" role="note" aria-label="על הסרטונים בקורס">
+              <strong>
+                {externalCount === course.lessons.length
+                  ? 'השיעורים בקורס הזה הם הרצאות באתרים חיצוניים.'
+                  : `${externalCount} מתוך ${course.lessons.length} השיעורים בקורס הזה הם הרצאות באתרים חיצוניים.`}
+              </strong>
+              <span>
+                הם נפתחים באתר המקור (וייתכן שיהיו חסומים ברשת מסוננת), ולכן אין בהם שמירת מיקום, מעקב קשב או ReplayAI.
+              </span>
+              <a className="signature-primary-button" href="/courses/catalog?video=academy">
+                לשיעורי FocusMind Academy שמתנגנים כאן <span aria-hidden="true">←</span>
+              </a>
+            </aside>
+          )}
 
           <section className="courses-section" aria-labelledby="lessons-title">
             <div className="signature-section-heading">

@@ -277,8 +277,8 @@ how to replace links.
 | `/study` | AdaptiveStudy goal and plan, plus FocusCoach | signed in (own data) |
 | `/privacy` | what is measured and stored; data deletion | signed in (own data) |
 | `/admin/catalog` | catalog management | content managers only |
-| `/`, `/register` | Registration | public; signed-in users go to the dashboard |
-| `/login` | Login | public; signed-in users go to the dashboard |
+| `/register` | Registration (linked from the login page) | public; signed-in users go to the dashboard |
+| `/login`, `/`, unknown paths | Login (the default page for signed-out visitors) | public; signed-in users go to the dashboard |
 | `/dashboard` | Dashboard with real course progress | signed in |
 | `/courses` | My courses (personal + enrolled catalog courses) | signed in |
 | `/courses/catalog` | Catalog: search, category filter, enroll | signed in |
@@ -287,6 +287,8 @@ how to replace links.
 | `/courses/:id/edit` | Edit course, manage lessons and videos | owner of a personal course |
 | `/learning/lessons/:id` | Smart Learning playing a course lesson | owner / enrolled |
 | `/learning` | Smart Learning with a local file (nothing uploaded) | signed in |
+
+Every signed-in page, Smart Learning included, uses the same right-hand side navigation (`AppShell`). It stays fixed while the page scrolls (`position: sticky`), and it scrolls by itself if it is taller than the screen.
 
 Details: [docs/architecture.md](docs/architecture.md),
 [docs/courses.md](docs/courses.md) (courses, storage, progress),

@@ -101,9 +101,9 @@ function AuthRoutes({ path, navigate }) {
   const { status, user } = useAuth();
   const protectedRoute = matchProtectedRoute(path);
   const isProtected = protectedRoute !== null;
-  const isLogin = path === ROUTES.login;
-  // "/", "/register" and any unknown path show the registration page.
-  const isRegister = !isProtected && !isLogin;
+  const isRegister = path === ROUTES.register;
+  // "/" and any unknown path lead to the login page (registration has its own link).
+  const isLogin = path === ROUTES.login || (!isProtected && !isRegister);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -111,8 +111,10 @@ function AuthRoutes({ path, navigate }) {
       navigate(ROUTES.login, true);
     } else if ((isLogin || isRegister) && status === 'authenticated') {
       navigate(ROUTES.dashboard, true);
+    } else if (isLogin && path !== ROUTES.login) {
+      navigate(ROUTES.login, true);
     }
-  }, [isLogin, isProtected, isRegister, navigate, status]);
+  }, [isLogin, isProtected, isRegister, navigate, path, status]);
 
   if (status === 'loading' && (isProtected || isLogin)) {
     return (
