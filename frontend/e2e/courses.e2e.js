@@ -238,14 +238,16 @@ test.describe.serial('FocusMind courses end to end', () => {
     await login(page, owner);
     await page.getByRole('link', { name: 'קטלוג קורסים' }).click();
     await expect(page.getByRole('heading', { name: 'קטלוג קורסים', level: 1 })).toBeVisible();
-    await expect(page.locator('.course-card')).toHaveCount(3);
+    // 3 demonstration courses + 10 courses of the video library.
+    await expect(page.locator('.course-card')).toHaveCount(13);
 
     await page.getByRole('searchbox').fill('SQL');
-    await expect(page.locator('.course-card')).toHaveCount(1);
+    await expect(page.locator('.course-card')).toHaveCount(2);
     await expect(page.getByRole('heading', { name: 'יסודות SQL' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'SQL ומסדי נתונים' })).toBeVisible();
     await page.getByRole('searchbox').fill('');
     await page.getByLabel('קטגוריה').selectOption('בינה מלאכותית');
-    await expect(page.locator('.course-card')).toHaveCount(1);
+    await expect(page.locator('.course-card')).toHaveCount(2);
     await page.getByLabel('קטגוריה').selectOption('');
 
     await page.getByRole('button', { name: 'הרשמה לקורס יסודות SQL' }).click();

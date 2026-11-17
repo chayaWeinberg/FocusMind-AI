@@ -134,6 +134,14 @@ docker compose up -d --no-deps frontend   # MongoDB and volumes are untouched
 
 ## Example catalog
 
+The catalog has 13 courses:
+- **10 video-library courses (116 lessons):** each lesson links to a real Harvard CS50 or
+  Microsoft Learn video. See [docs/catalog-library.md](docs/catalog-library.md).
+- **3 demonstration courses:** their videos are generated locally and play offline, for testing
+  Smart Learning and ReplayAI.
+
+`python -m app.seed` imports both, idempotently.
+
 ```powershell
 # Idempotent: creates/updates the Python, SQL and AI example courses only.
 docker compose exec backend python -m app.seed      # Docker
@@ -266,5 +274,6 @@ ReplayAI suggestions are review hints based on gaze direction and pauses.
 - [docs/learning-features.md](docs/learning-features.md): Smart Timer, insights, coach, study plan, quizzes, catalog management, privacy
 - [docs/user-guide.md](docs/user-guide.md): user guide (Hebrew)
 - [docs/catalog-videos.md](docs/catalog-videos.md): catalog lecture videos, playback types, NetFree verification
+- [docs/catalog-library.md](docs/catalog-library.md): the 10-course / 116-lesson video library, sources per lesson and measured accessibility
 - [docs/attention-engine-testing.md](docs/attention-engine-testing.md): real-camera test protocol (Hebrew)
 - [docs/deferred-work.md](docs/deferred-work.md): known issues and postponed improvements
