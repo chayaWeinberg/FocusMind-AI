@@ -198,8 +198,8 @@ def test_history_reports_the_duration_weighted_average_concentration(client: Tes
 
     session_id = client.post("/api/learning-sessions", json={"lessonId": lesson["id"]}).json()["id"]
     segments = [
-        {**segment(0, "ON_SCREEN", 0, 30, 0), "concentration": 90},
-        {**segment(1, "OFF_SCREEN", 30, 10, 30_000), "concentration": 30},
+        {**segment(0, "ON_SCREEN", 0, 30, 0), "concentration": 90, "attentionScore": 0.8},
+        {**segment(1, "OFF_SCREEN", 30, 10, 30_000), "concentration": 30, "attentionScore": 0.2},
         segment(2, "UNCERTAIN", 40, 5, 40_000),  # no estimate: not counted
     ]
     assert client.post(f"/api/learning-sessions/{session_id}/segments", json={"segments": segments}).json() == {"accepted": 3}
@@ -208,8 +208,14 @@ def test_history_reports_the_duration_weighted_average_concentration(client: Tes
     latest = client.get("/api/learning-sessions").json()[0]
     assert latest["id"] == session_id
     assert latest["averageConcentration"] == 75  # (90*30 + 30*10) / 40
+    assert latest["averageAttentionScore"] == 0.65  # (0.8*30 + 0.2*10) / 40
     readings = client.get(f"/api/learning-sessions/{session_id}").json()["segments"]
     assert [reading["concentration"] for reading in readings] == [90, 30, None]
+    assert [reading["attentionScore"] for reading in readings] == [0.8, 0.2, None]
+
+    # The model score is validated to its 0..1 range.
+    bad = {**segment(3, "ON_SCREEN", 45, 5, 45_000), "attentionScore": 1.5}
+    assert client.post(f"/api/learning-sessions/{session_id}/segments", json={"segments": [bad]}).status_code == 422
 
 
 def test_preferences_defaults_validation_and_persistence(client: TestClient) -> None:

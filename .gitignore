@@ -60,3 +60,6 @@ frontend/playwright-report/
 
 # Uploaded lesson videos (local development storage)
 backend/storage/
+
+# Generated ONNX Runtime Web assets (copied by scripts/copy-mediapipe-assets.mjs)
+frontend/public/ort/

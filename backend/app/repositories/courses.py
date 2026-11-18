@@ -348,6 +348,24 @@ class LearningSessionRepository:
             if row["duration"] > 0
         }
 
+    async def average_attention_score(self, session_ids: list[ObjectId]) -> dict[ObjectId, float]:
+        """Duration-weighted average course-model score (0..1, two decimals) per session."""
+        if not session_ids:
+            return {}
+        cursor = await self._segments.aggregate([
+            {"$match": {"session_id": {"$in": session_ids}, "attention_score": {"$type": "number"}}},
+            {"$group": {
+                "_id": "$session_id",
+                "weighted": {"$sum": {"$multiply": ["$attention_score", "$duration_ms"]}},
+                "duration": {"$sum": "$duration_ms"},
+            }},
+        ])
+        return {
+            row["_id"]: round(row["weighted"] / row["duration"], 2)
+            async for row in cursor
+            if row["duration"] > 0
+        }
+
     async def segments(self, session_id: ObjectId) -> list[AttentionSegmentDocument]:
         return await self._segments.find({"session_id": session_id}).sort("seq", ASCENDING).to_list(None)
 

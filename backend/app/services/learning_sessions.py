@@ -115,6 +115,7 @@ class LearningSessionService:
                 "state": segment.state,
                 "duration_ms": segment.duration_ms,
                 "concentration": segment.concentration,
+                "attention_score": segment.attention_score,
                 "created_at": now,
             }
             for segment in batch.segments
@@ -139,7 +140,7 @@ class LearningSessionService:
         segments = await self.sessions.segments(session["_id"])
         return SessionDetail(
             **self._out(session).model_dump(),
-            segments=[SegmentOut(**{key: segment[key] for key in SegmentOut.model_fields}) for segment in segments],
+            segments=[SegmentOut(**{key: segment.get(key) for key in SegmentOut.model_fields}) for segment in segments],
         )
 
     async def history(self, limit: int = 20) -> list[SessionHistoryItem]:
@@ -157,6 +158,7 @@ async def history_items(database: AsyncDatabase, repository: LearningSessionRepo
     session_ids = [row["_id"] for row in sessions]
     video = await repository.video_seconds(session_ids)
     concentration = await repository.average_concentration(session_ids)
+    attention = await repository.average_attention_score(session_ids)
     now = utcnow()
     return [
         SessionHistoryItem(
@@ -175,6 +177,7 @@ async def history_items(database: AsyncDatabase, repository: LearningSessionRepo
             trackable=row.get("trackable", True),
             status=session_status(row, now),
             average_concentration=concentration.get(row["_id"]),
+            average_attention_score=attention.get(row["_id"]),
         )
         for row in sessions
     ]

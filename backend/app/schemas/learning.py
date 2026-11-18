@@ -92,6 +92,8 @@ class SessionHistoryItem(ApiModel):
     status: Literal["active", "ended", "interrupted"]
     # Duration-weighted concentration estimate (0-100); None when not measured.
     average_concentration: int | None = None
+    # Duration-weighted course attention model score (0..1); None when not measured.
+    average_attention_score: float | None = None
 
 
 class Preferences(RequestModel):

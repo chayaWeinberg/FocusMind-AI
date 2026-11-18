@@ -86,6 +86,8 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   if (!statsRef.current) statsRef.current = createAttentionSessionStats();
   const attentionStateRef = useRef(null);
   const concentrationRef = useRef(null);
+  const modelScoreRef = useRef(null); // course attention model, 0..1 (null = no score)
+  const modelAverageRef = useRef({ sum: 0, count: 0 }); // per session, for the "saved" note
   const [attentionStats, setAttentionStats] = useState(() => statsRef.current.snapshot());
 
   // Low-concentration alert: shown while the session runs and the estimate
@@ -98,20 +100,25 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   const lowDismissedRef = useRef(false);
   const lowShownScoreRef = useRef(null);
 
-  const handleAttentionState = useCallback((state, concentration = null) => {
+  const handleAttentionState = useCallback((state, concentration = null, modelScore = null) => {
     attentionStateRef.current = state;
     concentrationRef.current = concentration;
-    if (concentration === null || !sessionRunningRef.current) return;
-    if (concentration < LOW_FOCUS.belowScore) {
+    modelScoreRef.current = modelScore;
+    // The course model's score (0..1) decides when available; otherwise the
+    // concentration estimate (0..100). Both on a 0..100 scale here.
+    const fromModel = modelScore !== null && modelScore !== undefined;
+    const focus = fromModel ? Math.round(modelScore * 100) : concentration;
+    if (focus === null || focus === undefined || !sessionRunningRef.current) return;
+    if (focus < LOW_FOCUS.belowScore) {
       const now = performance.now();
       if (lowSinceRef.current === null) lowSinceRef.current = now;
       const shown = lowShownScoreRef.current;
       if (!lowDismissedRef.current && now - lowSinceRef.current >= LOW_FOCUS.holdMs
-        && (shown === null || Math.abs(shown - concentration) >= 5)) {
-        lowShownScoreRef.current = concentration;
-        setLowFocus({ score: concentration });
+        && (shown === null || Math.abs(shown - focus) >= 5)) {
+        lowShownScoreRef.current = focus;
+        setLowFocus({ score: focus, fromModel });
       }
-    } else if (concentration >= LOW_FOCUS.recoverScore) {
+    } else if (focus >= LOW_FOCUS.recoverScore) {
       lowSinceRef.current = null;
       lowDismissedRef.current = false;
       if (lowShownScoreRef.current !== null) {
@@ -327,6 +334,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   function resetAttentionStats() {
     statsGenerationRef.current += 1; // drops time still pending from the previous session
     statsRef.current.reset();
+    modelAverageRef.current = { sum: 0, count: 0 };
     setAttentionStats(statsRef.current.snapshot());
   }
 
@@ -358,7 +366,16 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
       if (statsGenerationRef.current !== generation) return;
       const now = performance.now();
       stats.add(attentionStateRef.current, now - lastTick, concentrationRef.current);
-      persistenceRef.current.sample(videoRef.current, attentionStateRef.current, concentrationRef.current);
+      persistenceRef.current.sample(
+        videoRef.current,
+        attentionStateRef.current,
+        concentrationRef.current,
+        modelScoreRef.current,
+      );
+      if (modelScoreRef.current !== null) {
+        modelAverageRef.current.sum += modelScoreRef.current;
+        modelAverageRef.current.count += 1;
+      }
       lastTick = now;
       setAttentionStats(stats.snapshot());
     };
@@ -483,9 +500,11 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
     // Course lessons: close the session on the server so it appears in the
     // history right away (a new playback starts a new session).
     const average = statsRef.current.snapshot().averageConcentration;
-    setSessionSaved({ status: 'saving', average });
+    const { sum, count } = modelAverageRef.current;
+    const modelAverage = count ? Math.round((sum / count) * 100) / 100 : null;
+    setSessionSaved({ status: 'saving', average, modelAverage });
     persistence.finishSession().then((ended) => {
-      setSessionSaved({ status: ended ? 'saved' : 'error', average });
+      setSessionSaved({ status: ended ? 'saved' : 'error', average, modelAverage });
     });
   }
 
@@ -740,10 +759,21 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
 
             {lowFocus && (
               <div className="low-focus-alert" role="alert">
-                <strong>נראה שהריכוז ירד ({lowFocus.score}%)</strong>
-                <p>
-                  הערכת הריכוז נמוכה מ-{LOW_FOCUS.belowScore}% כבר כמה שניות. אולי כדאי לחזור קצת אחורה, או לקחת הפסקה קצרה.
-                </p>
+                {lowFocus.fromModel ? (
+                  <>
+                    <strong>נראה שהקשב ירד (ציון {(lowFocus.score / 100).toFixed(2)})</strong>
+                    <p>
+                      ציון הקשב נמוך מ-{(LOW_FOCUS.belowScore / 100).toFixed(1)} כבר כמה שניות. אולי כדאי לחזור קצת אחורה, או לקחת הפסקה קצרה.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <strong>נראה שהריכוז ירד ({lowFocus.score}%)</strong>
+                    <p>
+                      הערכת הריכוז נמוכה מ-{LOW_FOCUS.belowScore}% כבר כמה שניות. אולי כדאי לחזור קצת אחורה, או לקחת הפסקה קצרה.
+                    </p>
+                  </>
+                )}
                 <div>
                   {videoSource && (
                     <button type="button" className="signature-primary-button" onClick={rewindAfterLowFocus}>
@@ -787,6 +817,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                 {sessionSaved.status === 'saved' && (
                   <>
                     המפגש נשמר
+                    {sessionSaved.modelAverage !== null && <> · ציון קשב ממוצע: <strong>{sessionSaved.modelAverage.toFixed(2)}</strong></>}
                     {sessionSaved.average !== null && <> · ריכוז ממוצע (הערכה): <strong>{sessionSaved.average}%</strong></>}
                     . <a href="/insights#sessions-title">לצפייה בהיסטוריית המפגשים ←</a>
                   </>

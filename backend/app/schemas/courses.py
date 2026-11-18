@@ -108,6 +108,8 @@ class SegmentIn(RequestModel):
     state: Literal["ON_SCREEN", "OFF_SCREEN", "FACE_ABSENT", "UNCERTAIN", "NOT_MEASURED"]
     duration_ms: int = Field(gt=0, le=10 * 60 * 1000)
     concentration: int | None = Field(default=None, ge=0, le=100)
+    # Course attention model (ONNX v4_2, run in the browser): 0..1, higher = more attentive.
+    attention_score: float | None = Field(default=None, ge=0, le=1)
 
     @model_validator(mode="after")
     def ordered_times(self) -> "SegmentIn":
@@ -267,6 +269,7 @@ class SegmentOut(ApiModel):
     state: str
     duration_ms: int
     concentration: int | None
+    attention_score: float | None = None
 
 
 class SessionDetail(SessionOut):

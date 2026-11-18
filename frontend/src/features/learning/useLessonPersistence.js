@@ -249,7 +249,7 @@ export default function useLessonPersistence({
       void save();
     },
     /** One stats tick while the session timer runs (video playing). */
-    sample(video, state, concentration) {
+    sample(video, state, concentration, attentionScore = null) {
       if (!enabled || !video || !hasPlayedRef.current || video.paused) return;
       remember(video);
       recorderRef.current.sample({
@@ -258,6 +258,7 @@ export default function useLessonPersistence({
         rate: video.playbackRate || 1,
         state,
         concentration,
+        attentionScore,
       });
     },
   };

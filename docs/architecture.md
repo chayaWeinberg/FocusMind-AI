@@ -12,6 +12,24 @@ FastAPI  routes ─► services (access rules, business logic) ─► repositori
                     └─ video_storage ─► VIDEO_STORAGE_DIR (Docker volume video_data)
 ```
 
+## Course attention model (ONNX, in the browser)
+
+- `frontend/public/models/attention/v4_2.onnx`: the course model (GRU with
+  attention, trained on EngageNet and DAiSEE). Input `[1, 100, 478, 3]` raw
+  MediaPipe landmarks; first output = score 0..1 (higher = more attentive).
+- `features/attention-model/`: `landmarkWindow.js` keeps the last 100 frames
+  at 10 per second (resets after more than 1 s without a face);
+  `useAttentionModel.js` runs the model every 2 s on a full window;
+  `attentionModel.js` loads ONNX Runtime Web (WASM only, single thread, files
+  in `/ort`, copied at build time). About 1 s to load, ~50 ms per window.
+- The first score appears after ~10 s of face in view. Without a face the
+  monitor shows "לא זוהו פנים" and no score is computed.
+- The score is the main measure: shown as "ציון קשב" (0.00–1.00 with the five
+  trained levels), sent per segment as `attentionScore`, averaged per session
+  in the history, and it drives the low-attention alert (below 0.4 for 4 s).
+  The calibration-free engine's 0–100% concentration estimate stays as a
+  second, explained measure and is the fallback when the model has no score.
+
 ## Layers (backend)
 
 | Layer | Files | Responsibility |

@@ -39,6 +39,7 @@ export function createSegmentRecorder({ sessionStartedAt }) {
   function close() {
     if (current && current.durationMs >= MIN_SEGMENT_MS && current.videoEnd >= current.videoStart) {
       const concentrationSamples = current.concentrationCount;
+      const scoreSamples = current.attentionScoreCount;
       queue.push({
         seq: seq++,
         sessionStartMs: Math.round(current.sessionStartMs),
@@ -51,6 +52,9 @@ export function createSegmentRecorder({ sessionStartedAt }) {
         ...(concentrationSamples
           ? { concentration: Math.round(current.concentrationSum / concentrationSamples) }
           : {}),
+        ...(scoreSamples
+          ? { attentionScore: Math.round((current.attentionScoreSum / scoreSamples) * 1000) / 1000 }
+          : {}),
       });
     }
     current = null;
@@ -59,9 +63,10 @@ export function createSegmentRecorder({ sessionStartedAt }) {
   return {
     /**
      * One stats tick while the video plays.
-     * @param {{ at: number, videoTime: number, rate: number, state: string|null, concentration?: number|null }} sample
+     * @param {{ at: number, videoTime: number, rate: number, state: string|null, concentration?: number|null, attentionScore?: number|null }} sample
+     *   attentionScore: the course attention model score (0..1), averaged per segment
      */
-    sample({ at, videoTime, rate, state, concentration = null }) {
+    sample({ at, videoTime, rate, state, concentration = null, attentionScore = null }) {
       const segmentState = segmentStateOf(state);
       if (!last) {
         last = { at, videoTime, rate };
@@ -89,6 +94,8 @@ export function createSegmentRecorder({ sessionStartedAt }) {
           durationMs: 0,
           concentrationSum: 0,
           concentrationCount: 0,
+          attentionScoreSum: 0,
+          attentionScoreCount: 0,
         };
       }
       current.sessionEndMs = at - sessionStartedAt;
@@ -97,6 +104,10 @@ export function createSegmentRecorder({ sessionStartedAt }) {
       if (Number.isFinite(concentration)) {
         current.concentrationSum += concentration;
         current.concentrationCount += 1;
+      }
+      if (Number.isFinite(attentionScore)) {
+        current.attentionScoreSum += attentionScore;
+        current.attentionScoreCount += 1;
       }
       last = { at, videoTime, rate };
     },

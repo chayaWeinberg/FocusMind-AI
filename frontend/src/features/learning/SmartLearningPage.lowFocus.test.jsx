@@ -85,6 +85,20 @@ describe('SmartLearningPage low-concentration alert', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('uses the course model score (0..1) when there is one', () => {
+    startLocalVideo();
+    // The concentration estimate looks fine, but the model says attention is low.
+    for (let elapsed = 0; elapsed < LOW_FOCUS.holdMs + 1000; elapsed += 500) {
+      act(() => report('ON_SCREEN', 90, 0.31));
+      advance(500);
+    }
+    expect(screen.getByRole('alert')).toHaveTextContent('נראה שהקשב ירד (ציון 0.31)');
+    expect(screen.getByRole('alert')).toHaveTextContent('ציון הקשב נמוך מ-0.4');
+
+    act(() => report('ON_SCREEN', 20, 0.75)); // model recovered: hidden, whatever the estimate says
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('never alerts while the session is paused or without an estimate', () => {
     const video = startLocalVideo();
     fireEvent.pause(video);

@@ -35,6 +35,7 @@ function SessionReadings({ sessionId }) {
           <th scope="col">זמן בסרטון</th>
           <th scope="col">משך</th>
           <th scope="col">כיוון המבט</th>
+          <th scope="col">ציון קשב (מודל)</th>
           <th scope="col">הערכת ריכוז</th>
         </tr>
       </thead>
@@ -44,6 +45,7 @@ function SessionReadings({ sessionId }) {
             <td>{formatClock(reading.videoStart)}–{formatClock(reading.videoEnd)}</td>
             <td>{Math.round(reading.durationMs / 1000)} שנ׳</td>
             <td>{STATE_LABELS[reading.state] ?? reading.state}</td>
+            <td>{reading.attentionScore === null || reading.attentionScore === undefined ? '—' : reading.attentionScore.toFixed(2)}</td>
             <td>{reading.concentration === null ? '—' : `${reading.concentration}%`}</td>
           </tr>
         ))}
@@ -194,6 +196,7 @@ export function InsightsContent({ data }) {
                   <th scope="col">זמן פעיל</th>
                   <th scope="col">הפסקות</th>
                   <th scope="col">זמן בסרטון</th>
+                  <th scope="col">ציון קשב ממוצע (מודל)</th>
                   <th scope="col">ריכוז ממוצע (הערכה)</th>
                   <th scope="col">מצב</th>
                   <th scope="col">מדידות</th>
@@ -213,6 +216,11 @@ export function InsightsContent({ data }) {
                     <td>{formatMinutes(session.activeMs)}</td>
                     <td>{session.breakMs ? formatMinutes(session.breakMs) : '—'}</td>
                     <td>{session.trackable ? formatClock(session.videoSeconds) : 'לא נמדד (YouTube)'}</td>
+                    <td>
+                      {session.averageAttentionScore === null || session.averageAttentionScore === undefined
+                        ? <span title="המצלמה לא הופעלה, או שלא נאספו 10 שניות של פנים">לא נמדד</span>
+                        : <strong>{session.averageAttentionScore.toFixed(2)}</strong>}
+                    </td>
                     <td>
                       {session.averageConcentration === null || session.averageConcentration === undefined
                         ? <span title="המצלמה לא הופעלה במפגש">לא נמדד</span>
@@ -234,7 +242,7 @@ export function InsightsContent({ data }) {
                   </tr>
                   {openSession === session.id && (
                     <tr className="session-readings-row">
-                      <td colSpan={8}>
+                      <td colSpan={9}>
                         <SessionReadings sessionId={session.id} />
                       </td>
                     </tr>

@@ -243,8 +243,8 @@ describe('learning features (fake backend)', { timeout: 20_000 }, () => {
       activeMs: 60_000, breakMs: 0, videoSeconds: 60, trackable: true, status: 'ended',
     };
     insights.recentSessions = [
-      { ...base, id: 'measured', segmentCount: 2, averageConcentration: 75 },
-      { ...base, id: 'camera-off', segmentCount: 1, averageConcentration: null },
+      { ...base, id: 'measured', segmentCount: 2, averageConcentration: 75, averageAttentionScore: 0.65 },
+      { ...base, id: 'camera-off', segmentCount: 1, averageConcentration: null, averageAttentionScore: null },
     ];
     api.setInsights(insights);
     extraRoutes = async (url) => (url === '/api/learning-sessions/measured' ? {
@@ -253,8 +253,8 @@ describe('learning features (fake backend)', { timeout: 20_000 }, () => {
       json: async () => ({
         ...base, id: 'measured', segmentCount: 2,
         segments: [
-          { seq: 0, sessionStartMs: 0, sessionEndMs: 30_000, videoStart: 0, videoEnd: 30, playbackRate: 1, state: 'ON_SCREEN', durationMs: 30_000, concentration: 90 },
-          { seq: 1, sessionStartMs: 30_000, sessionEndMs: 40_000, videoStart: 30, videoEnd: 40, playbackRate: 1, state: 'OFF_SCREEN', durationMs: 10_000, concentration: 30 },
+          { seq: 0, sessionStartMs: 0, sessionEndMs: 30_000, videoStart: 0, videoEnd: 30, playbackRate: 1, state: 'ON_SCREEN', durationMs: 30_000, concentration: 90, attentionScore: 0.8 },
+          { seq: 1, sessionStartMs: 30_000, sessionEndMs: 40_000, videoStart: 30, videoEnd: 40, playbackRate: 1, state: 'OFF_SCREEN', durationMs: 10_000, concentration: 30, attentionScore: 0.2 },
         ],
       }),
     } : null);
@@ -262,13 +262,16 @@ describe('learning features (fake backend)', { timeout: 20_000 }, () => {
     open('/insights');
     const history = within((await screen.findByRole('heading', { name: 'היסטוריית מפגשים' })).closest('section'));
     expect(history.getByRole('columnheader', { name: 'ריכוז ממוצע (הערכה)' })).toBeInTheDocument();
+    expect(history.getByRole('columnheader', { name: 'ציון קשב ממוצע (מודל)' })).toBeInTheDocument();
+    expect(history.getByText('0.65')).toBeInTheDocument();
     expect(history.getByText('75%')).toBeInTheDocument();
-    expect(history.getByText('לא נמדד')).toBeInTheDocument();
+    expect(history.getAllByText('לא נמדד')).toHaveLength(2);
 
     const [showReadings] = history.getAllByRole('button', { name: 'הצגת המדידות' });
     await user.click(showReadings);
     const readings = within(await history.findByRole('table', { name: 'המדידות של המפגש (2)' }));
     expect(readings.getByText('90%')).toBeInTheDocument();
+    expect(readings.getByText('0.80')).toBeInTheDocument();
     expect(readings.getByText('מבט מחוץ למסך')).toBeInTheDocument();
     await user.click(history.getByRole('button', { name: 'הסתרת המדידות' }));
     expect(history.queryByRole('table', { name: /המדידות של המפגש/ })).not.toBeInTheDocument();

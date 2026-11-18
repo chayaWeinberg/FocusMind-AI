@@ -23,3 +23,14 @@ await Promise.all(runtimeFiles.map((fileName) => (
   copyFile(path.join(sourceDirectory, fileName), path.join(destinationDirectory, fileName))
 )));
 console.log(`Copied ${runtimeFiles.length} MediaPipe runtime assets to ${destinationDirectory}`);
+
+// ONNX Runtime Web (the course attention model): the single-threaded-capable
+// WASM build and its loader, served from /ort. Generated, ignored by Git.
+const ortSource = path.join(frontendDirectory, 'node_modules', 'onnxruntime-web', 'dist');
+const ortDestination = path.join(frontendDirectory, 'public', 'ort');
+const ortFiles = ['ort-wasm-simd-threaded.wasm', 'ort-wasm-simd-threaded.mjs'];
+await mkdir(ortDestination, { recursive: true });
+await Promise.all(ortFiles.map((fileName) => (
+  copyFile(path.join(ortSource, fileName), path.join(ortDestination, fileName))
+)));
+console.log(`Copied ${ortFiles.length} ONNX Runtime Web assets to ${ortDestination}`);

@@ -131,4 +131,6 @@ class AttentionSegmentDocument(TypedDict):
     state: AttentionState
     duration_ms: int
     concentration: int | None
+    # Course attention model score 0..1 (absent in segments stored before it existed).
+    attention_score: NotRequired[float | None]
     created_at: datetime

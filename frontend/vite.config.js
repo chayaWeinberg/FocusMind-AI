@@ -33,6 +33,8 @@ export default defineConfig({
     },
   },
   test: {
+    // The browser-only ONNX Runtime build cannot load under jsdom.
+    alias: { 'onnxruntime-web/wasm': new URL('./src/testing/onnxruntimeWebStub.js', import.meta.url).pathname },
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/setupTests.js'],

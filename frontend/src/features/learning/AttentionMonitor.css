@@ -347,3 +347,35 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Course attention model score (0..1), shown above the concentration estimate. */
+.attention-model-score {
+  --concentration-color: var(--signature-primary, #167d83);
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--signature-line, rgba(37, 56, 59, 0.1));
+  border-radius: 12px;
+  background: #f4fbfa;
+}
+
+.attention-model-score strong {
+  font-size: 1.6rem;
+  color: var(--concentration-color);
+}
+
+.attention-model-score p {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--signature-muted, #788987);
+}
+
+.attention-model-score .attention-concentration-bar > span,
+.attention-model-score .attention-monitor-bar > span {
+  background: var(--concentration-color);
+}
+
+.attention-model-score--absent,
+.attention-model-score--not-attentive { --concentration-color: #b4442c; }
+.attention-model-score--weak { --concentration-color: #c07a1f; }
+.attention-model-score--attentive,
+.attention-model-score--very-attentive { --concentration-color: #167d83; }
