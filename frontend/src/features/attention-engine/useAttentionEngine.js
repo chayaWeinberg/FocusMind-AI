@@ -24,7 +24,7 @@ export function measurementDetails({ raw, signals }) {
 /**
  * @param {React.RefObject<HTMLVideoElement>} videoRef video element showing `stream`
  * @param {MediaStream|null} stream
- * @param {{ onFrame?: (frame: object) => void, onLandmarks?: (landmarks: object[]|null, at: number) => void }} [options]
+ * @param {{ onFrame?: (frame: object) => void, onLandmarks?: (landmarks: object[]|null, at: number, frame: { width: number, height: number }) => void }} [options]
  *   onFrame: called for every analysed frame. onLandmarks: the raw 478 landmarks
  *   of the first face (null without a face), for the course attention model.
  */
@@ -114,7 +114,10 @@ export default function useAttentionEngine(videoRef, stream, { onFrame, onLandma
             frameHeight: video.videoHeight,
           });
           onFrameRef.current?.(output.frame);
-          onLandmarksRef.current?.(result?.faceLandmarks?.[0] ?? null, timestamp);
+          onLandmarksRef.current?.(result?.faceLandmarks?.[0] ?? null, timestamp, {
+            width: video.videoWidth,
+            height: video.videoHeight,
+          });
           if (now - lastPublishAt >= PUBLISH_INTERVAL_MS) {
             lastPublishAt = now;
             setFrame(output.frame);

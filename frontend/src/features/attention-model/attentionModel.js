@@ -1,13 +1,18 @@
-// The course attention model (v4_2: GRU with attention, trained on EngageNet
-// and DAiSEE), run in the browser with ONNX Runtime Web (WebAssembly).
-// Input: [1, 100, 478, 3] raw MediaPipe landmarks. Outputs: a regression score
-// 0..1 (higher = more attentive), 5-level logits and per-frame attention
-// weights. The model, the landmarks and the score stay on the device; only the
-// score is sent to the server.
+// The course attention model, run in the browser with ONNX Runtime Web
+// (WebAssembly). Input: [1, 100, 478, 3] MediaPipe landmarks of a face crop
+// (see cropLandmarks). First output: a score 0..1, higher = more attentive.
+// The model, the landmarks and the score stay on the device; only the score is
+// sent to the server.
+//
+// Why v1 (GRU): we compared all nine course models on our own recordings of
+// the same person looking at the screen and looking away (raw landmarks and a
+// face crop). v4, v4_2, v4_3, v4_4 and v4_66 scored both around 0.1–0.3 and
+// v2, v3 and v4_7 scored both high; only v1 on a face crop separated them
+// (0.89 looking at the screen, 0.54 looking away). Details: docs/architecture.md.
 
 import { LANDMARK_COUNT, WINDOW_FRAMES } from './landmarkWindow.js';
 
-export const ATTENTION_MODEL_VERSION = 'v4_2';
+export const ATTENTION_MODEL_VERSION = 'v1';
 export const ATTENTION_MODEL_URL = `/models/attention/${ATTENTION_MODEL_VERSION}.onnx`;
 export const ORT_WASM_PATH = '/ort/';
 

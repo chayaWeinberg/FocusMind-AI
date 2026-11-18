@@ -348,34 +348,17 @@
   }
 }
 
-/* Course attention model score (0..1), shown above the concentration estimate. */
+/* Course attention model score (0..1), shown above the concentration estimate.
+   Layout, fonts and the bar come from .attention-concentration; only the
+   colours differ (teal frame, colour by trained level). */
 .attention-model-score {
-  --concentration-color: var(--signature-primary, #167d83);
-  margin-top: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--signature-line, rgba(37, 56, 59, 0.1));
-  border-radius: 12px;
-  background: #f4fbfa;
-}
-
-.attention-model-score strong {
-  font-size: 1.6rem;
-  color: var(--concentration-color);
-}
-
-.attention-model-score p {
-  margin: 6px 0 0;
-  font-size: 0.85rem;
-  color: var(--signature-muted, #788987);
-}
-
-.attention-model-score .attention-concentration-bar > span,
-.attention-model-score .attention-monitor-bar > span {
-  background: var(--concentration-color);
+  margin-top: 8px;
+  border-color: rgba(22, 125, 131, 0.35);
+  --concentration-color: var(--signature-primary);
 }
 
 .attention-model-score--absent,
 .attention-model-score--not-attentive { --concentration-color: #b4442c; }
-.attention-model-score--weak { --concentration-color: #c07a1f; }
+.attention-model-score--weak { --concentration-color: #c08a2c; }
 .attention-model-score--attentive,
-.attention-model-score--very-attentive { --concentration-color: #167d83; }
+.attention-model-score--very-attentive { --concentration-color: var(--signature-primary); }

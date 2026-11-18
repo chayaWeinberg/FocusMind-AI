@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LANDMARK_COUNT, WINDOW_FRAMES, createLandmarkWindow } from './landmarkWindow.js';
+import { LANDMARK_COUNT, WINDOW_FRAMES, createLandmarkWindow, cropLandmarks } from './landmarkWindow.js';
 import { attentionLevelOf } from './attentionModel.js';
 import useAttentionModel, { RUN_INTERVAL_MS } from './useAttentionModel.js';
 
@@ -21,9 +21,8 @@ describe('landmark window', () => {
     const window = createLandmarkWindow();
     // 15 fps input: only frames at least ~100 ms apart are kept.
     for (let at = 0; at < 2000; at += 66) window.push(face(at), at);
-    // ~10 per second (16 frames in 2 s; a ~15 fps camera never yields more than one per 90 ms).
-    expect(window.progress() * WINDOW_FRAMES).toBeGreaterThanOrEqual(15);
-    expect(window.progress() * WINDOW_FRAMES).toBeLessThanOrEqual(17);
+    // Exactly 10 slots per second: 20 slots in 2 s from a ~15 fps camera.
+    expect(Math.round(window.progress() * WINDOW_FRAMES)).toBe(20);
 
     window.reset();
     feed(window.push, WINDOW_FRAMES + 5);
@@ -36,17 +35,51 @@ describe('landmark window', () => {
     expect(data[2]).toBe(-5); // z
   });
 
+  it('keeps a 10-per-second clock when frames arrive slowly (fills ~10 s in ~10 s)', () => {
+    const window = createLandmarkWindow();
+    // Analysis at ~3 frames per second while the lesson video plays.
+    let at = 0;
+    while (at <= 9_900) {
+      window.push(face(at), at);
+      at += 330;
+    }
+    expect(window.full()).toBe(true);
+    // Each slow frame was held for its ~3 slots: frame 0 fills the first slots.
+    const data = window.toTensorData();
+    const frameSize = LANDMARK_COUNT * 3;
+    expect(data[frameSize * 99]).toBeGreaterThan(9000);
+    expect(data[frameSize * 98]).toBe(data[frameSize * 97]); // held frame
+  });
+
   it('starts over after the face is missing for more than a second, not after a short gap', () => {
     const window = createLandmarkWindow();
     let at = feed(window.push, 50);
     window.push(null, at);
-    window.push(null, at + 500); // short gap (blink, quick turn): kept
+    window.push(null, at + 500); // short gap (blink, quick turn): kept, and filled by the clock
     at = feed(window.push, 10, at + 600);
-    expect(window.progress()).toBeCloseTo(0.6);
+    expect(window.progress()).toBeCloseTo(0.66); // 50 + 7 held slots + 9
 
     window.push(null, at + 1100); // long absence: reset
     expect(window.progress()).toBe(0);
     expect(window.push(face(1).slice(0, 10), at + 1200)).toBe(false); // wrong landmark count is ignored
+  });
+
+  it('crops landmarks to a square around the face with a 20% margin', () => {
+    // A face 100×80 px at (300..400, 200..280) in a 640×480 frame.
+    const points = Array.from({ length: LANDMARK_COUNT }, (_, index) => ({
+      x: (300 + (index % 2) * 100) / 640,
+      y: (200 + (index % 3 === 0 ? 80 : 0)) / 480,
+      z: 0.01,
+    }));
+    const cropped = cropLandmarks(points, 640, 480);
+    const xs = cropped.map((point) => point.x);
+    const ys = cropped.map((point) => point.y);
+    // Square side = 100 px × 1.4 = 140 px, centred on the face.
+    expect(Math.min(...xs)).toBeCloseTo(20 / 140, 5);
+    expect(Math.max(...xs)).toBeCloseTo(120 / 140, 5);
+    expect(Math.min(...ys)).toBeCloseTo(30 / 140, 5);
+    expect(Math.max(...ys)).toBeCloseTo(110 / 140, 5);
+    expect(cropped[0].z).toBeCloseTo((0.01 * 640) / 140, 5);
   });
 
   it('maps scores to the five trained levels', () => {

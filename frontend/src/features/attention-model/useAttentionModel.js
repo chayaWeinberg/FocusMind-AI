@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadAttentionModel } from './attentionModel.js';
-import { createLandmarkWindow } from './landmarkWindow.js';
+import { createLandmarkWindow, cropLandmarks } from './landmarkWindow.js';
 
 export const RUN_INTERVAL_MS = 2000;
 
@@ -66,10 +66,16 @@ export default function useAttentionModel({ active, onScore, loader = loadAttent
     };
   }, [active, loader, publishScore]);
 
-  /** Called for every analysed camera frame: first face's landmarks, or null. */
-  const push = useCallback((landmarks, at) => {
+  /**
+   * Called for every analysed camera frame: the first face's landmarks (or
+   * null) and the camera frame size, used to crop around the face.
+   */
+  const push = useCallback((landmarks, at, size = null) => {
     const frames = windowRef.current;
-    const stored = frames.push(landmarks, at);
+    const input = landmarks && size?.width && size?.height
+      ? cropLandmarks(landmarks, size.width, size.height)
+      : landmarks;
+    const stored = frames.push(input, at);
     const collected = frames.progress();
     if (Math.abs(collected - shownProgressRef.current) >= 0.05 || (collected === 0 && shownProgressRef.current !== 0)) {
       shownProgressRef.current = collected;

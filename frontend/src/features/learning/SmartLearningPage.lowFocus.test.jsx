@@ -62,9 +62,9 @@ describe('SmartLearningPage low-concentration alert', () => {
     expect(alert).toHaveTextContent('נראה שהריכוז ירד (30%)');
     expect(alert).toHaveTextContent(`נמוכה מ-${LOW_FOCUS.belowScore}%`);
 
-    concentration(45, 2000); // between the thresholds: stays
+    concentration(65, 2000); // between the thresholds: stays
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    concentration(60, 500);
+    concentration(LOW_FOCUS.recoverScore, 500);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('SmartLearningPage low-concentration alert', () => {
     concentration(20, LOW_FOCUS.holdMs + 1000);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // dismissed until recovery
 
-    concentration(70, 500);
+    concentration(LOW_FOCUS.recoverScore + 5, 500);
     concentration(20, LOW_FOCUS.holdMs + 1000);
     fireEvent.click(screen.getByRole('button', { name: 'הבנתי' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -93,9 +93,9 @@ describe('SmartLearningPage low-concentration alert', () => {
       advance(500);
     }
     expect(screen.getByRole('alert')).toHaveTextContent('נראה שהקשב ירד (ציון 0.31)');
-    expect(screen.getByRole('alert')).toHaveTextContent('ציון הקשב נמוך מ-0.4');
+    expect(screen.getByRole('alert')).toHaveTextContent(`ציון הקשב נמוך מ-${(LOW_FOCUS.belowScore / 100).toFixed(1)}`);
 
-    act(() => report('ON_SCREEN', 20, 0.75)); // model recovered: hidden, whatever the estimate says
+    act(() => report('ON_SCREEN', 20, 0.8)); // model recovered: hidden, whatever the estimate says
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

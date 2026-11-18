@@ -26,10 +26,13 @@ import './LessonPlayer.css';
 const STATS_TICK_MS = 500;
 
 /**
- * Low-concentration alert (assignment: alert when the score drops, e.g. below
- * 0.4). On the 0-100 estimate: below 40 for 4 s shows it, 50 or more hides it.
+ * Low-attention alert (assignment: alert when the score drops; 0.4 is given as
+ * an example). Calibrated on our own recordings with the course model v1 on a
+ * face crop: about 0.86-0.93 looking at the screen and 0.54-0.60 looking away,
+ * so the alert shows below 0.6 for 4 s and hides again at 0.7. Values here are
+ * on a 0..100 scale (model score × 100, or the concentration estimate).
  */
-export const LOW_FOCUS = Object.freeze({ belowScore: 40, recoverScore: 50, holdMs: 4000, rewindSeconds: 10 });
+export const LOW_FOCUS = Object.freeze({ belowScore: 60, recoverScore: 70, holdMs: 4000, rewindSeconds: 10 });
 
 function formatElapsed(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
@@ -820,6 +823,7 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                     {sessionSaved.modelAverage !== null && <> · ציון קשב ממוצע: <strong>{sessionSaved.modelAverage.toFixed(2)}</strong></>}
                     {sessionSaved.average !== null && <> · ריכוז ממוצע (הערכה): <strong>{sessionSaved.average}%</strong></>}
                     . <a href="/insights#sessions-title">לצפייה בהיסטוריית המפגשים ←</a>
+                    {' '}· <a href="/review">קטעים לחזרה (חזרה חכמה) ←</a>
                   </>
                 )}
                 {sessionSaved.status === 'error' && 'לא הצלחנו לסגור את המפגש בשרת. הזמן שנמדד עד עכשיו כבר נשמר.'}

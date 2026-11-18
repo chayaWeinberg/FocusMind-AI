@@ -115,7 +115,7 @@ function MeasurementDetails({ details, fatigue, estimate }) {
 function ModelScoreCard({ model }) {
   if (model.status === 'error') {
     return (
-      <section className="attention-model-score" aria-label="ציון קשב (מודל הקורס)">
+      <section className="attention-concentration attention-model-score" aria-label="ציון קשב (מודל הקורס)">
         <div className="attention-concentration-head"><span>ציון קשב (מודל {ATTENTION_MODEL_VERSION})</span><b>לא זמין</b></div>
         <p>טעינת מודל הקשב נכשלה. הערכת הריכוז שלמטה ממשיכה לעבוד.</p>
       </section>
@@ -123,7 +123,7 @@ function ModelScoreCard({ model }) {
   }
   if (model.score === null) {
     return (
-      <section className="attention-model-score" aria-label="ציון קשב (מודל הקורס)">
+      <section className="attention-concentration attention-model-score" aria-label="ציון קשב (מודל הקורס)">
         <div className="attention-concentration-head">
           <span>ציון קשב (מודל {ATTENTION_MODEL_VERSION})</span>
           <b>{model.status === 'loading' ? 'טוענים את המודל…' : 'אוספים 10 שניות…'}</b>
@@ -135,7 +135,7 @@ function ModelScoreCard({ model }) {
   }
   const level = attentionLevelOf(model.score);
   return (
-    <section className={`attention-model-score attention-model-score--${level.key}`} aria-label="ציון קשב (מודל הקורס)">
+    <section className={`attention-concentration attention-model-score attention-model-score--${level.key}`} aria-label="ציון קשב (מודל הקורס)">
       <div className="attention-concentration-head">
         <span>ציון קשב (מודל {ATTENTION_MODEL_VERSION})</span>
         <strong aria-label={`ציון קשב ${model.score.toFixed(2)} מתוך 1`}>{model.score.toFixed(2)}</strong>
