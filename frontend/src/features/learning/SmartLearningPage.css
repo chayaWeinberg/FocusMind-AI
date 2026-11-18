@@ -56,3 +56,51 @@
     font-family: var(--signature-font-family);
   }
 }
+
+/* Low-concentration alert (shown under the video while the session runs). */
+.low-focus-alert {
+  margin: 12px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(180, 68, 44, 0.35);
+  border-inline-start: 4px solid #b4442c;
+  border-radius: 12px;
+  background: #fdf1ec;
+  color: var(--signature-ink);
+}
+
+.low-focus-alert strong {
+  display: block;
+  color: #8f3320;
+  font-size: 1.05rem;
+}
+
+.low-focus-alert p {
+  margin: 4px 0 10px;
+  line-height: 1.5;
+}
+
+.low-focus-alert div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Confirmation after "סיום מפגש". */
+.session-saved-note {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--signature-soft);
+  line-height: 1.5;
+}
+
+.session-saved-note a {
+  color: var(--signature-primary);
+  font-weight: 600;
+}
+
+.session-saved-note--error {
+  background: #fdf1ec;
+  color: #8f3320;
+}

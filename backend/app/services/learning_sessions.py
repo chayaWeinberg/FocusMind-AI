@@ -154,7 +154,9 @@ async def history_items(database: AsyncDatabase, repository: LearningSessionRepo
     # Retired demonstration courses are hidden from the history as well.
     courses = {row["_id"]: row["title"] async for row in database.courses.find({"_id": {"$in": course_ids}, "retired": {"$ne": True}}, {"title": 1})}
     sessions = [row for row in sessions if row["course_id"] in courses]
-    video = await repository.video_seconds([row["_id"] for row in sessions])
+    session_ids = [row["_id"] for row in sessions]
+    video = await repository.video_seconds(session_ids)
+    concentration = await repository.average_concentration(session_ids)
     now = utcnow()
     return [
         SessionHistoryItem(
@@ -172,6 +174,7 @@ async def history_items(database: AsyncDatabase, repository: LearningSessionRepo
             segment_count=row.get("segment_count", 0),
             trackable=row.get("trackable", True),
             status=session_status(row, now),
+            average_concentration=concentration.get(row["_id"]),
         )
         for row in sessions
     ]

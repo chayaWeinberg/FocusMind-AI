@@ -233,6 +233,47 @@ describe('learning features (fake backend)', { timeout: 20_000 }, () => {
     expect(screen.getByRole('figure', { name: 'זמן למידה והתקדמות לפי קורס' })).toHaveTextContent('פיזיקה');
   });
 
+  it('lists sessions with their average concentration and opens their readings', async () => {
+    const user = userEvent.setup({ delay: null });
+    const insights = await (await api.fetch('/api/insights')).json();
+    insights.totals = { ...insights.totals, activeMs: 60_000, sessionCount: 2 };
+    const base = {
+      lessonId: lesson.id, courseId: course.id, lessonTitle: 'תנועה', courseTitle: 'פיזיקה',
+      startedAt: '2026-11-18T10:00:00Z', endedAt: '2026-11-18T10:01:00Z', lastSeenAt: '2026-11-18T10:01:00Z',
+      activeMs: 60_000, breakMs: 0, videoSeconds: 60, trackable: true, status: 'ended',
+    };
+    insights.recentSessions = [
+      { ...base, id: 'measured', segmentCount: 2, averageConcentration: 75 },
+      { ...base, id: 'camera-off', segmentCount: 1, averageConcentration: null },
+    ];
+    api.setInsights(insights);
+    extraRoutes = async (url) => (url === '/api/learning-sessions/measured' ? {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...base, id: 'measured', segmentCount: 2,
+        segments: [
+          { seq: 0, sessionStartMs: 0, sessionEndMs: 30_000, videoStart: 0, videoEnd: 30, playbackRate: 1, state: 'ON_SCREEN', durationMs: 30_000, concentration: 90 },
+          { seq: 1, sessionStartMs: 30_000, sessionEndMs: 40_000, videoStart: 30, videoEnd: 40, playbackRate: 1, state: 'OFF_SCREEN', durationMs: 10_000, concentration: 30 },
+        ],
+      }),
+    } : null);
+
+    open('/insights');
+    const history = within((await screen.findByRole('heading', { name: 'היסטוריית מפגשים' })).closest('section'));
+    expect(history.getByRole('columnheader', { name: 'ריכוז ממוצע (הערכה)' })).toBeInTheDocument();
+    expect(history.getByText('75%')).toBeInTheDocument();
+    expect(history.getByText('לא נמדד')).toBeInTheDocument();
+
+    const [showReadings] = history.getAllByRole('button', { name: 'הצגת המדידות' });
+    await user.click(showReadings);
+    const readings = within(await history.findByRole('table', { name: 'המדידות של המפגש (2)' }));
+    expect(readings.getByText('90%')).toBeInTheDocument();
+    expect(readings.getByText('מבט מחוץ למסך')).toBeInTheDocument();
+    await user.click(history.getByRole('button', { name: 'הסתרת המדידות' }));
+    expect(history.queryByRole('table', { name: /המדידות של המפגש/ })).not.toBeInTheDocument();
+  });
+
   it('sets a study goal, suggests the next session and explains coach tips', async () => {
     const user = userEvent.setup({ delay: null });
     api.setCoachTips([{

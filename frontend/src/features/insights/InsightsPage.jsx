@@ -1,9 +1,10 @@
+import { Fragment, useState } from 'react';
 import AppShell from '../../components/AppShell.jsx';
 import { BarChart, HBarList, StateDistribution } from '../../components/charts/Charts.jsx';
 import { LoadState } from '../courses/CourseParts.jsx';
 import useLoader from '../courses/useLoader.js';
 import { courseUrl, lessonUrl } from '../courses/courseRoutes.js';
-import { formatClock, formatDate, formatDateTime, formatMinutes, getInsights } from '../learning/learningApi.js';
+import { formatClock, formatDate, formatDateTime, formatMinutes, getInsights, getSessionDetail } from '../learning/learningApi.js';
 import '../courses/Courses.css';
 import './Insights.css';
 
@@ -17,6 +18,39 @@ export const STATE_LABELS = Object.freeze({
 
 const SESSION_STATUS = { active: 'פעיל עכשיו', ended: 'הסתיים', interrupted: 'נקטע (הדף נסגר)' };
 const WEEKDAY = new Intl.DateTimeFormat('he-IL', { weekday: 'narrow' });
+
+/** The readings of one session: each stored segment with its video time, state and estimate. */
+function SessionReadings({ sessionId }) {
+  const { status, data, error, reload } = useLoader(() => getSessionDetail(sessionId), [sessionId]);
+  if (status !== 'ready') return <LoadState status={status} error={error} onRetry={reload} />;
+  const readings = data.segments;
+  if (readings.length === 0) {
+    return <p className="coach-empty">אין מדידות במפגש הזה: הסרטון לא נוגן בזמן שהשעון פעל, או שזה סרטון YouTube.</p>;
+  }
+  return (
+    <table className="insight-table session-readings">
+      <caption>המדידות של המפגש ({readings.length})</caption>
+      <thead>
+        <tr>
+          <th scope="col">זמן בסרטון</th>
+          <th scope="col">משך</th>
+          <th scope="col">כיוון המבט</th>
+          <th scope="col">הערכת ריכוז</th>
+        </tr>
+      </thead>
+      <tbody>
+        {readings.map((reading) => (
+          <tr key={reading.seq}>
+            <td>{formatClock(reading.videoStart)}–{formatClock(reading.videoEnd)}</td>
+            <td>{Math.round(reading.durationMs / 1000)} שנ׳</td>
+            <td>{STATE_LABELS[reading.state] ?? reading.state}</td>
+            <td>{reading.concentration === null ? '—' : `${reading.concentration}%`}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 function Tile({ label, value, hint }) {
   return (
@@ -47,6 +81,7 @@ export default function InsightsPage() {
 }
 
 export function InsightsContent({ data }) {
+  const [openSession, setOpenSession] = useState(null);
   const { totals, streak, replay, quizzes } = data;
   const newUser = totals.sessionCount === 0 && totals.lessonsCompleted === 0;
   const daily = data.daily.map((day) => {
@@ -159,12 +194,15 @@ export function InsightsContent({ data }) {
                   <th scope="col">זמן פעיל</th>
                   <th scope="col">הפסקות</th>
                   <th scope="col">זמן בסרטון</th>
+                  <th scope="col">ריכוז ממוצע (הערכה)</th>
                   <th scope="col">מצב</th>
+                  <th scope="col">מדידות</th>
                 </tr>
               </thead>
               <tbody>
                 {data.recentSessions.map((session) => (
-                  <tr key={session.id}>
+                  <Fragment key={session.id}>
+                  <tr>
                     <td>{formatDateTime(session.startedAt)}</td>
                     <td>
                       {session.lessonTitle
@@ -175,8 +213,33 @@ export function InsightsContent({ data }) {
                     <td>{formatMinutes(session.activeMs)}</td>
                     <td>{session.breakMs ? formatMinutes(session.breakMs) : '—'}</td>
                     <td>{session.trackable ? formatClock(session.videoSeconds) : 'לא נמדד (YouTube)'}</td>
+                    <td>
+                      {session.averageConcentration === null || session.averageConcentration === undefined
+                        ? <span title="המצלמה לא הופעלה במפגש">לא נמדד</span>
+                        : <strong>{session.averageConcentration}%</strong>}
+                    </td>
                     <td>{SESSION_STATUS[session.status]}</td>
+                    <td>
+                      {session.trackable && session.segmentCount > 0 ? (
+                        <button
+                          type="button"
+                          className="lesson-inline-button"
+                          aria-expanded={openSession === session.id}
+                          onClick={() => setOpenSession(openSession === session.id ? null : session.id)}
+                        >
+                          {openSession === session.id ? 'הסתרת המדידות' : 'הצגת המדידות'}
+                        </button>
+                      ) : '—'}
+                    </td>
                   </tr>
+                  {openSession === session.id && (
+                    <tr className="session-readings-row">
+                      <td colSpan={8}>
+                        <SessionReadings sessionId={session.id} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

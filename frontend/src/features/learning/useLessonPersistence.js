@@ -176,10 +176,36 @@ export default function useLessonPersistence({
     };
   }, [sessionEnabled, flushSegments, heartbeat, save]);
 
+  /**
+   * The learner ended the session ("סיום מפגש"): store the last progress and
+   * segments, close the session on the server, and start the next playback
+   * as a new session (new recorder, new session id).
+   * @returns {Promise<object|null>} the ended session, or null when none was open
+   */
+  const finishSession = useCallback(async () => {
+    recorderRef.current.interrupt();
+    await save();
+    await flushSegments();
+    const { activeMs, breakMs } = clocks();
+    const session = sessionRef.current;
+    sessionRef.current = null;
+    lastBeatRef.current = { active: -1, breaks: -1 };
+    recorderRef.current = createSegmentRecorder({ sessionStartedAt: performance.now() });
+    if (!session) return null;
+    const sessionId = await session;
+    if (!sessionId) return null;
+    try {
+      return await endLearningSession(sessionId, activeMs, { breakMs });
+    } catch {
+      return null;
+    }
+  }, [save, flushSegments]);
+
   return {
     progress,
     setProgress,
     saveError,
+    finishSession,
     /** YouTube lessons: the learner started the session timer. */
     startTimedSession() {
       if (timed) ensureSession();

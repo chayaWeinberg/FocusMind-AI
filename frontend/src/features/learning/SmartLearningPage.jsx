@@ -25,6 +25,12 @@ import './LessonPlayer.css';
 
 const STATS_TICK_MS = 500;
 
+/**
+ * Low-concentration alert (assignment: alert when the score drops, e.g. below
+ * 0.4). On the 0-100 estimate: below 40 for 4 s shows it, 50 or more hides it.
+ */
+export const LOW_FOCUS = Object.freeze({ belowScore: 40, recoverScore: 50, holdMs: 4000, rewindSeconds: 10 });
+
 function formatElapsed(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -82,10 +88,44 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   const concentrationRef = useRef(null);
   const [attentionStats, setAttentionStats] = useState(() => statsRef.current.snapshot());
 
+  // Low-concentration alert: shown while the session runs and the estimate
+  // stays below LOW_FOCUS.belowScore for LOW_FOCUS.holdMs (a single low reading
+  // never triggers it); hidden again once it recovers to LOW_FOCUS.recoverScore.
+  const [lowFocus, setLowFocus] = useState(null); // null | { score }
+  const [sessionSaved, setSessionSaved] = useState(null); // null | { status, average }
+  const sessionRunningRef = useRef(false);
+  const lowSinceRef = useRef(null);
+  const lowDismissedRef = useRef(false);
+  const lowShownScoreRef = useRef(null);
+
   const handleAttentionState = useCallback((state, concentration = null) => {
     attentionStateRef.current = state;
     concentrationRef.current = concentration;
+    if (concentration === null || !sessionRunningRef.current) return;
+    if (concentration < LOW_FOCUS.belowScore) {
+      const now = performance.now();
+      if (lowSinceRef.current === null) lowSinceRef.current = now;
+      const shown = lowShownScoreRef.current;
+      if (!lowDismissedRef.current && now - lowSinceRef.current >= LOW_FOCUS.holdMs
+        && (shown === null || Math.abs(shown - concentration) >= 5)) {
+        lowShownScoreRef.current = concentration;
+        setLowFocus({ score: concentration });
+      }
+    } else if (concentration >= LOW_FOCUS.recoverScore) {
+      lowSinceRef.current = null;
+      lowDismissedRef.current = false;
+      if (lowShownScoreRef.current !== null) {
+        lowShownScoreRef.current = null;
+        setLowFocus(null);
+      }
+    }
   }, []);
+
+  function dismissLowFocus() {
+    lowDismissedRef.current = true;
+    lowShownScoreRef.current = null;
+    setLowFocus(null);
+  }
 
   const statsGenerationRef = useRef(0);
 
@@ -245,6 +285,17 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
     setOnBreak(true);
   }
 
+  function rewindAfterLowFocus() {
+    const element = videoRef.current;
+    if (element) element.currentTime = Math.max(0, element.currentTime - LOW_FOCUS.rewindSeconds);
+    dismissLowFocus();
+  }
+
+  function breakAfterLowFocus() {
+    dismissLowFocus();
+    startBreak();
+  }
+
   function endBreak() {
     breakClockRef.current.stop();
     setOnBreak(false);
@@ -319,6 +370,8 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
   }, [isCounting]);
 
   function updateSessionState(nextState) {
+    sessionRunningRef.current = nextState === 'running';
+    if (nextState !== 'running') lowSinceRef.current = null;
     setSessionState(nextState);
   }
 
@@ -425,6 +478,15 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
     manualEndRef.current = true;
     stopPlayback('ended');
     videoRef.current?.pause();
+    setLowFocus(null);
+    if (!lessonMode) return;
+    // Course lessons: close the session on the server so it appears in the
+    // history right away (a new playback starts a new session).
+    const average = statsRef.current.snapshot().averageConcentration;
+    setSessionSaved({ status: 'saving', average });
+    persistence.finishSession().then((ended) => {
+      setSessionSaved({ status: ended ? 'saved' : 'error', average });
+    });
   }
 
   function startNewSession() {
@@ -437,6 +499,8 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
     resetSmartTimer();
     setElapsedSeconds(0);
     updateSessionState('ready');
+    setSessionSaved(null);
+    setLowFocus(null);
     const currentVideo = videoRef.current;
     if (currentVideo && currentVideo.ended) {
       currentVideo.currentTime = 0;
@@ -674,6 +738,26 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
               />
             )}
 
+            {lowFocus && (
+              <div className="low-focus-alert" role="alert">
+                <strong>נראה שהריכוז ירד ({lowFocus.score}%)</strong>
+                <p>
+                  הערכת הריכוז נמוכה מ-{LOW_FOCUS.belowScore}% כבר כמה שניות. אולי כדאי לחזור קצת אחורה, או לקחת הפסקה קצרה.
+                </p>
+                <div>
+                  {videoSource && (
+                    <button type="button" className="signature-primary-button" onClick={rewindAfterLowFocus}>
+                      חזרה {LOW_FOCUS.rewindSeconds} שניות אחורה
+                    </button>
+                  )}
+                  <button type="button" className="signature-secondary-button" onClick={breakAfterLowFocus}>
+                    התחלת הפסקה
+                  </button>
+                  <button type="button" className="lesson-inline-button" onClick={dismissLowFocus}>הבנתי</button>
+                </div>
+              </div>
+            )}
+
             <div className="signature-learning-actions">
               <span>{sessionHint}</span>
               {lessonMode && manualTimer && (sessionState === 'ready' || sessionState === 'paused') && (
@@ -697,6 +781,19 @@ export default function SmartLearningPage({ lessonId = null, replayItemId = null
                 </button>
               )}
             </div>
+            {sessionSaved && (
+              <p className={`session-saved-note session-saved-note--${sessionSaved.status}`} role="status">
+                {sessionSaved.status === 'saving' && 'שומרים את המפגש…'}
+                {sessionSaved.status === 'saved' && (
+                  <>
+                    המפגש נשמר
+                    {sessionSaved.average !== null && <> · ריכוז ממוצע (הערכה): <strong>{sessionSaved.average}%</strong></>}
+                    . <a href="/insights#sessions-title">לצפייה בהיסטוריית המפגשים ←</a>
+                  </>
+                )}
+                {sessionSaved.status === 'error' && 'לא הצלחנו לסגור את המפגש בשרת. הזמן שנמדד עד עכשיו כבר נשמר.'}
+              </p>
+            )}
             <div className="signature-learning-secondary">
               {attentionAvailable && (
                 <section aria-labelledby="timeline-title">

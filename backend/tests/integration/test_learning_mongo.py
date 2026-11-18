@@ -187,6 +187,31 @@ def test_heartbeat_keeps_time_of_interrupted_sessions_and_history(client: TestCl
     assert client.post(f"/api/learning-sessions/{session_id}/heartbeat", json={"activeMs": 1}).status_code == 404
 
 
+def test_history_reports_the_duration_weighted_average_concentration(client: TestClient) -> None:
+    sign_in(client, "ada")
+    _, lesson = lesson_with_video(client, "Scored lesson")
+
+    # Camera off: no estimate, reported as null (never as 0).
+    look_away_session(client, lesson["id"])
+    [unmeasured] = client.get("/api/learning-sessions").json()
+    assert unmeasured["averageConcentration"] is None
+
+    session_id = client.post("/api/learning-sessions", json={"lessonId": lesson["id"]}).json()["id"]
+    segments = [
+        {**segment(0, "ON_SCREEN", 0, 30, 0), "concentration": 90},
+        {**segment(1, "OFF_SCREEN", 30, 10, 30_000), "concentration": 30},
+        segment(2, "UNCERTAIN", 40, 5, 40_000),  # no estimate: not counted
+    ]
+    assert client.post(f"/api/learning-sessions/{session_id}/segments", json={"segments": segments}).json() == {"accepted": 3}
+    client.post(f"/api/learning-sessions/{session_id}/end", json={"activeMs": 45_000})
+
+    latest = client.get("/api/learning-sessions").json()[0]
+    assert latest["id"] == session_id
+    assert latest["averageConcentration"] == 75  # (90*30 + 30*10) / 40
+    readings = client.get(f"/api/learning-sessions/{session_id}").json()["segments"]
+    assert [reading["concentration"] for reading in readings] == [90, 30, None]
+
+
 def test_preferences_defaults_validation_and_persistence(client: TestClient) -> None:
     sign_in(client, "ada")
     assert client.get("/api/me/preferences").json() == {"studyMinutes": 25, "breakMinutes": 5, "breakReminders": True}

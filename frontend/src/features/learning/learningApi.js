@@ -30,6 +30,8 @@ export const sendHeartbeat = (sessionId, activeMs, breakMs, { keepalive = false 
   { method: 'POST', body: { activeMs, breakMs }, keepalive },
 );
 export const listSessions = (limit = 20) => apiRequest(`/api/learning-sessions${query({ limit })}`);
+/** One session with its readings (attention segments: video time, state, concentration). */
+export const getSessionDetail = (sessionId) => apiRequest(`/api/learning-sessions/${id(sessionId)}`);
 
 // FocusInsights & FocusCoach
 export const getInsights = () => apiRequest(`/api/insights${query({ tzOffsetMinutes: tzOffset() })}`);

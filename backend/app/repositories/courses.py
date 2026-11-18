@@ -326,6 +326,28 @@ class LearningSessionRepository:
         ])
         return {row["_id"]: float(row["seconds"]) async for row in cursor}
 
+    async def average_concentration(self, session_ids: list[ObjectId]) -> dict[ObjectId, int]:
+        """Duration-weighted average concentration estimate (0-100) per session.
+
+        Only segments that carry an estimate count; sessions without any
+        (camera off) are absent from the result, never reported as 0.
+        """
+        if not session_ids:
+            return {}
+        cursor = await self._segments.aggregate([
+            {"$match": {"session_id": {"$in": session_ids}, "concentration": {"$ne": None}}},
+            {"$group": {
+                "_id": "$session_id",
+                "weighted": {"$sum": {"$multiply": ["$concentration", "$duration_ms"]}},
+                "duration": {"$sum": "$duration_ms"},
+            }},
+        ])
+        return {
+            row["_id"]: round(row["weighted"] / row["duration"])
+            async for row in cursor
+            if row["duration"] > 0
+        }
+
     async def segments(self, session_id: ObjectId) -> list[AttentionSegmentDocument]:
         return await self._segments.find({"session_id": session_id}).sort("seq", ASCENDING).to_list(None)
 

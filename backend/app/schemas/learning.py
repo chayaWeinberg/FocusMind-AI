@@ -90,6 +90,8 @@ class SessionHistoryItem(ApiModel):
     segment_count: int
     trackable: bool
     status: Literal["active", "ended", "interrupted"]
+    # Duration-weighted concentration estimate (0-100); None when not measured.
+    average_concentration: int | None = None
 
 
 class Preferences(RequestModel):

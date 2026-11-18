@@ -147,3 +147,19 @@
     gap: 2px;
   }
 }
+
+/* Readings of one session, opened from the session history. */
+.session-readings-row > td {
+  background: var(--signature-bg, #faf8f4);
+}
+
+.session-readings {
+  margin: 4px 0 8px;
+  font-size: 0.92rem;
+}
+
+.session-readings caption {
+  text-align: start;
+  font-weight: 600;
+  padding: 4px 0 8px;
+}
