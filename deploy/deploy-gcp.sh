@@ -129,7 +129,7 @@ gcloud run deploy "$SERVER" --image="$REPO/server:$TAG" --region="$REGION" \
   --min-instances=0 --max-instances=3 --execution-environment=gen2 \
   --set-secrets=SECRET_KEY=focusmind-secret-key:latest,MONGO_URI=focusmind-mongo-uri:latest \
   --set-env-vars=MONGO_DB_NAME=focusmind,SEED_CATALOG=true,MAX_VIDEO_UPLOAD_BYTES=31457280,USER_VIDEO_QUOTA_BYTES=1073741824,ACCESS_TOKEN_TTL_MINUTES=120 \
-  --add-volume=name=videos,type=cloud-storage,bucket="$BUCKET",mount-options="uid=10001;gid=10001" \
+  "--add-volume=name=videos,type=cloud-storage,bucket=${BUCKET},mount-options=uid=10001;gid=10001" \
   --add-volume-mount=volume=videos,mount-path=/data/videos \
   --startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=12
 
