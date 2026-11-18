@@ -31,11 +31,15 @@ REPO="$REGION-docker.pkg.dev/$PROJECT_ID/focusmind"
 BUCKET="$PROJECT_ID-focusmind-videos"
 SA_NAME=focusmind-run
 SA="$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com"
-TAG="v$(date +%Y%m%d-%H%M%S)"
+# IMAGE_TAG=v… reuses images already built (skips Cloud Build); default: build new ones.
+TAG="${IMAGE_TAG:-v$(date +%Y%m%d-%H%M%S)}"
 
 cd "$(dirname "$0")/.."
 
 # --- gcloud on Windows (Git Bash) ------------------------------------------------
+# Git Bash rewrites arguments that look like Unix paths (/data/videos,
+# /api/*=...) into Windows paths before calling gcloud.cmd; turn that off.
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 if command -v gcloud.cmd >/dev/null 2>&1; then
   gcloud() { gcloud.cmd "$@"; }
 elif ! command -v gcloud >/dev/null 2>&1; then
@@ -49,15 +53,34 @@ fi
 
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 exists() { "$@" >/dev/null 2>&1; }
+# IAM is eventually consistent: a service account created a moment ago can be
+# "not found" for a few seconds. Retry such calls for up to ~90 s.
+retry() {
+  local attempt
+  for attempt in 1 2 3 4 5 6 7 8 9; do
+    if "$@" >/dev/null 2>&1; then return 0; fi
+    echo "  (not ready yet, retrying in 10 s: attempt $attempt)"
+    sleep 10
+  done
+  "$@"
+}
 
 gcloud config set project "$PROJECT_ID" >/dev/null
 
 # --- 0. Billing must be an active Free Trial (never upgrade) ----------------------
 step "Checking billing"
-if [ "$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)')" != "True" ]; then
+billing=""
+for _ in 1 2 3; do
+  billing="$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null || true)"
+  [ -n "$billing" ] && break
+  sleep 10 # e.g. a temporary 429 (the shared gcloud quota), not our project
+done
+if [ "$billing" = "False" ]; then
   echo "Billing is not enabled for $PROJECT_ID. Link it to an active Free Trial billing account first:" >&2
   echo "  https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID" >&2
   exit 1
+elif [ "$billing" != "True" ]; then
+  echo "  (could not read the billing status right now; continuing: enabling the APIs will fail if billing is off)"
 fi
 
 # --- 1. APIs ----------------------------------------------------------------------
@@ -99,24 +122,72 @@ if ! exists gcloud iam service-accounts describe "$SA"; then
   gcloud iam service-accounts create "$SA_NAME" --display-name="FocusMind Cloud Run server"
 fi
 for secret in focusmind-secret-key focusmind-mongo-uri; do
-  gcloud secrets add-iam-policy-binding "$secret" --member="serviceAccount:$SA" \
-    --role=roles/secretmanager.secretAccessor >/dev/null
+  retry gcloud secrets add-iam-policy-binding "$secret" --member="serviceAccount:$SA" \
+    --role=roles/secretmanager.secretAccessor
 done
-gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="serviceAccount:$SA" \
-  --role=roles/storage.objectAdmin >/dev/null
+retry gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="serviceAccount:$SA" \
+  --role=roles/storage.objectAdmin
+echo "Permissions granted."
 
 # --- 5. Build both images (Cloud Build) -------------------------------------------
 step "Building images ($TAG)"
 if ! exists gcloud artifacts repositories describe focusmind --location="$REGION"; then
   gcloud artifacts repositories create focusmind --repository-format=docker --location="$REGION"
 fi
-gcloud builds submit backend  --tag "$REPO/server:$TAG"
-gcloud builds submit frontend --tag "$REPO/client:$TAG"
+# Builds run on Google's servers. They are started with --async and followed by
+# status, because streaming the build log reads storage.googleapis.com, which
+# some filtered networks (e.g. NetFree) block even though the build is fine.
+build_image() { # source directory, image
+  local id status
+  id="$(gcloud builds submit "$1" --tag "$2" --async --format='value(id)')"
+  echo "  build $id ($1) started"
+  for _ in $(seq 1 120); do
+    status="$(gcloud builds describe "$id" --format='value(status)')"
+    case "$status" in
+      SUCCESS) echo "  build $id: SUCCESS"; return 0 ;;
+      FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED|EXPIRED)
+        echo "  build $id: $status. Logs: https://console.cloud.google.com/cloud-build/builds/$id?project=$PROJECT_ID" >&2
+        return 1 ;;
+    esac
+    sleep 10
+  done
+  echo "  build $id is still running after 20 minutes." >&2
+  return 1
+}
+if [ -n "${IMAGE_TAG:-}" ]; then
+  echo "  reusing images tagged $TAG (no build)"
+else
+  build_image backend  "$REPO/server:$TAG"
+  build_image frontend "$REPO/client:$TAG"
+fi
 
 # --- 6. Cloud Run (two services, reachable only through the Load Balancer) --------
+# Public site: --no-invoker-iam-check turns off the invoker IAM check on the
+# service itself (the same effect as --allow-unauthenticated, which instead
+# calls Cloud Run's setIamPolicy). Deploys run with --async and are followed by
+# reading the service status: some filtered networks (e.g. NetFree) block the
+# operation-polling and IAM endpoints of the Cloud Run API, not the rest.
+wait_ready() { # service
+  local ready message
+  for _ in $(seq 1 60); do
+    ready="$(gcloud run services describe "$1" --region="$REGION" \
+      --format='value(status.conditions[0].status)' 2>/dev/null || true)"
+    case "$ready" in
+      True) echo "  $1 is ready: $(gcloud run services describe "$1" --region="$REGION" --format='value(status.latestReadyRevisionName)')"; return 0 ;;
+      False)
+        message="$(gcloud run services describe "$1" --region="$REGION" --format='value(status.conditions[0].message)')"
+        echo "  $1 failed: $message" >&2
+        return 1 ;;
+    esac
+    sleep 10
+  done
+  echo "  $1 is not ready after 10 minutes." >&2
+  return 1
+}
+
 step "Deploying $SERVER"
-gcloud run deploy "$SERVER" --image="$REPO/server:$TAG" --region="$REGION" \
-  --service-account="$SA" --allow-unauthenticated \
+gcloud run deploy "$SERVER" --image="$REPO/server:$TAG" --region="$REGION" --async \
+  --service-account="$SA" --no-invoker-iam-check \
   --ingress=internal-and-cloud-load-balancing \
   --port=8000 --memory=1Gi --cpu=1 --timeout=3600 \
   --min-instances=0 --max-instances=3 --execution-environment=gen2 \
@@ -125,11 +196,13 @@ gcloud run deploy "$SERVER" --image="$REPO/server:$TAG" --region="$REGION" \
   "--add-volume=name=videos,type=cloud-storage,bucket=${BUCKET},mount-options=uid=10001;gid=10001" \
   --add-volume-mount=volume=videos,mount-path=/data/videos \
   --startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=12
+wait_ready "$SERVER"
 
 step "Deploying $CLIENT"
-gcloud run deploy "$CLIENT" --image="$REPO/client:$TAG" --region="$REGION" \
-  --allow-unauthenticated --ingress=internal-and-cloud-load-balancing \
+gcloud run deploy "$CLIENT" --image="$REPO/client:$TAG" --region="$REGION" --async \
+  --no-invoker-iam-check --ingress=internal-and-cloud-load-balancing \
   --port=3000 --memory=256Mi --cpu=1 --min-instances=0 --max-instances=3
+wait_ready "$CLIENT"
 
 # --- 7. Load Balancer --------------------------------------------------------------
 step "Load Balancer"
