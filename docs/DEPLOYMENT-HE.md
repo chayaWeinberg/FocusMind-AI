@@ -73,7 +73,8 @@ sh scripts/verify-deployment.sh http://localhost:8080 --journey
 bash deploy/deploy-gcp.sh PROJECT_ID YOUR-DOMAIN
 ```
 
-- **מחרוזת החיבור ל-Atlas:** הסקריפט מבקש אותה פעם אחת, בשדה מוסתר, ושומר אותה ישר ב-Secret Manager. היא לא נשמרת בשום קובץ.
+- **מחרוזת החיבור ל-Atlas:** מדביקים את המחרוזת כמו ש-Atlas מציג אותה, עם `<db_password>`. אפשר גם לתת אותה מראש, כי אין בה סוד: `MONGO_URI_TEMPLATE='mongodb+srv://USER:<db_password>@HOST/...' bash deploy/deploy-gcp.sh ...`. הסיסמה מוקלדת בשדה מוסתר, מוכנסת למחרוזת (עם URL-encoding) ונשמרת ישר ב-Secret Manager. היא לא נשמרת בשום קובץ.
+- **בדיקה מוקדמת של Atlas, בלי ענן:** `bash deploy/check-atlas.sh 'mongodb+srv://USER:<db_password>@HOST/...'`. הבדיקה מריצה את השרת מקומית מול Atlas, ומוחקת את מסד הבדיקה בסוף.
 - **`SECRET_KEY`:** הסקריפט מייצר אותו אקראית.
 - **הרצה חוזרת:** מותר להריץ שוב. מה שכבר קיים מדולג, ושתי התמונות נבנות ונפרסות מחדש עם תגית חדשה.
 - **בסוף:** הסקריפט מדפיס את כתובת ה-IP של ה-Load Balancer. רושמים אותה ברשומת ה-A של הדומיין (שלב 8).

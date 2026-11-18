@@ -75,16 +75,9 @@ else
   echo "focusmind-secret-key already exists"
 fi
 if ! exists gcloud secrets describe focusmind-mongo-uri; then
-  echo "Paste the MongoDB Atlas connection string (mongodb+srv://USER:PASSWORD@...)."
-  echo "The input is hidden and goes straight to Secret Manager."
-  read -r -s -p "MONGO_URI: " MONGO_URI; echo
-  case "$MONGO_URI" in
-    mongodb+srv://*|mongodb://*) ;;
-    *) echo "That does not look like a MongoDB connection string." >&2; exit 1;;
-  esac
-  case "$MONGO_URI" in *"<db_password>"*|*"<password>"*)
-    echo "Replace <db_password> with the real password first." >&2; exit 1;;
-  esac
+  # shellcheck source=deploy/read-mongo-uri.sh
+  . deploy/read-mongo-uri.sh
+  read_mongo_uri
   printf '%s' "$MONGO_URI" | gcloud secrets create focusmind-mongo-uri --replication-policy=automatic --data-file=-
   unset MONGO_URI
 else

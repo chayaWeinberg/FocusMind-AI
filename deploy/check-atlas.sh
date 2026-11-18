@@ -3,7 +3,10 @@
 # real MongoDB Atlas database: connection string, password, Network Access and
 # whether the local network lets port 27017 through.
 #
-#   bash deploy/check-atlas.sh
+#   bash deploy/check-atlas.sh ['mongodb+srv://USER:<db_password>@HOST/...']
+#
+# With the connection string as an argument (it has no password in it), only
+# the password is asked for.
 #
 # The connection string is typed at a hidden prompt and passed to the
 # container only through its environment; it is never written to a file.
@@ -23,16 +26,9 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   docker build -q -t "$IMAGE" backend >/dev/null
 fi
 
-echo "Paste the MongoDB Atlas connection string (mongodb+srv://USER:PASSWORD@...)."
-echo "The input is hidden."
-read -r -s -p "MONGO_URI: " MONGO_URI; echo
-case "$MONGO_URI" in
-  mongodb+srv://*|mongodb://*) ;;
-  *) echo "That does not look like a MongoDB connection string." >&2; exit 1;;
-esac
-case "$MONGO_URI" in *"<db_password>"*|*"<password>"*)
-  echo "Replace <db_password> with the real password first." >&2; exit 1;;
-esac
+# shellcheck source=deploy/read-mongo-uri.sh
+. deploy/read-mongo-uri.sh
+MONGO_URI_TEMPLATE="${1:-${MONGO_URI_TEMPLATE:-}}" read_mongo_uri
 
 SECRET_KEY="$(head -c 48 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
 docker rm -f "$NAME" >/dev/null 2>&1 || true
@@ -67,7 +63,9 @@ done
 if [ "$status" = 200 ]; then
   echo
   echo "  OK  The server connected to Atlas: $(curl -s "http://127.0.0.1:${PORT}/health")"
-  sh scripts/verify-deployment.sh "http://127.0.0.1:${PORT}" --journey | grep -E "OK|FAIL|RESULT" | grep -v "home page\|client route\|React app" || true
+  # Only the server runs here, so the checks of the client pages are left out
+  # (and with them the overall RESULT line, which would count them as failed).
+  sh scripts/verify-deployment.sh "http://127.0.0.1:${PORT}" --journey | grep -E "OK|FAIL" | grep -v "home page\|client route\|React app" || true
   echo
   echo "Atlas is ready for the cloud deployment. (The test database '$DB' is deleted now.)"
 else
